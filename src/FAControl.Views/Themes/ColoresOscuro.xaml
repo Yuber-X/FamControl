@@ -1,0 +1,66 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ============================================================
+       TEMA OSCURO — pedido del cliente 2026-07-16: "Temas Oscuro
+       cambiable (desean que se puedan invertir los colores como el
+       modo noche)".
+
+       Este diccionario REEMPLAZA a Colores.xaml en caliente, así que
+       debe definir EXACTAMENTE las mismas claves. Si falta una, el
+       brush queda sin resolver y ese control se pinta transparente.
+
+       No es una inversión mecánica de Colores.xaml:
+        - los fondos pálidos del semáforo (#D1FAE5) quemarían la vista
+          sobre oscuro, así que se invierte la relación (fondo profundo
+          + texto claro), conservando el mismo significado de color;
+        - el índigo se aclara: el #4F46E5 del tema claro no tiene
+          contraste suficiente contra un fondo oscuro;
+        - los grises no son neutros puros, llevan una pizca de azul
+          para que no se vean sucios.
+       ============================================================ -->
+
+  <!-- Marca (Indigo aclarado para fondo oscuro) -->
+  <Color x:Key="Color.Indigo600">#6366F1</Color>
+  <Color x:Key="Color.Indigo700">#818CF8</Color>
+  <Color x:Key="Color.Indigo100">#312E81</Color>
+  <Color x:Key="Color.Indigo50">#232150</Color>
+
+  <SolidColorBrush x:Key="Brush.Primario" Color="{StaticResource Color.Indigo600}" />
+  <SolidColorBrush x:Key="Brush.PrimarioHover" Color="{StaticResource Color.Indigo700}" />
+  <SolidColorBrush x:Key="Brush.PrimarioSuave" Color="{StaticResource Color.Indigo100}" />
+  <SolidColorBrush x:Key="Brush.PrimarioSutil" Color="{StaticResource Color.Indigo50}" />
+
+  <!-- Neutros: la card es MÁS clara que el fondo (al revés que en claro),
+       que es como el ojo percibe elevación en modo noche -->
+  <SolidColorBrush x:Key="Brush.FondoApp" Color="#15161A" />
+  <SolidColorBrush x:Key="Brush.FondoCard" Color="#1E2027" />
+  <SolidColorBrush x:Key="Brush.BordeSutil" Color="#2C2F38" />
+  <SolidColorBrush x:Key="Brush.BordeEstandar" Color="#3A3E4A" />
+  <SolidColorBrush x:Key="Brush.TextoPrincipal" Color="#F0F1F3" />
+  <SolidColorBrush x:Key="Brush.TextoSecundario" Color="#B6B9C2" />
+  <SolidColorBrush x:Key="Brush.TextoTerciario" Color="#868A96" />
+  <SolidColorBrush x:Key="Brush.TextoDeshabilitado" Color="#585C68" />
+  <SolidColorBrush x:Key="Brush.FondoEncabezadoTabla" Color="#24262E" />
+
+  <!-- Semántica financiera: mismo significado, relación invertida -->
+  <SolidColorBrush x:Key="Brush.AlDia.Texto" Color="#6EE7B7" />
+  <SolidColorBrush x:Key="Brush.AlDia.Fondo" Color="#06382A" />
+  <SolidColorBrush x:Key="Brush.PorVencer.Texto" Color="#FCD34D" />
+  <SolidColorBrush x:Key="Brush.PorVencer.Fondo" Color="#4A2E08" />
+  <SolidColorBrush x:Key="Brush.Vencido.Texto" Color="#FDBA74" />
+  <SolidColorBrush x:Key="Brush.Vencido.Fondo" Color="#4D1F0C" />
+  <SolidColorBrush x:Key="Brush.EnMora.Texto" Color="#FCA5A5" />
+  <SolidColorBrush x:Key="Brush.EnMora.Fondo" Color="#4C1212" />
+  <SolidColorBrush x:Key="Brush.Pagado.Texto" Color="#93C5FD" />
+  <SolidColorBrush x:Key="Brush.Pagado.Fondo" Color="#152A55" />
+  <SolidColorBrush x:Key="Brush.Cancelado.Texto" Color="#C4C7CE" />
+  <SolidColorBrush x:Key="Brush.Cancelado.Fondo" Color="#33363F" />
+
+  <!-- Acciones destructivas y deltas: aclarados para tener contraste -->
+  <SolidColorBrush x:Key="Brush.Destructivo" Color="#F87171" />
+  <SolidColorBrush x:Key="Brush.DeltaPositivo" Color="#34D399" />
+  <SolidColorBrush x:Key="Brush.DeltaNegativo" Color="#F87171" />
+  <SolidColorBrush x:Key="Brush.NumeroNegativo" Color="#FCA5A5" />
+
+</ResourceDictionary>

@@ -19,6 +19,13 @@
             <RadioButton x:Name="RadioGrande" Content="Grande" GroupName="Tamano"
                          FontSize="13" Checked="TamanoGrande_Checked" />
           </StackPanel>
+
+          <!-- Modo noche (pedido del cliente 2026-07-16). Binding directo:
+               el VM aplica el tema y lo recuerda por PC. -->
+          <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,16,0,14" />
+          <CheckBox Content="Modo oscuro" FontSize="13" IsChecked="{Binding TemaOscuro}" />
+          <TextBlock Text="Invierte los colores para trabajar de noche o con poca luz. Se aplica al instante y se recuerda en esta computadora."
+                     Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0" />
         </StackPanel>
       </Border>
 

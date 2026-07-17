@@ -23,6 +23,9 @@ public partial class ConfiguracionViewModel : ObservableObject
     /// <summary>El shell escala la UI cuando cambia el tamaño de texto.</summary>
     public event Action<double>? EscalaCambiada;
 
+    /// <summary>La App intercambia la paleta cuando se activa el modo noche.</summary>
+    public event Action<bool>? TemaCambiado;
+
     public ConfiguracionViewModel(AuthService auth, RespaldoService respaldo,
         ExportacionService exportacion, AjustesLocales ajustes, IDialogService dialogos,
         IAvisoVencidos avisoVencidos)
@@ -41,6 +44,9 @@ public partial class ConfiguracionViewModel : ObservableObject
             new Opcion<TamanoTexto>(TamanoTexto.Grande, "Grande")
         ];
         _tamanoSeleccionado = Tamanos.First(t => t.Valor == ajustes.TamanoTexto);
+        // Campo y no propiedad: asignar la propiedad dispararía el evento y
+        // volvería a guardar el ajuste apenas se abre Configuración.
+        _temaOscuro = ajustes.TemaOscuro;
         _exportActivo = ajustes.ExportAutomaticoActivo;
         _exportCadaDiasTexto = ajustes.ExportAutomaticoCadaDias.ToString();
         _exportCarpeta = ajustes.ExportAutomaticoCarpeta ?? string.Empty;
@@ -104,12 +110,24 @@ public partial class ConfiguracionViewModel : ObservableObject
     public IReadOnlyList<Opcion<TamanoTexto>> Tamanos { get; }
 
     [ObservableProperty] private Opcion<TamanoTexto> _tamanoSeleccionado;
+    [ObservableProperty] private bool _temaOscuro;
 
     partial void OnTamanoSeleccionadoChanged(Opcion<TamanoTexto> value)
     {
         _ajustes.TamanoTexto = value.Valor;
         _ajustes.Guardar();
         EscalaCambiada?.Invoke(_ajustes.FactorEscala);
+    }
+
+    /// <summary>
+    /// Modo noche: se aplica en el momento y se recuerda por PC
+    /// (pedido del cliente 2026-07-16).
+    /// </summary>
+    partial void OnTemaOscuroChanged(bool value)
+    {
+        _ajustes.TemaOscuro = value;
+        _ajustes.Guardar();
+        TemaCambiado?.Invoke(value);
     }
 
     // ---------- Cambio de contraseña ----------

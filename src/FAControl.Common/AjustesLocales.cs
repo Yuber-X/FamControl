@@ -19,6 +19,12 @@ public class AjustesLocales
 {
     public TamanoTexto TamanoTexto { get; set; } = TamanoTexto.Pequeno;
 
+    /// <summary>
+    /// Modo noche (pedido del cliente 2026-07-16). Es preferencia POR PC, no
+    /// del negocio: cada terminal puede tener la suya.
+    /// </summary>
+    public bool TemaOscuro { get; set; }
+
     // Export automático a Excel (activable en Configuración)
     public bool ExportAutomaticoActivo { get; set; }
     public int ExportAutomaticoCadaDias { get; set; } = 30;

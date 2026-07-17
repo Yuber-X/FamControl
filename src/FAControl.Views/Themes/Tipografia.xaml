@@ -10,34 +10,34 @@
     <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
     <Setter Property="FontSize" Value="28" />
     <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="Foreground" Value="{StaticResource Brush.TextoPrincipal}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
   </Style>
 
   <Style x:Key="Texto.Titulo1" TargetType="TextBlock">
     <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
     <Setter Property="FontSize" Value="22" />
     <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="Foreground" Value="{StaticResource Brush.TextoPrincipal}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
   </Style>
 
   <Style x:Key="Texto.Titulo2" TargetType="TextBlock">
     <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
     <Setter Property="FontSize" Value="16" />
     <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="Foreground" Value="{StaticResource Brush.TextoPrincipal}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
   </Style>
 
   <Style x:Key="Texto.Titulo3" TargetType="TextBlock">
     <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
     <Setter Property="FontSize" Value="14" />
     <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="Foreground" Value="{StaticResource Brush.TextoPrincipal}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
   </Style>
 
   <Style x:Key="Texto.Cuerpo" TargetType="TextBlock">
     <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
     <Setter Property="FontSize" Value="13" />
-    <Setter Property="Foreground" Value="{StaticResource Brush.TextoPrincipal}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
   </Style>
 
   <Style x:Key="Texto.CuerpoEnfatizado" TargetType="TextBlock" BasedOn="{StaticResource Texto.Cuerpo}">
@@ -47,7 +47,7 @@
   <Style x:Key="Texto.Caption" TargetType="TextBlock">
     <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
     <Setter Property="FontSize" Value="11" />
-    <Setter Property="Foreground" Value="{StaticResource Brush.TextoSecundario}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoSecundario}" />
   </Style>
 
   <!-- Encabezados uppercase de tablas y KPI cards -->
@@ -55,7 +55,7 @@
     <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
     <Setter Property="FontSize" Value="10" />
     <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="Foreground" Value="{StaticResource Brush.TextoTerciario}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoTerciario}" />
     <Setter Property="Typography.Capitals" Value="AllSmallCaps" />
   </Style>
 

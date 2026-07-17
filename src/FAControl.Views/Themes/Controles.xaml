@@ -130,7 +130,7 @@
       <Setter.Value>
         <ControlTemplate TargetType="TextBox">
           <Border x:Name="Borde"
-                  Background="White"
+                  Background="{DynamicResource Brush.FondoCard}"
                   BorderBrush="{TemplateBinding BorderBrush}"
                   BorderThickness="{TemplateBinding BorderThickness}"
                   CornerRadius="8">
@@ -159,7 +159,7 @@
       <Setter.Value>
         <ControlTemplate TargetType="PasswordBox">
           <Border x:Name="Borde"
-                  Background="White"
+                  Background="{DynamicResource Brush.FondoCard}"
                   BorderBrush="{TemplateBinding BorderBrush}"
                   BorderThickness="{TemplateBinding BorderThickness}"
                   CornerRadius="8">

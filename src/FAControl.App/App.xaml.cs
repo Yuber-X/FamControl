@@ -25,6 +25,10 @@ public partial class App : Application
         ConfigurarSerilog();
         _servicios = ConfigurarServicios();
 
+        // El tema guardado se aplica ANTES de mostrar cualquier ventana: si no,
+        // el login aparecería claro y parpadearía a oscuro al abrir el shell.
+        Tema.Aplicar(_servicios.GetRequiredService<FAControl.Common.AjustesLocales>().TemaOscuro);
+
         Log.Information("FAControl iniciando");
 
         // Sin base de datos operativa no se muestra ninguna ventana:
@@ -45,7 +49,9 @@ public partial class App : Application
 
             // Tamaño de texto guardado + reacción a cambios desde Configuración
             shell.AplicarEscala(ajustes.FactorEscala);
-            _servicios.GetRequiredService<ConfiguracionViewModel>().EscalaCambiada += shell.AplicarEscala;
+            var configuracionVm = _servicios.GetRequiredService<ConfiguracionViewModel>();
+            configuracionVm.EscalaCambiada += shell.AplicarEscala;
+            configuracionVm.TemaCambiado += Tema.Aplicar;
 
             MainWindow = shell;
             ShutdownMode = ShutdownMode.OnMainWindowClose;
