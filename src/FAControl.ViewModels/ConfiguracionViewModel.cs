@@ -50,10 +50,21 @@ public partial class ConfiguracionViewModel : ObservableObject
         _exportActivo = ajustes.ExportAutomaticoActivo;
         _exportCadaDiasTexto = ajustes.ExportAutomaticoCadaDias.ToString();
         _exportCarpeta = ajustes.ExportAutomaticoCarpeta ?? string.Empty;
+        _respaldoAutoActivo = ajustes.RespaldoAutomaticoActivo;
+        _respaldoCadaTexto = ajustes.RespaldoAutomaticoCada.ToString();
+        _respaldoUnidad = Unidades.FirstOrDefault(u => u.Valor == ajustes.RespaldoAutomaticoUnidad) ?? Unidades[0];
+        _respaldoCarpeta = ajustes.RespaldoAutomaticoCarpeta ?? string.Empty;
         _avisoVencidosActivo = ajustes.AvisoVencidosActivo;
         ActualizarUltimaExportacion();
+        ActualizarUltimoRespaldo();
         ActualizarSilenciados();
     }
+
+    public IReadOnlyList<Opcion<string>> Unidades { get; } =
+    [
+        new Opcion<string>("dias", "días"),
+        new Opcion<string>("meses", "meses")
+    ];
 
     // ---------- Aviso de vencimientos ----------
 
@@ -234,6 +245,34 @@ public partial class ConfiguracionViewModel : ObservableObject
         _ajustes.ExportAutomaticoCarpeta = string.IsNullOrWhiteSpace(ExportCarpeta) ? null : ExportCarpeta;
         _ajustes.Guardar();
     }
+
+    // ---------- Respaldo automático (cliente 2026-07-19) ----------
+
+    [ObservableProperty] private bool _respaldoAutoActivo;
+    [ObservableProperty] private string _respaldoCadaTexto;
+    [ObservableProperty] private Opcion<string> _respaldoUnidad;
+    [ObservableProperty] private string _respaldoCarpeta;
+    [ObservableProperty] private string _ultimoRespaldoTexto = string.Empty;
+
+    partial void OnRespaldoAutoActivoChanged(bool value) => GuardarAjustesRespaldoAuto();
+    partial void OnRespaldoCadaTextoChanged(string value) => GuardarAjustesRespaldoAuto();
+    partial void OnRespaldoUnidadChanged(Opcion<string> value) => GuardarAjustesRespaldoAuto();
+    partial void OnRespaldoCarpetaChanged(string value) => GuardarAjustesRespaldoAuto();
+
+    private void GuardarAjustesRespaldoAuto()
+    {
+        _ajustes.RespaldoAutomaticoActivo = RespaldoAutoActivo;
+        if (int.TryParse(RespaldoCadaTexto, out var cada) && cada >= 1)
+            _ajustes.RespaldoAutomaticoCada = cada;
+        _ajustes.RespaldoAutomaticoUnidad = RespaldoUnidad?.Valor ?? "dias";
+        _ajustes.RespaldoAutomaticoCarpeta = string.IsNullOrWhiteSpace(RespaldoCarpeta) ? null : RespaldoCarpeta;
+        _ajustes.Guardar();
+    }
+
+    private void ActualizarUltimoRespaldo() =>
+        UltimoRespaldoTexto = _ajustes.UltimoRespaldoUtc is { } fecha
+            ? $"Último respaldo automático: {FechaNegocio.AUtcLocal(fecha):dd/MM/yyyy hh:mm tt}"
+            : "Aún no se ha hecho un respaldo automático.";
 
     public async Task ExportarAhoraAsync(string ruta)
     {

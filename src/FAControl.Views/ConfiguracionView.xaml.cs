@@ -109,4 +109,16 @@ public partial class ConfiguracionView : UserControl
         if (dialogo.ShowDialog(Window.GetWindow(this)) == true)
             Vm.ExportCarpeta = dialogo.FolderName;
     }
+
+    private void BotonElegirCarpetaRespaldo_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm is null)
+            return;
+        var dialogo = new OpenFolderDialog
+        {
+            Title = "Carpeta para los respaldos automáticos (podés elegir la de OneDrive/Google Drive)"
+        };
+        if (dialogo.ShowDialog(Window.GetWindow(this)) == true)
+            Vm.RespaldoCarpeta = dialogo.FolderName;
+    }
 }

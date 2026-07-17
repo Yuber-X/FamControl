@@ -31,6 +31,20 @@ public class AjustesLocales
     public string? ExportAutomaticoCarpeta { get; set; }
     public DateTime? UltimaExportacionUtc { get; set; }
 
+    // Respaldo automático de la BD (.sql). Pedido del cliente 2026-07-19:
+    // cada N días o meses que el usuario elija. Apuntar la carpeta a la de
+    // sincronización de OneDrive/Google Drive sube el respaldo a la nube solo.
+    public bool RespaldoAutomaticoActivo { get; set; }
+    public int RespaldoAutomaticoCada { get; set; } = 7;
+    /// <summary>Unidad del intervalo: "dias" o "meses".</summary>
+    public string RespaldoAutomaticoUnidad { get; set; } = "dias";
+    public string? RespaldoAutomaticoCarpeta { get; set; }
+    public DateTime? UltimoRespaldoUtc { get; set; }
+
+    /// <summary>Días equivalentes del intervalo de respaldo (1 mes ≈ 30 días).</summary>
+    public int RespaldoIntervaloEnDias =>
+        Math.Max(1, RespaldoAutomaticoCada) * (RespaldoAutomaticoUnidad == "meses" ? 30 : 1);
+
     // Notificador de vencimientos al iniciar (pedido del cliente 2026-07-10)
     public bool AvisoVencidosActivo { get; set; } = true;
     /// <summary>Ids de clientes silenciados con "No volver a preguntar por este cliente".</summary>

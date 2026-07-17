@@ -134,6 +134,8 @@ public partial class App : Application
 
         // Export automático a Excel (si está activo y toca) — en segundo plano
         _ = servicios.GetRequiredService<ExportacionService>().EjecutarAutomaticoSiTocaAsync(ajustes);
+        // Respaldo automático de la BD (si está activo y toca) — en segundo plano
+        _ = servicios.GetRequiredService<RespaldoService>().EjecutarAutomaticoSiTocaAsync(ajustes);
         // Aviso de clientes pasados de fecha
         servicios.GetRequiredService<NotificadorVencidos>().Iniciar();
 

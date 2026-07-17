@@ -96,6 +96,32 @@
                     Click="BotonRestaurar_Click"
                     IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}" />
           </StackPanel>
+
+          <Separator Margin="0,16" Background="{DynamicResource Brush.BordeSutil}" />
+
+          <!-- Respaldo automático (cliente 2026-07-19) -->
+          <CheckBox Content="Respaldar automáticamente al abrir la aplicación" FontSize="13"
+                    IsChecked="{Binding RespaldoAutoActivo}" />
+          <WrapPanel Margin="24,10,0,0" IsEnabled="{Binding RespaldoAutoActivo}">
+            <TextBlock Text="Cada" Style="{DynamicResource Texto.Cuerpo}"
+                       VerticalAlignment="Center" Margin="0,0,8,6" />
+            <TextBox Width="56" Style="{DynamicResource Input.Texto}" Height="32" Margin="0,0,8,6"
+                     Text="{Binding RespaldoCadaTexto, UpdateSourceTrigger=PropertyChanged}" />
+            <ComboBox Width="100" Height="32" FontSize="13" Margin="0,0,8,6"
+                      ItemsSource="{Binding Unidades}" DisplayMemberPath="Texto"
+                      SelectedItem="{Binding RespaldoUnidad}" />
+            <TextBlock Text="en la carpeta:" Style="{DynamicResource Texto.Cuerpo}"
+                       VerticalAlignment="Center" Margin="0,0,8,6" />
+            <TextBox Width="240" Style="{DynamicResource Input.Texto}" Height="32" IsReadOnly="True"
+                     Margin="0,0,4,6" Text="{Binding RespaldoCarpeta}" />
+            <Button Content="Elegir…" Style="{DynamicResource Boton.Terciario}" Margin="0,0,0,6"
+                    Click="BotonElegirCarpetaRespaldo_Click" />
+          </WrapPanel>
+          <TextBlock Text="{Binding UltimoRespaldoTexto}" Style="{DynamicResource Texto.Caption}"
+                     Margin="24,4,0,0" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="24,6,0,0"
+                     Foreground="{DynamicResource Brush.TextoTerciario}"
+                     Text="Consejo: si elegís la carpeta de OneDrive o Google Drive de tu PC, cada respaldo se sube solo a la nube." />
         </StackPanel>
       </Border>
 

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using FAControl.Common;
 using MySqlConnector;
 using Serilog;
 
@@ -48,6 +49,38 @@ public class RespaldoService
 
         await File.WriteAllTextAsync(rutaDestino, salida, ct);
         Log.Information("Respaldo generado en {Ruta} ({Bytes} bytes)", rutaDestino, salida.Length);
+    }
+
+    /// <summary>
+    /// Respaldo automático si toca (cliente 2026-07-19): al arrancar, si está
+    /// activo y pasó el intervalo elegido, genera un .sql en la carpeta destino.
+    /// Nunca tumba la app: cualquier fallo solo se registra.
+    /// Espeja el patrón del export automático a Excel.
+    /// </summary>
+    public async Task EjecutarAutomaticoSiTocaAsync(AjustesLocales ajustes)
+    {
+        try
+        {
+            if (!ajustes.RespaldoAutomaticoActivo || string.IsNullOrWhiteSpace(ajustes.RespaldoAutomaticoCarpeta))
+                return;
+
+            if (ajustes.UltimoRespaldoUtc is { } ultimo &&
+                (DateTime.UtcNow - ultimo).TotalDays < ajustes.RespaldoIntervaloEnDias)
+                return;
+
+            Directory.CreateDirectory(ajustes.RespaldoAutomaticoCarpeta);
+            var ruta = Path.Combine(ajustes.RespaldoAutomaticoCarpeta,
+                $"FAControl_Respaldo_{DateTime.Now:yyyy-MM-dd_HHmm}.sql");
+
+            await RespaldarAsync(ruta);
+            ajustes.UltimoRespaldoUtc = DateTime.UtcNow;
+            ajustes.Guardar();
+            Log.Information("Respaldo automático completado: {Ruta}", ruta);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Falló el respaldo automático");
+        }
     }
 
     /// <summary>
