@@ -41,7 +41,7 @@
             <DataGridTextColumn Header="Rol" Binding="{Binding RolTexto}" Width="110" MinWidth="110" />
             <DataGridTextColumn Header="Estado" Binding="{Binding EstadoTexto}" Width="90" MinWidth="90" />
             <DataGridTextColumn Header="Último acceso" Binding="{Binding UltimoAccesoTexto}"
-                                Width="150" MinWidth="150" />
+                                Width="185" MinWidth="185" />
             <!-- Ancho FIJO: con Auto la virtualización mide contra el header
                  vacío y el botón no aparece hasta cambiar de pantalla -->
             <DataGridTemplateColumn Width="100">

@@ -212,7 +212,7 @@
                 </Style>
               </DataGridTextColumn.ElementStyle>
             </DataGridTextColumn>
-            <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="150" />
+            <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="185" MinWidth="185" />
             <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*" MinWidth="150"
                                 HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
             <DataGridTextColumn Header="Préstamo" Binding="{Binding PrestamoCodigo}" Width="90" />

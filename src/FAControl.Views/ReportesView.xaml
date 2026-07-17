@@ -152,7 +152,7 @@
           <DataGrid Grid.Row="1" Style="{DynamicResource Tabla}" RowHeight="38"
                     ItemsSource="{Binding Semanas}">
             <DataGrid.Columns>
-              <DataGridTextColumn Header="Semana" Binding="{Binding Etiqueta}" Width="*"
+              <DataGridTextColumn Header="Semana" Binding="{Binding Etiqueta}" Width="*" MinWidth="160"
                                   HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
               <DataGridTextColumn Header="Capital"
                                   Binding="{Binding Capital, Converter={StaticResource Money}}" Width="130">

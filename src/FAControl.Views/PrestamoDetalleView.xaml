@@ -167,7 +167,7 @@
               <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTemplateColumn Header="Estado" Width="*"
+          <DataGridTemplateColumn Header="Estado" Width="*" MinWidth="120"
                                   HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
