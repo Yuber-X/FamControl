@@ -18,4 +18,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Los tests necesitan emitir AutorizacionPrestamo, cuyo constructor es
+         internal a propósito (que un ViewModel no pueda fabricar una) -->
+    <InternalsVisibleTo Include="FAControl.Services.Tests" />
+  </ItemGroup>
+
 </Project>

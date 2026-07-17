@@ -32,9 +32,27 @@ public class PrestamoService
     /// Crea el préstamo completo de forma atómica:
     /// contador (FOR UPDATE) → prestamo → N cuotas → auditoría → COMMIT.
     /// Devuelve el id y el código visible (P-0001).
+    ///
+    /// AUTORIZACIÓN (regla del cliente 2026-07-16): todo préstamo nuevo necesita
+    /// el visto bueno de alguien con permiso 'prestamos_autorizar'. Si quien lo
+    /// crea ya lo tiene, se autoriza solo; si no (un cobrador), debe venir una
+    /// <paramref name="autorizacion"/> emitida por AutorizacionService tras
+    /// validar la contraseña del admin. Sin ella, esto TIRA y no se crea nada.
+    ///
+    /// La regla se aplica ACÁ y no en el ViewModel: la UI puede olvidarse, el
+    /// servicio no.
     /// </summary>
-    public async Task<(long Id, string Codigo)> CrearAsync(NuevoPrestamo solicitud, CancellationToken ct = default)
+    public async Task<(long Id, string Codigo)> CrearAsync(NuevoPrestamo solicitud,
+        AutorizacionPrestamo? autorizacion = null, CancellationToken ct = default)
     {
+        if (!SesionActual.TienePermiso(Permisos.PrestamosCrear))
+            throw new UnauthorizedAccessException("No tenés permiso para crear préstamos.");
+
+        var aprobador = AutorizacionService.UsuarioActualPuedeAutorizar
+            ? AutorizacionService.DelUsuarioActual()
+            : autorizacion ?? throw new UnauthorizedAccessException(
+                "Un préstamo nuevo necesita la autorización de un administrador.");
+
         // Calcular ANTES de abrir la transacción: valida los parámetros y
         // produce la tabla definitiva que se persiste tal cual se mostró en el preview.
         var tabla = _amortizacion.Calcular(new ParametrosAmortizacion(
@@ -68,14 +86,20 @@ public class PrestamoService
 
             var id = await _prestamos.InsertarAsync(prestamo, conexion, transaccion, ct);
             await _prestamos.InsertarCuotasAsync(id, tabla, conexion, transaccion, ct);
+            // Quién autorizó queda en la auditoría: sin eso la regla no sirve
+            // para rendir cuentas después.
+            var quienAutorizo = aprobador.UsuarioId == SesionActual.Id
+                ? "autorizado por él mismo"
+                : $"autorizado por {aprobador.Username}";
             await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Crear, DbNames.Prestamo, id,
                 $"Préstamo {codigo}: capital {solicitud.MontoCapital:N2} DOP, " +
-                $"{solicitud.PlazoCuotas} cuotas {solicitud.Modalidad}, tasa {solicitud.TasaInteresMensual}% mensual",
+                $"{solicitud.PlazoCuotas} cuotas {solicitud.Modalidad}, " +
+                $"tasa {solicitud.TasaInteresMensual}% mensual — {quienAutorizo}",
                 conexion, transaccion, ct);
 
             await transaccion.CommitAsync(ct);
-            Log.Information("Préstamo {Codigo} creado (id {Id}) para cliente {ClienteId}",
-                codigo, id, solicitud.ClienteId);
+            Log.Information("Préstamo {Codigo} creado (id {Id}) para cliente {ClienteId}, autorizado por {Autorizador}",
+                codigo, id, solicitud.ClienteId, aprobador.Username);
             return (id, codigo);
         }
         catch

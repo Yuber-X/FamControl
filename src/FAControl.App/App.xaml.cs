@@ -179,6 +179,9 @@ public partial class App : Application
         servicios.AddSingleton<AuditoriaService>();
         servicios.AddSingleton<AuthService>();
         servicios.AddSingleton<UsuarioService>();
+        servicios.AddSingleton<AutorizacionService>();
+        // La ventana de autorización la abre App: ViewModels no puede
+        servicios.AddSingleton<IAutorizadorAdmin, AutorizadorAdmin>();
         servicios.AddSingleton<AmortizacionService>();
         servicios.AddSingleton<ClienteService>();
         servicios.AddSingleton<PrestamoService>();

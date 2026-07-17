@@ -22,12 +22,14 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     private readonly ClienteService _clientes;
     private readonly AmortizacionService _amortizacion;
     private readonly IDialogService _dialogos;
+    private readonly IAutorizadorAdmin _autorizador;
 
     public event Action<long>? PrestamoCreado;
 
     public PrestamoNuevoViewModel(PrestamoService prestamos, ClienteService clientes,
-        AmortizacionService amortizacion, IDialogService dialogos)
+        AmortizacionService amortizacion, IDialogService dialogos, IAutorizadorAdmin autorizador)
     {
+        _autorizador = autorizador;
         _prestamos = prestamos;
         _clientes = clientes;
         _amortizacion = amortizacion;
@@ -182,6 +184,25 @@ public partial class PrestamoNuevoViewModel : ObservableObject
 
         try
         {
+            // Autorización ANTES de tocar la BD (regla del cliente 2026-07-16).
+            // Si quien crea ya puede autorizar, el Service lo resuelve solo y
+            // no se le pide su propia contraseña.
+            AutorizacionPrestamo? autorizacion = null;
+            if (!AutorizacionService.UsuarioActualPuedeAutorizar)
+            {
+                autorizacion = await _autorizador.PedirAsync(
+                    $"{SesionActual.Nombre} está creando un préstamo de " +
+                    $"{parametros.MontoCapital.ToString("N2", CulturaRd)} DOP para " +
+                    $"{ClienteSeleccionado.NombreCompleto}. Un administrador debe autorizarlo.");
+
+                if (autorizacion is null)
+                {
+                    // Cancelado o credenciales inválidas: NO se crea nada.
+                    MensajeValidacion = "El préstamo no se creó: falta la autorización de un administrador.";
+                    return;
+                }
+            }
+
             var solicitud = new NuevoPrestamo(
                 ClienteSeleccionado.Id,
                 parametros.MontoCapital,
@@ -193,11 +214,19 @@ public partial class PrestamoNuevoViewModel : ObservableObject
                 string.IsNullOrWhiteSpace(Garantia) ? null : Garantia.Trim(),
                 string.IsNullOrWhiteSpace(Notas) ? null : Notas.Trim());
 
-            var (id, codigo) = await _prestamos.CrearAsync(solicitud);
+            var (id, codigo) = await _prestamos.CrearAsync(solicitud, autorizacion);
+
+            var quien = autorizacion is null
+                ? string.Empty
+                : $"\n\nAutorizado por {autorizacion.Nombre}.";
             _dialogos.Informar("Préstamo creado",
-                $"El préstamo {codigo} de {ClienteSeleccionado.NombreCompleto} se creó correctamente.");
+                $"El préstamo {codigo} de {ClienteSeleccionado.NombreCompleto} se creó correctamente.{quien}");
             Limpiar();
             PrestamoCreado?.Invoke(id);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            MensajeValidacion = ex.Message;
         }
         catch (Exception ex)
         {

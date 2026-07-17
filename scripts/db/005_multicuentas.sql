@@ -137,11 +137,13 @@ WHERE r.nombre = 'Supervisor'
   AND p.codigo IN ('panel','clientes','clientes_editar','prestamos','prestamos_crear',
                    'prestamos_cancelar','cobros','reportes','historial');
 
--- Cobrador: cobra y consulta; NO crea prestamos ni edita clientes
+-- Cobrador: cobra, consulta y SI crea prestamos, pero cada uno necesita
+-- la autorizacion de un admin (prestamos_autorizar). Sin prestamos_crear
+-- no podria ni abrir la pantalla y el flujo de autorizacion nunca correria.
 INSERT IGNORE INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Cobrador'
-  AND p.codigo IN ('panel','clientes','prestamos','cobros');
+  AND p.codigo IN ('panel','clientes','prestamos','prestamos_crear','cobros');
 
 -- -------------------------------------------------------------
 -- Usuarios ya existentes (los de la instalación mono-usuario):
