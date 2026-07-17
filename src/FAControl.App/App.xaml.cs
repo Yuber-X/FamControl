@@ -136,6 +136,8 @@ public partial class App : Application
         _ = servicios.GetRequiredService<ExportacionService>().EjecutarAutomaticoSiTocaAsync(ajustes);
         // Respaldo automático de la BD (si está activo y toca) — en segundo plano
         _ = servicios.GetRequiredService<RespaldoService>().EjecutarAutomaticoSiTocaAsync(ajustes);
+        // Recordatorios por correo (si están activos y toca) — en segundo plano
+        _ = servicios.GetRequiredService<RecordatorioService>().EjecutarAutomaticoSiTocaAsync();
         // Aviso de clientes pasados de fecha
         servicios.GetRequiredService<NotificadorVencidos>().Iniciar();
 
@@ -275,6 +277,8 @@ public partial class App : Application
         servicios.AddSingleton<ClienteService>();
         servicios.AddSingleton<PrestamoService>();
         servicios.AddSingleton<ContratoService>();
+        servicios.AddSingleton<EmailService>();
+        servicios.AddSingleton<RecordatorioService>();
         servicios.AddSingleton<PagoService>();
         servicios.AddSingleton<DashboardService>();
         servicios.AddSingleton<ReporteService>();

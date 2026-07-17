@@ -19,6 +19,8 @@ public partial class ConfiguracionViewModel : ObservableObject
     private readonly AjustesLocales _ajustes;
     private readonly IDialogService _dialogos;
     private readonly IAvisoVencidos _avisoVencidos;
+    private readonly RecordatorioService _recordatorios;
+    private readonly EmailService _email;
 
     /// <summary>El shell escala la UI cuando cambia el tamaño de texto.</summary>
     public event Action<double>? EscalaCambiada;
@@ -28,7 +30,7 @@ public partial class ConfiguracionViewModel : ObservableObject
 
     public ConfiguracionViewModel(AuthService auth, RespaldoService respaldo,
         ExportacionService exportacion, AjustesLocales ajustes, IDialogService dialogos,
-        IAvisoVencidos avisoVencidos)
+        IAvisoVencidos avisoVencidos, RecordatorioService recordatorios, EmailService email)
     {
         _auth = auth;
         _respaldo = respaldo;
@@ -36,6 +38,8 @@ public partial class ConfiguracionViewModel : ObservableObject
         _ajustes = ajustes;
         _dialogos = dialogos;
         _avisoVencidos = avisoVencidos;
+        _recordatorios = recordatorios;
+        _email = email;
 
         Tamanos =
         [
@@ -55,10 +59,125 @@ public partial class ConfiguracionViewModel : ObservableObject
         _respaldoUnidad = Unidades.FirstOrDefault(u => u.Valor == ajustes.RespaldoAutomaticoUnidad) ?? Unidades[0];
         _respaldoCarpeta = ajustes.RespaldoAutomaticoCarpeta ?? string.Empty;
         _avisoVencidosActivo = ajustes.AvisoVencidosActivo;
+        _recordatoriosActivos = ajustes.RecordatoriosActivos;
+        _recordatoriosAutomaticos = ajustes.RecordatoriosAutomaticos;
+        _gmailRemitente = ajustes.GmailRemitente;
+        _correoDueno = ajustes.CorreoDueno;
+        _recordatorioDiasTexto = ajustes.RecordatorioDiasAntes.ToString();
         ActualizarUltimaExportacion();
         ActualizarUltimoRespaldo();
+        ActualizarUltimoRecordatorio();
         ActualizarSilenciados();
     }
+
+    // ---------- Recordatorios por correo (cliente 2026-07-19) ----------
+
+    [ObservableProperty] private bool _recordatoriosActivos;
+    [ObservableProperty] private bool _recordatoriosAutomaticos;
+    [ObservableProperty] private string _gmailRemitente;
+    [ObservableProperty] private string _correoDueno;
+    [ObservableProperty] private string _recordatorioDiasTexto;
+    [ObservableProperty] private string _mensajeCorreo = string.Empty;
+    /// <summary>La contraseña de app llega de la View (PasswordBox no se bindea).</summary>
+    public string GmailAppPassword { get; set; } = string.Empty;
+
+    partial void OnRecordatoriosActivosChanged(bool value) => GuardarAjustesCorreo();
+    partial void OnRecordatoriosAutomaticosChanged(bool value) => GuardarAjustesCorreo();
+    partial void OnGmailRemitenteChanged(string value) => GuardarAjustesCorreo();
+    partial void OnCorreoDuenoChanged(string value) => GuardarAjustesCorreo();
+    partial void OnRecordatorioDiasTextoChanged(string value) => GuardarAjustesCorreo();
+
+    private void GuardarAjustesCorreo()
+    {
+        _ajustes.RecordatoriosActivos = RecordatoriosActivos;
+        _ajustes.RecordatoriosAutomaticos = RecordatoriosAutomaticos;
+        _ajustes.GmailRemitente = GmailRemitente?.Trim() ?? string.Empty;
+        _ajustes.CorreoDueno = CorreoDueno?.Trim() ?? string.Empty;
+        if (int.TryParse(RecordatorioDiasTexto, out var dias) && dias >= 0)
+            _ajustes.RecordatorioDiasAntes = dias;
+        // La contraseña solo se guarda si el usuario escribió una (no la pisa con vacío)
+        if (!string.IsNullOrEmpty(GmailAppPassword))
+            _ajustes.GmailAppPassword = GmailAppPassword;
+        _ajustes.Guardar();
+    }
+
+    /// <summary>Guarda la contraseña recién escrita (la View la pasa aparte).</summary>
+    public void GuardarPasswordCorreo(string password)
+    {
+        GmailAppPassword = password;
+        GuardarAjustesCorreo();
+    }
+
+    /// <summary>Envía un correo de prueba al dueño (o al remitente) para verificar la config.</summary>
+    [RelayCommand]
+    private async Task EnviarPruebaCorreoAsync()
+    {
+        MensajeCorreo = string.Empty;
+        var destino = string.IsNullOrWhiteSpace(_ajustes.CorreoDueno)
+            ? _ajustes.GmailRemitente
+            : _ajustes.CorreoDueno;
+        if (string.IsNullOrWhiteSpace(destino))
+        {
+            MensajeCorreo = "Configurá al menos la cuenta de Gmail o el correo del dueño.";
+            return;
+        }
+        try
+        {
+            Ocupado = true;
+            await _email.EnviarAsync(destino, "Prueba de FAControl",
+                "Este es un correo de prueba de FAControl. Si lo recibiste, la configuración es correcta.");
+            MensajeCorreo = $"Correo de prueba enviado a {destino}.";
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Falló el correo de prueba");
+            MensajeCorreo = $"No se pudo enviar: {ex.Message}";
+        }
+        finally
+        {
+            Ocupado = false;
+        }
+    }
+
+    /// <summary>Envía los recordatorios AHORA (manual).</summary>
+    [RelayCommand]
+    private async Task EnviarRecordatoriosAsync()
+    {
+        MensajeCorreo = string.Empty;
+        if (!_email.EstaConfigurado)
+        {
+            MensajeCorreo = "Configurá la cuenta de Gmail y la contraseña de aplicación primero.";
+            return;
+        }
+        try
+        {
+            Ocupado = true;
+            var r = await _recordatorios.EnviarAsync();
+            ActualizarUltimoRecordatorio();
+            MensajeCorreo =
+                $"{r.CorreosACliente} recordatorio(s) a clientes" +
+                (r.SinEmail > 0 ? $" ({r.SinEmail} sin email)" : "") +
+                (r.ResumenAlDueno ? ", resumen al dueño enviado" : "") + ".";
+            if (r.Detalle.StartsWith("Con errores"))
+                MensajeCorreo += "\n" + r.Detalle;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Falló el envío manual de recordatorios");
+            MensajeCorreo = $"No se pudieron enviar los recordatorios: {ex.Message}";
+        }
+        finally
+        {
+            Ocupado = false;
+        }
+    }
+
+    [ObservableProperty] private string _ultimoRecordatorioTexto = string.Empty;
+
+    private void ActualizarUltimoRecordatorio() =>
+        UltimoRecordatorioTexto = _ajustes.UltimoRecordatorioUtc is { } fecha
+            ? $"Último envío: {FechaNegocio.AUtcLocal(fecha):dd/MM/yyyy hh:mm tt}"
+            : "Aún no se han enviado recordatorios.";
 
     public IReadOnlyList<Opcion<string>> Unidades { get; } =
     [

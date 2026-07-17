@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace FAControl.Common;
 
@@ -61,6 +62,31 @@ public class AjustesLocales
     public string EmailNegocio { get; set; } = string.Empty;
     /// <summary>RNC, opcional (comprobante fiscal — ver docs/NCF-DGII.md).</summary>
     public string RncNegocio { get; set; } = string.Empty;
+
+    // ---------- Recordatorios por correo (Gmail) — cliente 2026-07-19 ----------
+    public bool RecordatoriosActivos { get; set; }
+    /// <summary>Cuenta Gmail que ENVÍA los recordatorios.</summary>
+    public string GmailRemitente { get; set; } = string.Empty;
+    /// <summary>
+    /// Contraseña de APLICACIÓN de Gmail, cifrada con DPAPI (nunca texto plano).
+    /// Se lee/escribe con GmailAppPassword; este campo es el blob persistido.
+    /// </summary>
+    public string GmailAppPasswordCifrada { get; set; } = string.Empty;
+    /// <summary>Correo del dueño que recibe el resumen.</summary>
+    public string CorreoDueno { get; set; } = string.Empty;
+    /// <summary>Avisar cuando la cuota vence dentro de estos días.</summary>
+    public int RecordatorioDiasAntes { get; set; } = 3;
+    /// <summary>Enviar recordatorios automáticamente al abrir la aplicación.</summary>
+    public bool RecordatoriosAutomaticos { get; set; }
+    public DateTime? UltimoRecordatorioUtc { get; set; }
+
+    /// <summary>Contraseña de app de Gmail en texto plano (cifra/descifra con DPAPI).</summary>
+    [JsonIgnore]
+    public string GmailAppPassword
+    {
+        get => Secreto.Revelar(GmailAppPasswordCifrada);
+        set => GmailAppPasswordCifrada = Secreto.Proteger(value);
+    }
 
     private static readonly string Ruta = Path.Combine(AppContext.BaseDirectory, "ajustes.json");
     private static readonly JsonSerializerOptions Opciones = new() { WriteIndented = true };

@@ -41,3 +41,16 @@ public record ClienteDatos(
     string? Direccion,
     string? Email,
     string? Notas);
+
+/// <summary>
+/// Cliente con cuota próxima a vencer o vencida, para el recordatorio por
+/// correo (cliente 2026-07-19). Incluye el email del cliente (puede ser null).
+/// </summary>
+public record RecordatorioCliente(
+    long ClienteId,
+    string NombreCompleto,
+    string? Email,
+    DateOnly ProximoVencimiento,
+    decimal MontoPendiente,
+    int CuotasEnVentana,
+    bool HayVencidas);

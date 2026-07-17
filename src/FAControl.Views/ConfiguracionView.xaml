@@ -81,6 +81,65 @@
         </StackPanel>
       </Border>
 
+      <!-- ============ RECORDATORIOS POR CORREO ============ -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+        <StackPanel>
+          <TextBlock Text="Recordatorios por correo (Gmail)" Style="{DynamicResource Texto.Titulo3}"
+                     Margin="0,0,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="Envía un recordatorio de pago a cada cliente con cuota por vencer o vencida, y un resumen al dueño. Requiere una cuenta de Gmail y una contraseña de aplicación (Google → Seguridad → Contraseñas de aplicaciones)." />
+
+          <CheckBox Content="Activar recordatorios por correo" FontSize="13"
+                    IsChecked="{Binding RecordatoriosActivos}" />
+
+          <StackPanel Margin="24,10,0,0" IsEnabled="{Binding RecordatoriosActivos}">
+            <WrapPanel>
+              <StackPanel Margin="0,0,16,8">
+                <TextBlock Text="Cuenta Gmail (remitente)" Style="{DynamicResource Input.Label}" />
+                <TextBox Width="240" Style="{DynamicResource Input.Texto}" Height="34"
+                         Text="{Binding GmailRemitente, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <StackPanel Margin="0,0,16,8">
+                <TextBlock Text="Contraseña de aplicación" Style="{DynamicResource Input.Label}" />
+                <PasswordBox x:Name="CampoGmailPassword" Width="200" Height="34"
+                             Style="{DynamicResource Input.Password}"
+                             PasswordChanged="CampoGmailPassword_PasswordChanged" />
+              </StackPanel>
+            </WrapPanel>
+            <WrapPanel Margin="0,4,0,0">
+              <StackPanel Margin="0,0,16,8">
+                <TextBlock Text="Correo del dueño (resumen)" Style="{DynamicResource Input.Label}" />
+                <TextBox Width="240" Style="{DynamicResource Input.Texto}" Height="34"
+                         Text="{Binding CorreoDueno, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <StackPanel Margin="0,0,16,8">
+                <TextBlock Text="Avisar (días antes)" Style="{DynamicResource Input.Label}" />
+                <TextBox Width="70" Style="{DynamicResource Input.Texto}" Height="34"
+                         Text="{Binding RecordatorioDiasTexto, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+            </WrapPanel>
+
+            <CheckBox Content="Enviar automáticamente al abrir la aplicación (una vez al día)"
+                      FontSize="13" Margin="0,6,0,0"
+                      IsChecked="{Binding RecordatoriosAutomaticos}" />
+
+            <WrapPanel Margin="0,12,0,0">
+              <Button Content="Enviar prueba" Style="{DynamicResource Boton.Secundario}"
+                      Command="{Binding EnviarPruebaCorreoCommand}" Margin="0,0,8,6"
+                      IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}" />
+              <Button Content="Enviar recordatorios ahora" Style="{DynamicResource Boton.Primario}"
+                      Command="{Binding EnviarRecordatoriosCommand}" Margin="0,0,8,6"
+                      IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}" />
+            </WrapPanel>
+            <TextBlock Text="{Binding UltimoRecordatorioTexto}" Style="{DynamicResource Texto.Caption}"
+                       Margin="0,4,0,0" />
+            <TextBlock Text="{Binding MensajeCorreo}" Style="{DynamicResource Texto.Caption}"
+                       TextWrapping="Wrap" Margin="0,4,0,0"
+                       Foreground="{DynamicResource Brush.Primario}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
       <!-- ============ RESPALDO ============ -->
       <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
         <StackPanel>

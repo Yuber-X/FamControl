@@ -160,6 +160,52 @@ public class ClienteRepository
         return vencidos;
     }
 
+    /// <summary>
+    /// Clientes con cuotas VENCIDAS o POR VENCER dentro de los próximos
+    /// <paramref name="diasAntes"/> días, para el recordatorio por correo
+    /// (cliente 2026-07-19). Incluye el email del cliente y la cuota más próxima.
+    /// </summary>
+    public async Task<IReadOnlyList<RecordatorioCliente>> ObtenerRecordatoriosAsync(
+        DateOnly hoy, int diasAntes, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT c.id, TRIM(CONCAT(c.nombre, ' ', COALESCE(c.apellido, ''))) AS nombre_completo,
+                   c.email,
+                   MIN(q.fecha_vencimiento) AS proximo_venc,
+                   SUM(q.monto_total - q.monto_pagado) AS monto_pendiente,
+                   COUNT(*) AS cuotas_ventana,
+                   MAX(q.fecha_vencimiento < @hoy) AS hay_vencidas
+            FROM {DbNames.Cuota} q
+            JOIN {DbNames.Prestamo} p ON p.id = q.prestamo_id
+            JOIN {DbNames.Cliente} c ON c.id = p.cliente_id
+            WHERE p.estado = 'activo'
+              AND q.estado IN ('pendiente', 'vencida', 'en_mora')
+              AND q.fecha_vencimiento <= @limite
+              AND c.deleted_at IS NULL
+            GROUP BY c.id, nombre_completo, c.email
+            ORDER BY proximo_venc;
+            """;
+        cmd.Parameters.AddWithValue("@hoy", hoy.ToDateTime(TimeOnly.MinValue));
+        cmd.Parameters.AddWithValue("@limite", hoy.AddDays(diasAntes).ToDateTime(TimeOnly.MinValue));
+
+        var lista = new List<RecordatorioCliente>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            lista.Add(new RecordatorioCliente(
+                reader.GetInt64("id"),
+                reader.GetString("nombre_completo"),
+                reader.IsDBNull(reader.GetOrdinal("email")) ? null : reader.GetString("email"),
+                DateOnly.FromDateTime(reader.GetDateTime("proximo_venc")),
+                reader.GetDecimal("monto_pendiente"),
+                Convert.ToInt32(reader["cuotas_ventana"]),
+                Convert.ToBoolean(reader["hay_vencidas"])));
+        }
+        return lista;
+    }
+
     /// <summary>Métricas de la ficha (mockup 3). hoy = fecha de negocio para contar vencidas.</summary>
     public async Task<ClienteMetricas> ObtenerMetricasAsync(long clienteId, DateOnly hoy, CancellationToken ct = default)
     {

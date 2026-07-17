@@ -16,6 +16,11 @@ public partial class ConfiguracionView : UserControl
 
     private ConfiguracionViewModel? Vm => DataContext as ConfiguracionViewModel;
 
+    // Contraseña de app de Gmail: PasswordBox no se bindea (seguridad), se
+    // empuja al VM que la cifra con DPAPI antes de guardarla.
+    private void CampoGmailPassword_PasswordChanged(object sender, RoutedEventArgs e) =>
+        Vm?.GuardarPasswordCorreo(CampoGmailPassword.Password);
+
     // ---------- Tamaño de texto ----------
 
     private void RadiosTamano_Loaded(object sender, RoutedEventArgs e)
