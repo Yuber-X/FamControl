@@ -18,6 +18,8 @@ public partial class PrestamoDetalleViewModel : ObservableObject
 
     public event Action<long>? CobrarSolicitado;
     public event Action? VolverSolicitado;
+    /// <summary>La App abre la vista previa imprimible del préstamo.</summary>
+    public event Action<PrestamoImpreso>? ImpresionSolicitada;
 
     public PrestamoDetalleViewModel(PrestamoService prestamos, ClienteService clientes, IDialogService dialogos)
     {
@@ -30,6 +32,7 @@ public partial class PrestamoDetalleViewModel : ObservableObject
 
     [ObservableProperty] private string _codigo = string.Empty;
     [ObservableProperty] private string _clienteNombre = string.Empty;
+    [ObservableProperty] private string _clienteCedula = "—";
     [ObservableProperty] private string _estadoTexto = string.Empty;
     [ObservableProperty] private EstadoPrestamo _estado;
     [ObservableProperty] private bool _esActivo;
@@ -57,6 +60,7 @@ public partial class PrestamoDetalleViewModel : ObservableObject
 
             Codigo = prestamo.Codigo;
             ClienteNombre = cliente?.NombreCompleto ?? "(cliente eliminado)";
+            ClienteCedula = string.IsNullOrWhiteSpace(cliente?.Cedula) ? "—" : cliente.Cedula;
             Estado = prestamo.Estado;
             EstadoTexto = Textos.De(prestamo.Estado);
             EsActivo = prestamo.Estado == EstadoPrestamo.Activo;
@@ -87,6 +91,28 @@ public partial class PrestamoDetalleViewModel : ObservableObject
 
     [RelayCommand]
     private void Cobrar() => CobrarSolicitado?.Invoke(_prestamoId);
+
+    /// <summary>
+    /// Imprime el estado del préstamo con su tabla de amortización
+    /// (pedido del cliente 2026-07-16). Siempre pasa por vista previa.
+    /// </summary>
+    [RelayCommand]
+    private void Imprimir()
+    {
+        if (Cuotas.Count == 0)
+        {
+            _dialogos.Informar("Imprimir préstamo", "Este préstamo todavía no tiene cuotas que imprimir.");
+            return;
+        }
+
+        ImpresionSolicitada?.Invoke(new PrestamoImpreso(
+            Codigo, ClienteNombre, ClienteCedula, MontoCapital, TasaTexto, ModalidadTexto,
+            MetodoTexto, FechaInicioTexto, GarantiaTexto, TotalAPagar, TotalPagado,
+            SaldoPendiente, EstadoTexto, ProgresoTexto, SesionActual.Nombre,
+            [.. Cuotas.Select(c => new CuotaImpresa(
+                c.Numero, c.FechaTexto, c.Capital, c.Interes,
+                c.MontoTotal, c.SaldoDespues, c.SemaforoTexto))]));
+    }
 
     [RelayCommand]
     private void Volver() => VolverSolicitado?.Invoke();

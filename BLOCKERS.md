@@ -1,6 +1,14 @@
 # BLOCKERS.md — FAControl
 
-> Bloqueos y decisiones que requieren consulta. Actualizado: 2026-07-10.
+> Bloqueos y decisiones que requieren consulta. Actualizado: 2026-07-17.
+
+## Abiertos (FAControl, cliente Familia Almonte)
+
+| Fecha | Tema | Estado |
+|---|---|---|
+| 2026-07-17 | **Impresión multipágina** | `PrintDialog.PrintVisual` imprime UNA página: si el visual es más alto que la hoja, **recorta**. El estado de préstamo con 12 cuotas mide 682px y entra en carta (~1056px útiles), pero **el Pagaré real del cliente tiene 48 cuotas** (~1500px) → saldría cortado. Hay que paginar (FixedDocument o DocumentPaginator) junto con el contrato de Tier 3, que necesita lo mismo. La vista previa SÍ muestra todo (tiene scroll); solo falla el papel. |
+| 2026-07-17 | **"Fecha del primer pago" ya funcionaba** | El cliente pidió "mes siguiente, mismo día, automático (en vez de la fecha actual)". Verificado con arnés: hoy 17-07-2026 → el campo trae 17-08-2026. `AddMonths(1)` existe desde la Fase 3+4, anterior a la v1.0.0 que el cliente tiene. **Preguntar a Jean Carlo qué vio exactamente** (¿otra pantalla? ¿otra versión?). |
+| 2026-07-17 | **Color del modo AutoControl** | Propuse verde esmeralda `#3A7D5C`. La marca solo define navy + dorado; el tercer acento es invención mía. Confirmar con el cliente. |
 
 ## Resueltos
 
