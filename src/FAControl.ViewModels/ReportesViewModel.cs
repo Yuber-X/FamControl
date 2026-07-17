@@ -47,12 +47,22 @@ public partial class ReportesViewModel : ObservableObject
         var hoy = FechaNegocio.Hoy;
         _desde = new DateTime(hoy.Year, hoy.Month, 1);
         _hasta = hoy.ToDateTime(TimeOnly.MinValue);
+
+        _usuarioSeleccionado = new Opcion<long?>(null, "Todos los usuarios");
+        Usuarios.Add(_usuarioSeleccionado);
+        _clienteSeleccionado = new Opcion<long?>(null, "Todos los clientes");
+        Clientes.Add(_clienteSeleccionado);
     }
 
     public ObservableCollection<SemanaFila> Semanas { get; } = [];
+    // Filtros (cliente 2026-07-19), en comboboxes separados como el cierre de caja
+    public ObservableCollection<Opcion<long?>> Usuarios { get; } = [];
+    public ObservableCollection<Opcion<long?>> Clientes { get; } = [];
 
     [ObservableProperty] private DateTime _desde;
     [ObservableProperty] private DateTime _hasta;
+    [ObservableProperty] private Opcion<long?> _usuarioSeleccionado;
+    [ObservableProperty] private Opcion<long?> _clienteSeleccionado;
     [ObservableProperty] private bool _tieneReporte;
     [ObservableProperty] private string _rangoTexto = string.Empty;
     [ObservableProperty] private decimal _interesCobrado;
@@ -66,7 +76,32 @@ public partial class ReportesViewModel : ObservableObject
     [ObservableProperty] private Axis[] _xAxes = [];
     [ObservableProperty] private Axis[] _yAxes = [];
 
-    public Task CargarAsync() => GenerarAsync();
+    public async Task CargarAsync()
+    {
+        await CargarFiltrosAsync();
+        await GenerarAsync();
+    }
+
+    /// <summary>Llena los combos de usuario y cliente una sola vez.</summary>
+    private async Task CargarFiltrosAsync()
+    {
+        if (Usuarios.Count > 1 && Clientes.Count > 1)
+            return;
+        try
+        {
+            foreach (var usuario in await _reportes.ObtenerUsuariosAsync())
+                Usuarios.Add(new Opcion<long?>(usuario.Id, usuario.NombreCompleto));
+            foreach (var cliente in await _reportes.ObtenerClientesAsync())
+                Clientes.Add(new Opcion<long?>(cliente.Id, cliente.NombreCompleto));
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "No se pudieron cargar los filtros de Reportes");
+        }
+    }
+
+    partial void OnUsuarioSeleccionadoChanged(Opcion<long?> value) => _ = GenerarAsync();
+    partial void OnClienteSeleccionadoChanged(Opcion<long?> value) => _ = GenerarAsync();
 
     // ---------- Atajos de rango ----------
 
@@ -115,7 +150,8 @@ public partial class ReportesViewModel : ObservableObject
         try
         {
             var reporte = await _reportes.ObtenerIngresosAsync(
-                DateOnly.FromDateTime(Desde), DateOnly.FromDateTime(Hasta));
+                DateOnly.FromDateTime(Desde), DateOnly.FromDateTime(Hasta),
+                UsuarioSeleccionado?.Valor, ClienteSeleccionado?.Valor);
 
             RangoTexto = $"{reporte.Desde:dd/MM/yyyy} – {reporte.Hasta:dd/MM/yyyy}";
             InteresCobrado = reporte.InteresCobrado;

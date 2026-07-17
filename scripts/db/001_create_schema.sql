@@ -192,6 +192,7 @@ CREATE TABLE pago (
   monto_capital DECIMAL(15,2) NOT NULL DEFAULT 0.00,
   metodo_pago   ENUM('efectivo','transferencia','cheque','otro') NOT NULL DEFAULT 'efectivo',
   notas         TEXT          NULL,
+  created_by    BIGINT UNSIGNED NULL,             -- quién cobró (para el reporte por usuario)
   created_at    DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
   updated_at    DATETIME      NULL,
   deleted_at    DATETIME      NULL,
@@ -200,7 +201,9 @@ CREATE TABLE pago (
   KEY ix_pago_cuota (cuota_id),
   KEY ix_pago_fecha (fecha_pago),
   CONSTRAINT fk_pago_cuota FOREIGN KEY (cuota_id)
-    REFERENCES cuota (id) ON DELETE RESTRICT
+    REFERENCES cuota (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_pago_usuario FOREIGN KEY (created_by)
+    REFERENCES usuario (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------

@@ -14,11 +14,27 @@ public class ReporteService
     private const int OffsetRdHoras = 4;
 
     private readonly ReporteRepository _repositorio;
+    private readonly UsuarioRepository _usuarios;
+    private readonly ClienteRepository _clientes;
 
-    public ReporteService(ReporteRepository repositorio) => _repositorio = repositorio;
+    public ReporteService(ReporteRepository repositorio, UsuarioRepository usuarios,
+        ClienteRepository clientes)
+    {
+        _repositorio = repositorio;
+        _usuarios = usuarios;
+        _clientes = clientes;
+    }
+
+    /// <summary>Usuarios para el filtro del reporte (todos, sin puerta de Admin).</summary>
+    public Task<IReadOnlyList<Usuario>> ObtenerUsuariosAsync(CancellationToken ct = default) =>
+        _usuarios.ObtenerTodosAsync(ct);
+
+    /// <summary>Clientes activos para el filtro del reporte.</summary>
+    public Task<IReadOnlyList<Cliente>> ObtenerClientesAsync(CancellationToken ct = default) =>
+        _clientes.ObtenerActivosAsync(ct);
 
     public async Task<ReporteIngresos> ObtenerIngresosAsync(DateOnly desde, DateOnly hasta,
-        CancellationToken ct = default)
+        long? usuarioId = null, long? clienteId = null, CancellationToken ct = default)
     {
         if (hasta < desde)
             throw new ArgumentException("La fecha final no puede ser anterior a la inicial.");
@@ -27,8 +43,9 @@ public class ReporteService
         var inicioUtc = desde.ToDateTime(TimeOnly.MinValue).AddHours(OffsetRdHoras);
         var finUtc = hasta.AddDays(1).ToDateTime(TimeOnly.MinValue).AddHours(OffsetRdHoras);
 
-        var porDia = await _repositorio.ObtenerIngresosDiariosAsync(inicioUtc, finUtc, ct);
-        var (cobradas, programadas) = await _repositorio.ContarCuotasAsync(inicioUtc, finUtc, desde, hasta, ct);
+        var porDia = await _repositorio.ObtenerIngresosDiariosAsync(inicioUtc, finUtc, usuarioId, clienteId, ct);
+        var (cobradas, programadas) = await _repositorio.ContarCuotasAsync(
+            inicioUtc, finUtc, desde, hasta, usuarioId, clienteId, ct);
 
         return new ReporteIngresos(
             desde, hasta,

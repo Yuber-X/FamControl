@@ -19,28 +19,43 @@
           <Button Content="Exportar Excel" Style="{DynamicResource Boton.Secundario}"
                   Click="BotonExportar_Click" />
         </StackPanel>
-        <StackPanel Orientation="Horizontal">
-          <StackPanel Margin="0,0,12,0">
+        <!-- WrapPanel: con el texto en Grande una fila fija se sale de pantalla -->
+        <WrapPanel Orientation="Horizontal">
+          <StackPanel Margin="0,0,12,6">
             <TextBlock Text="Desde" Style="{DynamicResource Input.Label}" />
             <DatePicker Width="140" Height="40" FontSize="13"
                         SelectedDate="{Binding Desde}" />
           </StackPanel>
-          <StackPanel Margin="0,0,16,0">
+          <StackPanel Margin="0,0,12,6">
             <TextBlock Text="Hasta" Style="{DynamicResource Input.Label}" />
             <DatePicker Width="140" Height="40" FontSize="13"
                         SelectedDate="{Binding Hasta}" />
           </StackPanel>
+          <!-- Filtro por usuario que cobró (como el cierre de caja) -->
+          <StackPanel Margin="0,0,12,6">
+            <TextBlock Text="Usuario" Style="{DynamicResource Input.Label}" />
+            <ComboBox Width="180" Height="40" FontSize="13"
+                      ItemsSource="{Binding Usuarios}"
+                      SelectedItem="{Binding UsuarioSeleccionado}" />
+          </StackPanel>
+          <!-- Filtro por cliente -->
+          <StackPanel Margin="0,0,16,6">
+            <TextBlock Text="Cliente" Style="{DynamicResource Input.Label}" />
+            <ComboBox Width="200" Height="40" FontSize="13"
+                      ItemsSource="{Binding Clientes}"
+                      SelectedItem="{Binding ClienteSeleccionado}" />
+          </StackPanel>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
             <Button Content="Este mes" Style="{DynamicResource Boton.Terciario}"
-                    Command="{Binding EsteMesCommand}" Margin="0,0,4,4" />
+                    Command="{Binding EsteMesCommand}" Margin="0,0,4,10" />
             <Button Content="Mes pasado" Style="{DynamicResource Boton.Terciario}"
-                    Command="{Binding MesPasadoCommand}" Margin="0,0,4,4" />
+                    Command="{Binding MesPasadoCommand}" Margin="0,0,4,10" />
             <Button Content="Trimestre" Style="{DynamicResource Boton.Terciario}"
-                    Command="{Binding TrimestreCommand}" Margin="0,0,4,4" />
+                    Command="{Binding TrimestreCommand}" Margin="0,0,4,10" />
             <Button Content="Año" Style="{DynamicResource Boton.Terciario}"
-                    Command="{Binding AnioCommand}" Margin="0,0,0,4" />
+                    Command="{Binding AnioCommand}" Margin="0,0,0,10" />
           </StackPanel>
-        </StackPanel>
+        </WrapPanel>
       </DockPanel>
     </Border>
 
