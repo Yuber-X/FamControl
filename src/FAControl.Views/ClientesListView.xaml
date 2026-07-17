@@ -38,7 +38,7 @@
               </Style>
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTextColumn Header="Nombre" Binding="{Binding NombreCompleto}" Width="*"
+          <DataGridTextColumn Header="Nombre" Binding="{Binding NombreCompleto}" Width="*" MinWidth="160"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Teléfono" Binding="{Binding TelefonoTexto}" Width="130" />
           <DataGridTextColumn Header="Préstamos activos" Binding="{Binding PrestamosActivos}" Width="130">

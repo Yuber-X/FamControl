@@ -53,8 +53,10 @@
         <StackPanel>
           <TextBlock Text="GANANCIA (INTERÉS COBRADO)" Style="{DynamicResource Texto.MicroLabel}"
                      Foreground="#C7CBFB" />
-          <TextBlock Text="{Binding InteresCobrado, Converter={StaticResource Money}}"
-                     Style="{DynamicResource Texto.Display}" Foreground="White" Margin="0,4,0,2" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding InteresCobrado, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.Display}" Foreground="White" />
+          </Viewbox>
           <TextBlock Text="{Binding RangoTexto}" Style="{DynamicResource Texto.Caption}"
                      Foreground="#C7CBFB" />
         </StackPanel>
@@ -62,24 +64,30 @@
       <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
         <StackPanel>
           <TextBlock Text="CAPITAL RECUPERADO" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding CapitalRecuperado, Converter={StaticResource Money}}"
-                     Style="{DynamicResource Texto.Display}" Margin="0,4,0,2" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding CapitalRecuperado, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.Display}" />
+          </Viewbox>
           <TextBlock Text="Abonado al principal" Style="{DynamicResource Texto.Caption}" />
         </StackPanel>
       </Border>
       <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
         <StackPanel>
           <TextBlock Text="TOTAL COBRADO" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding TotalCobrado, Converter={StaticResource Money}}"
-                     Style="{DynamicResource Texto.Display}" Margin="0,4,0,2" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding TotalCobrado, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.Display}" />
+          </Viewbox>
           <TextBlock Text="Capital + interés" Style="{DynamicResource Texto.Caption}" />
         </StackPanel>
       </Border>
       <Border Style="{DynamicResource Card.Metrica}">
         <StackPanel>
           <TextBlock Text="CUOTAS COBRADAS" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding CuotasCobradas}"
-                     Style="{DynamicResource Texto.Display}" Margin="0,4,0,2" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding CuotasCobradas}"
+                       Style="{DynamicResource Texto.Display}" />
+          </Viewbox>
           <TextBlock Text="{Binding CuotasProgramadasTexto}" Style="{DynamicResource Texto.Caption}" />
         </StackPanel>
       </Border>

@@ -15,29 +15,37 @@
       <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
         <StackPanel>
           <TextBlock Text="CAPITAL PRESTADO" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding TotalCapital, Converter={StaticResource Money}}"
-                     Style="{DynamicResource Texto.Titulo2}" Margin="0,4,0,0" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding TotalCapital, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.Titulo2}" />
+          </Viewbox>
         </StackPanel>
       </Border>
       <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
         <StackPanel>
           <TextBlock Text="POR COBRAR (ACTIVOS)" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding TotalPorCobrar, Converter={StaticResource Money}}"
-                     Style="{DynamicResource Texto.Titulo2}" Margin="0,4,0,0" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding TotalPorCobrar, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.Titulo2}" />
+          </Viewbox>
         </StackPanel>
       </Border>
       <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
         <StackPanel>
           <TextBlock Text="TOTAL COBRADO" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding TotalCobrado, Converter={StaticResource Money}}"
-                     Style="{DynamicResource Texto.Titulo2}" Margin="0,4,0,0" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding TotalCobrado, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.Titulo2}" />
+          </Viewbox>
         </StackPanel>
       </Border>
       <Border Style="{DynamicResource Card.Metrica}">
         <StackPanel>
           <TextBlock Text="PRÉSTAMOS ACTIVOS" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding TotalActivos}"
-                     Style="{DynamicResource Texto.Titulo2}" Margin="0,4,0,0" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding TotalActivos}"
+                       Style="{DynamicResource Texto.Titulo2}" />
+          </Viewbox>
         </StackPanel>
       </Border>
     </UniformGrid>
@@ -71,7 +79,7 @@
               </Style>
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*" />
+          <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*" MinWidth="160" />
           <DataGridTextColumn Header="Capital"
                               Binding="{Binding MontoCapital, Converter={StaticResource Money}}"
                               Width="130">

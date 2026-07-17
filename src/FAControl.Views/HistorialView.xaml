@@ -48,7 +48,7 @@
           <DataGridTextColumn Header="Entidad" Binding="{Binding EntidadTexto}" Width="100"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Id" Binding="{Binding EntidadIdTexto}" Width="60" />
-          <DataGridTextColumn Header="Descripción" Binding="{Binding DescripcionTexto}" Width="*"
+          <DataGridTextColumn Header="Descripción" Binding="{Binding DescripcionTexto}" Width="*" MinWidth="200"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
             <DataGridTextColumn.ElementStyle>
               <Style TargetType="TextBlock">

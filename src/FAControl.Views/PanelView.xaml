@@ -15,8 +15,10 @@
       <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
         <StackPanel>
           <TextBlock Text="CAPITAL COLOCADO" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding CapitalColocado, Converter={StaticResource Money}}"
-                     Style="{DynamicResource Texto.Display}" Margin="0,4,0,2" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding CapitalColocado, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.Display}" />
+          </Viewbox>
           <TextBlock Text="Saldo por cobrar de préstamos activos"
                      Style="{DynamicResource Texto.Caption}" />
         </StackPanel>
@@ -24,8 +26,10 @@
       <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
         <StackPanel>
           <TextBlock Text="COBROS DEL MES" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding CobrosDelMes, Converter={StaticResource Money}}"
-                     Style="{DynamicResource Texto.Display}" Margin="0,4,0,2" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding CobrosDelMes, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.Display}" />
+          </Viewbox>
           <TextBlock Text="{Binding DeltaCobrosTexto}">
             <TextBlock.Style>
               <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Caption}">
@@ -43,8 +47,10 @@
       <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
         <StackPanel>
           <TextBlock Text="CLIENTES ACTIVOS" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding ClientesActivos}"
-                     Style="{DynamicResource Texto.Display}" Margin="0,4,0,2" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding ClientesActivos}"
+                       Style="{DynamicResource Texto.Display}" />
+          </Viewbox>
           <TextBlock Text="{Binding PrestamosActivosTexto}"
                      Style="{DynamicResource Texto.Caption}" />
         </StackPanel>
@@ -181,7 +187,7 @@
               </DataGridTextColumn.ElementStyle>
             </DataGridTextColumn>
             <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="150" />
-            <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*"
+            <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*" MinWidth="150"
                                 HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
             <DataGridTextColumn Header="Préstamo" Binding="{Binding PrestamoCodigo}" Width="90" />
             <DataGridTextColumn Header="Cuota" Binding="{Binding CuotaTexto}" Width="80" />

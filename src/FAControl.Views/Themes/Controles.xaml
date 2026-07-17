@@ -724,4 +724,18 @@
     <Setter Property="Padding" Value="16,12" />
   </Style>
 
+  <!-- ============================================================
+       Valor de tarjeta de metrica: Viewbox DownOnly. El monto se
+       ENCOGE para caber en vez de recortarse. Sin esto, con el texto
+       en Grande o la ventana angosta se ve "RD$ 2,160,000," (queja
+       del cliente 2026-07-16). DownOnly = nunca agranda de mas.
+       ============================================================ -->
+  <Style x:Key="Metrica.Valor" TargetType="Viewbox">
+    <Setter Property="StretchDirection" Value="DownOnly" />
+    <Setter Property="Stretch" Value="Uniform" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="MaxHeight" Value="38" />
+    <Setter Property="Margin" Value="0,2,0,0" />
+  </Style>
+
 </ResourceDictionary>

@@ -116,29 +116,37 @@
         <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
           <StackPanel>
             <TextBlock Text="CUOTA" Style="{DynamicResource Texto.MicroLabel}" />
-            <TextBlock Text="{Binding ResumenCuota, Converter={StaticResource Money}}"
-                       Style="{DynamicResource Texto.Titulo2}" Margin="0,4,0,0" />
+            <Viewbox Style="{DynamicResource Metrica.Valor}">
+              <TextBlock Text="{Binding ResumenCuota, Converter={StaticResource Money}}"
+                         Style="{DynamicResource Texto.Titulo2}" />
+            </Viewbox>
           </StackPanel>
         </Border>
         <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
           <StackPanel>
             <TextBlock Text="TOTAL A PAGAR" Style="{DynamicResource Texto.MicroLabel}" />
-            <TextBlock Text="{Binding ResumenTotal, Converter={StaticResource Money}}"
-                       Style="{DynamicResource Texto.Titulo2}" Margin="0,4,0,0" />
+            <Viewbox Style="{DynamicResource Metrica.Valor}">
+              <TextBlock Text="{Binding ResumenTotal, Converter={StaticResource Money}}"
+                         Style="{DynamicResource Texto.Titulo2}" />
+            </Viewbox>
           </StackPanel>
         </Border>
         <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
           <StackPanel>
             <TextBlock Text="INTERÉS TOTAL" Style="{DynamicResource Texto.MicroLabel}" />
-            <TextBlock Text="{Binding ResumenInteres, Converter={StaticResource Money}}"
-                       Style="{DynamicResource Texto.Titulo2}" Margin="0,4,0,0" />
+            <Viewbox Style="{DynamicResource Metrica.Valor}">
+              <TextBlock Text="{Binding ResumenInteres, Converter={StaticResource Money}}"
+                         Style="{DynamicResource Texto.Titulo2}" />
+            </Viewbox>
           </StackPanel>
         </Border>
         <Border Style="{DynamicResource Card.Metrica}">
           <StackPanel>
             <TextBlock Text="CAPITAL" Style="{DynamicResource Texto.MicroLabel}" />
-            <TextBlock Text="{Binding ResumenCapital, Converter={StaticResource Money}}"
-                       Style="{DynamicResource Texto.Titulo2}" Margin="0,4,0,0" />
+            <Viewbox Style="{DynamicResource Metrica.Valor}">
+              <TextBlock Text="{Binding ResumenCapital, Converter={StaticResource Money}}"
+                         Style="{DynamicResource Texto.Titulo2}" />
+            </Viewbox>
           </StackPanel>
         </Border>
       </UniformGrid>
@@ -161,29 +169,29 @@
           <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Preview}"
                     Visibility="{Binding TienePreview, Converter={StaticResource BoolAVisibilidad}}">
             <DataGrid.Columns>
-              <DataGridTextColumn Header="N°" Binding="{Binding NumeroCuota}" Width="50" />
+              <DataGridTextColumn Header="N°" Binding="{Binding NumeroCuota}" Width="50" MinWidth="50" />
               <DataGridTextColumn Header="Vencimiento"
-                                  Binding="{Binding FechaVencimiento, StringFormat=dd/MM/yyyy}" Width="110" />
+                                  Binding="{Binding FechaVencimiento, StringFormat=dd/MM/yyyy}" Width="110" MinWidth="110" />
               <DataGridTextColumn Header="Capital"
-                                  Binding="{Binding Capital, Converter={StaticResource Money}}" Width="*">
+                                  Binding="{Binding Capital, Converter={StaticResource Money}}" Width="*" MinWidth="130">
                 <DataGridTextColumn.ElementStyle>
                   <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
                 </DataGridTextColumn.ElementStyle>
               </DataGridTextColumn>
               <DataGridTextColumn Header="Interés"
-                                  Binding="{Binding Interes, Converter={StaticResource Money}}" Width="*">
+                                  Binding="{Binding Interes, Converter={StaticResource Money}}" Width="*" MinWidth="130">
                 <DataGridTextColumn.ElementStyle>
                   <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
                 </DataGridTextColumn.ElementStyle>
               </DataGridTextColumn>
               <DataGridTextColumn Header="Cuota"
-                                  Binding="{Binding MontoTotal, Converter={StaticResource Money}}" Width="*">
+                                  Binding="{Binding MontoTotal, Converter={StaticResource Money}}" Width="*" MinWidth="130">
                 <DataGridTextColumn.ElementStyle>
                   <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.MontoTotal}" />
                 </DataGridTextColumn.ElementStyle>
               </DataGridTextColumn>
               <DataGridTextColumn Header="Saldo restante"
-                                  Binding="{Binding SaldoDespues, Converter={StaticResource Money}}" Width="*">
+                                  Binding="{Binding SaldoDespues, Converter={StaticResource Money}}" Width="*" MinWidth="130">
                 <DataGridTextColumn.ElementStyle>
                   <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
                 </DataGridTextColumn.ElementStyle>

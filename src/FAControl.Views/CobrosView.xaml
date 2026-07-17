@@ -68,22 +68,22 @@
           <DataGrid Grid.Row="1" Style="{DynamicResource Tabla}"
                     ItemsSource="{Binding CuotasPendientes}">
             <DataGrid.Columns>
-              <DataGridTextColumn Header="N°" Binding="{Binding Numero}" Width="44" />
-              <DataGridTextColumn Header="Vence" Binding="{Binding FechaTexto}" Width="100" />
+              <DataGridTextColumn Header="N°" Binding="{Binding Numero}" Width="44" MinWidth="44" />
+              <DataGridTextColumn Header="Vence" Binding="{Binding FechaTexto}" Width="100" MinWidth="100" />
               <DataGridTextColumn Header="Cuota"
-                                  Binding="{Binding MontoTotal, Converter={StaticResource Money}}" Width="*">
+                                  Binding="{Binding MontoTotal, Converter={StaticResource Money}}" Width="*" MinWidth="130">
                 <DataGridTextColumn.ElementStyle>
                   <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
                 </DataGridTextColumn.ElementStyle>
               </DataGridTextColumn>
               <DataGridTextColumn Header="Abonado"
-                                  Binding="{Binding MontoPagado, Converter={StaticResource Money}}" Width="*">
+                                  Binding="{Binding MontoPagado, Converter={StaticResource Money}}" Width="*" MinWidth="130">
                 <DataGridTextColumn.ElementStyle>
                   <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
                 </DataGridTextColumn.ElementStyle>
               </DataGridTextColumn>
               <DataGridTextColumn Header="Pendiente"
-                                  Binding="{Binding SaldoPendiente, Converter={StaticResource Money}}" Width="*">
+                                  Binding="{Binding SaldoPendiente, Converter={StaticResource Money}}" Width="*" MinWidth="130">
                 <DataGridTextColumn.ElementStyle>
                   <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.MontoTotal}" />
                 </DataGridTextColumn.ElementStyle>
@@ -203,7 +203,7 @@
               </DataGridTextColumn.ElementStyle>
             </DataGridTextColumn>
             <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="150" />
-            <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*"
+            <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*" MinWidth="150"
                                 HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
             <DataGridTextColumn Header="Préstamo" Binding="{Binding PrestamoCodigo}" Width="90" />
             <DataGridTextColumn Header="Cuota" Binding="{Binding CuotaTexto}" Width="80" />
