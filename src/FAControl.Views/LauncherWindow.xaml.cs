@@ -23,7 +23,7 @@ public record ModoTarjeta(IdentidadModo Identidad)
     public Brush AcentoSutil => new SolidColorBrush(Convertir(Identidad.ColorHex)) { Opacity = 0.18 };
 
     /// <summary>Color del glow al pasar el mouse: el propio, más oscuro.</summary>
-    public Color ColorGlow => Convertir(Identidad.ColorOscuroHex);
+    public Color ColorGlow => Convertir(Identidad.ColorBrilloHex);
 
     public string EstadoTexto => Identidad.Disponible ? "DISPONIBLE" : "EN DESARROLLO";
 

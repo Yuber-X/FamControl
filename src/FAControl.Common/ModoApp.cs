@@ -26,8 +26,13 @@ public record IdentidadModo(
     string Descripcion,
     /// <summary>Color de acento del modo (hex).</summary>
     string ColorHex,
-    /// <summary>Mismo color más oscuro: es el del glow al pasar el mouse.</summary>
-    string ColorOscuroHex,
+    /// <summary>
+    /// Color del glow al pasar el mouse. Debe tener suficiente luminancia para
+    /// resaltar contra el navy del launcher (el dorado de PrestControl funciona
+    /// porque es cálido y claro; el azul y el verde necesitan versiones vivas,
+    /// no oscuras — pedido de Yuber 2026-07-19).
+    /// </summary>
+    string ColorBrilloHex,
     /// <summary>False mientras el módulo no exista: el launcher lo marca.</summary>
     bool Disponible)
 {
@@ -35,18 +40,18 @@ public record IdentidadModo(
     [
         new(ModoApp.PrestControl, "PrestControl", "Préstamos",
             "Préstamos personales e hipotecarios: clientes, cuotas, cobros y reportes.",
-            // Dorado de la marca Familia Almonte
-            "#C9A15A", "#8A6A2F", Disponible: true),
+            // Dorado de la marca Familia Almonte (glow perfecto según Yuber)
+            "#C9A15A", "#B5893F", Disponible: true),
 
         new(ModoApp.DealerControl, "DealerControl", "Dealer",
             "Inventario de vehículos, importación, costos y rent a car.",
-            // Azul acero
-            "#3D5A80", "#25384F", Disponible: false),
+            // Azul acero + glow azul vivo para que resalte como el dorado
+            "#3D5A80", "#5B90D4", Disponible: false),
 
         new(ModoApp.AutoControl, "AutoControl", "Ventas de vehículos",
             "Venta financiada: crédito con el vehículo en garantía, cuotas y pagaré.",
-            // Verde esmeralda (aprobado por Yuber 2026-07-17)
-            "#3A7D5C", "#22503A", Disponible: false)
+            // Verde esmeralda (aprobado por Yuber 2026-07-17) + glow verde vivo
+            "#3A7D5C", "#48B07E", Disponible: false)
     ];
 
     public static IdentidadModo De(ModoApp modo) => Todos.First(m => m.Modo == modo);

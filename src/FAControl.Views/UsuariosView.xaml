@@ -112,7 +112,9 @@
                el ConverterParameter. -->
           <CheckBox Content="Usuario activo" Margin="0,12,0,0" IsChecked="{Binding Activo}">
             <CheckBox.Style>
-              <Style TargetType="CheckBox">
+              <!-- BasedOn el estilo implícito (Foreground dinámico): sin él, este
+                   estilo inline lo pisa y el texto queda oscuro en modo noche. -->
+              <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
                 <Style.Triggers>
                   <DataTrigger Binding="{Binding EsNuevo}" Value="True">
                     <Setter Property="Visibility" Value="Collapsed" />

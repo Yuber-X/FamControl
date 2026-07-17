@@ -5,6 +5,7 @@
         Width="1100" Height="700"
         MinWidth="900" MinHeight="620"
         WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
         Background="#0D1B2A">
 
   <Window.Resources>
@@ -170,12 +171,36 @@
     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center"
                 Margin="0,28,0,28">
       <TextBlock Text="Elegí un modo para iniciar sesión."
-                 FontSize="11" Foreground="{StaticResource Launcher.TextoSuave}"
-                 VerticalAlignment="Center" Margin="0,0,16,0" />
-      <Button Content="Salir" Cursor="Hand" Padding="18,7"
-              Foreground="{StaticResource Launcher.TextoSuave}"
-              Background="Transparent" BorderThickness="0"
-              Click="BotonSalir_Click" />
+                 FontSize="12" Foreground="{StaticResource Launcher.TextoSuave}"
+                 VerticalAlignment="Center" Margin="0,0,18,0" />
+      <!-- Botón salir: pildora con borde visible en reposo (para que se note)
+           y hover que se llena de rojo suave (salir = cerrar la app) -->
+      <Button Cursor="Hand" Click="BotonSalir_Click">
+        <Button.Template>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Pildora" CornerRadius="20" Padding="18,9"
+                    Background="#161D2B"
+                    BorderBrush="#34405A" BorderThickness="1.2">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="Icono" Text="&#xE7E8;" FontFamily="Segoe MDL2 Assets"
+                           FontSize="13" VerticalAlignment="Center"
+                           Foreground="{StaticResource Launcher.TextoSuave}" />
+                <TextBlock x:Name="Texto" Text="Salir de FAControl" Margin="9,0,0,0"
+                           FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                           Foreground="{StaticResource Launcher.TextoSuave}" />
+              </StackPanel>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Pildora" Property="Background" Value="#3A1518" />
+                <Setter TargetName="Pildora" Property="BorderBrush" Value="#E5484D" />
+                <Setter TargetName="Icono" Property="Foreground" Value="#FF6B6E" />
+                <Setter TargetName="Texto" Property="Foreground" Value="#FF8A8C" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Button.Template>
+      </Button>
     </StackPanel>
   </Grid>
 </Window>
