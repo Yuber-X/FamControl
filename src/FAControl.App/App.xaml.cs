@@ -178,6 +178,7 @@ public partial class App : Application
         // Services
         servicios.AddSingleton<AuditoriaService>();
         servicios.AddSingleton<AuthService>();
+        servicios.AddSingleton<UsuarioService>();
         servicios.AddSingleton<AmortizacionService>();
         servicios.AddSingleton<ClienteService>();
         servicios.AddSingleton<PrestamoService>();
@@ -197,6 +198,7 @@ public partial class App : Application
 
         // ViewModels
         servicios.AddSingleton<LoginViewModel>();
+        servicios.AddSingleton<UsuariosViewModel>();
         servicios.AddSingleton<ClientesViewModel>();
         servicios.AddSingleton<ClienteFichaViewModel>();
         servicios.AddSingleton<ClienteFormViewModel>();

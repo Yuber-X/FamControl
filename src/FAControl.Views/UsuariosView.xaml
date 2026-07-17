@@ -1,0 +1,178 @@
+<UserControl x:Class="FAControl.Views.UsuariosView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             DataContextChanged="UsuariosView_DataContextChanged">
+
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" MinWidth="380" />
+      <ColumnDefinition Width="Auto" />
+    </Grid.ColumnDefinitions>
+
+    <!-- ============ LISTA ============ -->
+    <Grid Grid.Column="0">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
+      <DockPanel Grid.Row="0" Margin="0,0,0,16">
+        <Button DockPanel.Dock="Right" Content="+ Nuevo usuario"
+                Style="{DynamicResource Boton.Primario}"
+                Command="{Binding NuevoCommand}" />
+        <TextBlock VerticalAlignment="Center" Style="{DynamicResource Texto.Caption}"
+                   Text="Solo un administrador puede crear empleados y cambiar sus contraseñas."
+                   TextWrapping="Wrap" />
+      </DockPanel>
+
+      <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0">
+        <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Filas}">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Usuario" Binding="{Binding Username}" Width="130" MinWidth="130"
+                                HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
+              <DataGridTextColumn.ElementStyle>
+                <Style TargetType="TextBlock">
+                  <Setter Property="FontFamily" Value="{DynamicResource Fuente.Mono}" />
+                </Style>
+              </DataGridTextColumn.ElementStyle>
+            </DataGridTextColumn>
+            <DataGridTextColumn Header="Nombre" Binding="{Binding NombreCompleto}" Width="*" MinWidth="150"
+                                HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+            <DataGridTextColumn Header="Rol" Binding="{Binding RolTexto}" Width="110" MinWidth="110" />
+            <DataGridTextColumn Header="Estado" Binding="{Binding EstadoTexto}" Width="90" MinWidth="90" />
+            <DataGridTextColumn Header="Último acceso" Binding="{Binding UltimoAccesoTexto}"
+                                Width="150" MinWidth="150" />
+            <!-- Ancho FIJO: con Auto la virtualización mide contra el header
+                 vacío y el botón no aparece hasta cambiar de pantalla -->
+            <DataGridTemplateColumn Width="100">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Button Content="Editar" Style="{DynamicResource Boton.Terciario}"
+                          Command="{Binding DataContext.EditarCommand,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                          CommandParameter="{Binding}" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </Border>
+    </Grid>
+
+    <!-- ============ FORMULARIO (lateral) ============ -->
+    <Border Grid.Column="1" Width="400" Margin="16,0,0,0"
+            Style="{DynamicResource Card}"
+            Visibility="{Binding FormularioVisible, Converter={StaticResource BoolAVisibilidad}}">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+          <TextBlock Text="{Binding TituloFormulario}" Style="{DynamicResource Texto.Titulo3}"
+                     TextWrapping="Wrap" Margin="0,0,0,16" />
+
+          <TextBlock Text="Nombre de usuario" Style="{DynamicResource Input.Label}" />
+          <TextBox Style="{DynamicResource Input.Texto}"
+                   Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+                   IsEnabled="{Binding EsNuevo}"
+                   ToolTip="El username no se puede cambiar después de creado" />
+
+          <Grid Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="10" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+              <TextBox Style="{DynamicResource Input.Texto}"
+                       Text="{Binding Nombre, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="Apellido" Style="{DynamicResource Input.Label}" />
+              <TextBox Style="{DynamicResource Input.Texto}"
+                       Text="{Binding Apellido, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+          </Grid>
+
+          <TextBlock Text="Rol" Style="{DynamicResource Input.Label}" Margin="0,10,0,0" />
+          <ComboBox Height="40" FontSize="13"
+                    ItemsSource="{Binding Roles}"
+                    SelectedItem="{Binding RolSeleccionado}"
+                    DisplayMemberPath="Texto" />
+
+          <TextBlock Text="Contraseña" Style="{DynamicResource Input.Label}" Margin="0,10,0,0" />
+          <!-- PasswordBox no se puede bindear (WPF no expone Password como
+               DependencyProperty, a propósito): lo pasa el code-behind -->
+          <PasswordBox x:Name="CampoPassword" Style="{DynamicResource Input.Password}"
+                       PasswordChanged="CampoPassword_PasswordChanged" />
+          <TextBlock Text="{Binding TextoAyudaPassword}" Style="{DynamicResource Texto.Caption}"
+                     TextWrapping="Wrap" Margin="0,4,0,0" />
+
+          <!-- Solo en edición: al crear, el usuario nace activo y el check
+               no haría nada (CrearAsync no recibe 'activo'). DataTrigger en
+               vez de converter invertido: BooleanToVisibilityConverter ignora
+               el ConverterParameter. -->
+          <CheckBox Content="Usuario activo" Margin="0,12,0,0" IsChecked="{Binding Activo}">
+            <CheckBox.Style>
+              <Style TargetType="CheckBox">
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding EsNuevo}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </CheckBox.Style>
+          </CheckBox>
+
+          <!-- Permisos -->
+          <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,16,0,12" />
+          <DockPanel Margin="0,0,0,8">
+            <Button DockPanel.Dock="Right" Content="Restablecer al rol"
+                    Style="{DynamicResource Boton.Terciario}"
+                    Command="{Binding RestablecerPermisosCommand}"
+                    ToolTip="Vuelve a los permisos que da el rol elegido" />
+            <TextBlock Text="Permisos" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                       VerticalAlignment="Center" />
+          </DockPanel>
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                     Text="El rol marca los permisos por defecto. Podés ajustarlos uno por uno para este usuario." />
+
+          <ItemsControl ItemsSource="{Binding Permisos}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Padding="0,5">
+                  <CheckBox IsChecked="{Binding Asignado}">
+                    <StackPanel>
+                      <TextBlock Text="{Binding Nombre}" Style="{DynamicResource Texto.Cuerpo}" />
+                      <TextBlock Text="{Binding PistaTexto}" Style="{DynamicResource Texto.Caption}" />
+                    </StackPanel>
+                  </CheckBox>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- Mensajes: vacíos no molestan (mismo patrón que ClienteFormView) -->
+          <TextBlock Text="{Binding MensajeError}" TextWrapping="Wrap" Margin="0,12,0,0"
+                     Style="{DynamicResource Texto.Caption}"
+                     Foreground="{DynamicResource Brush.Destructivo}" />
+          <TextBlock Text="{Binding MensajeExito}" TextWrapping="Wrap" Margin="0,6,0,0"
+                     Style="{DynamicResource Texto.Caption}"
+                     Foreground="{DynamicResource Brush.DeltaPositivo}" />
+
+          <!-- Acciones -->
+          <Grid Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="Guardar" Style="{DynamicResource Boton.Primario}"
+                    Command="{Binding GuardarCommand}"
+                    IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}" />
+            <Button Grid.Column="2" Content="Cancelar" Style="{DynamicResource Boton.Secundario}"
+                    Command="{Binding CancelarCommand}" />
+          </Grid>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

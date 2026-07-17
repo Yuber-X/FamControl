@@ -66,6 +66,13 @@ public class UsuarioService
         return await _usuarios.ObtenerPermisosAsync(usuarioId, ct);
     }
 
+    /// <summary>Permisos que da un rol por defecto (para premarcar las casillas).</summary>
+    public async Task<IReadOnlyList<string>> ObtenerPermisosDeRolAsync(int rolId, CancellationToken ct = default)
+    {
+        ExigirAdmin();
+        return await _usuarios.ObtenerPermisosDeRolAsync(rolId, ct);
+    }
+
     /// <summary>Crea un empleado. El trigger le siembra los permisos del rol.</summary>
     public async Task<long> CrearAsync(string username, string nombre, string? apellido,
         int rolId, string password, CancellationToken ct = default)

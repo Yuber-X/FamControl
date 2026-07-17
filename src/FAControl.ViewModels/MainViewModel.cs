@@ -15,6 +15,7 @@ public enum Pagina
     Cobros,
     Reportes,
     Historial,
+    Usuarios,
     Configuracion
 }
 
@@ -34,17 +35,19 @@ public partial class MainViewModel : ObservableObject
     private readonly PanelViewModel _panelVm;
     private readonly ReportesViewModel _reportesVm;
     private readonly HistorialViewModel _historialVm;
+    private readonly UsuariosViewModel _usuariosVm;
     private readonly ConfiguracionViewModel _configuracionVm;
 
     public MainViewModel(PrestamosViewModel prestamosVm, PrestamoNuevoViewModel nuevoVm,
         PrestamoDetalleViewModel detalleVm, CobrosViewModel cobrosVm,
         ClientesViewModel clientesVm, ClienteFichaViewModel fichaVm, ClienteFormViewModel clienteFormVm,
         PanelViewModel panelVm, ReportesViewModel reportesVm, HistorialViewModel historialVm,
-        ConfiguracionViewModel configuracionVm)
+        UsuariosViewModel usuariosVm, ConfiguracionViewModel configuracionVm)
     {
         _panelVm = panelVm;
         _reportesVm = reportesVm;
         _historialVm = historialVm;
+        _usuariosVm = usuariosVm;
         _configuracionVm = configuracionVm;
         _panelVm.CobrarSolicitado += id => _ = AbrirCobrosAsync(id);
         _prestamosVm = prestamosVm;
@@ -83,6 +86,43 @@ public partial class MainViewModel : ObservableObject
     private string _tituloPagina = "Panel de control";
 
     public string NombreUsuario => SesionActual.Nombre;
+    public string RolUsuario => SesionActual.Rol;
+
+    // ------------------------------------------------------------------
+    // Visibilidad del sidebar por permiso (multicuentas 2026-07-16).
+    // Esto es UX, NO seguridad: la regla de verdad la aplica cada Service.
+    // ------------------------------------------------------------------
+    public bool PuedeVerPanel => SesionActual.TienePermiso(Permisos.Panel);
+    public bool PuedeVerClientes => SesionActual.TienePermiso(Permisos.Clientes);
+    public bool PuedeVerPrestamos => SesionActual.TienePermiso(Permisos.Prestamos);
+    public bool PuedeVerNuevoPrestamo => SesionActual.TienePermiso(Permisos.PrestamosCrear);
+    public bool PuedeVerCobros => SesionActual.TienePermiso(Permisos.Cobros);
+    public bool PuedeVerReportes => SesionActual.TienePermiso(Permisos.Reportes);
+    public bool PuedeVerHistorial => SesionActual.TienePermiso(Permisos.Historial);
+    public bool PuedeVerUsuarios => SesionActual.TienePermiso(Permisos.Usuarios);
+    /// <summary>Configuración es EXCLUSIVA de Admin (regla del cliente).</summary>
+    public bool PuedeVerConfiguracion => SesionActual.EsAdmin
+                                         && SesionActual.TienePermiso(Permisos.Configuracion);
+
+    /// <summary>
+    /// Reevalúa el sidebar tras un login (los permisos cambian con el usuario).
+    /// </summary>
+    public void RefrescarPermisos()
+    {
+        OnPropertyChanged(nameof(NombreUsuario));
+        OnPropertyChanged(nameof(RolUsuario));
+        OnPropertyChanged(nameof(Iniciales));
+        OnPropertyChanged(nameof(PuedeVerPanel));
+        OnPropertyChanged(nameof(PuedeVerClientes));
+        OnPropertyChanged(nameof(PuedeVerPrestamos));
+        OnPropertyChanged(nameof(PuedeVerNuevoPrestamo));
+        OnPropertyChanged(nameof(PuedeVerCobros));
+        OnPropertyChanged(nameof(PuedeVerReportes));
+        OnPropertyChanged(nameof(PuedeVerHistorial));
+        OnPropertyChanged(nameof(PuedeVerUsuarios));
+        OnPropertyChanged(nameof(PuedeVerConfiguracion));
+    }
+
     public string Iniciales
     {
         get
@@ -137,6 +177,10 @@ public partial class MainViewModel : ObservableObject
                 case Pagina.Historial:
                     await _historialVm.CargarAsync();
                     PaginaActualVm = _historialVm;
+                    break;
+                case Pagina.Usuarios:
+                    await _usuariosVm.CargarAsync();
+                    PaginaActualVm = _usuariosVm;
                     break;
                 case Pagina.Configuracion:
                     PaginaActualVm = _configuracionVm;
@@ -235,6 +279,7 @@ public partial class MainViewModel : ObservableObject
         Pagina.Cobros => "Cobros",
         Pagina.Reportes => "Reportes",
         Pagina.Historial => "Historial",
+        Pagina.Usuarios => "Usuarios",
         Pagina.Configuracion => "Configuración",
         _ => string.Empty
     };

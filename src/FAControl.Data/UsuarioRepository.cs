@@ -92,6 +92,29 @@ public class UsuarioRepository
         return lista;
     }
 
+    /// <summary>
+    /// Permisos que otorga un ROL por defecto. Se usa para premarcar las
+    /// casillas del formulario y para mostrar qué es "del rol" vs "adicional".
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ObtenerPermisosDeRolAsync(int rolId, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT p.codigo
+            FROM {DbNames.RolPermiso} rp
+            JOIN {DbNames.Permiso} p ON p.id = rp.permiso_id
+            WHERE rp.rol_id = @rolId;
+            """;
+        cmd.Parameters.AddWithValue("@rolId", rolId);
+
+        var lista = new List<string>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            lista.Add(reader.GetString("codigo"));
+        return lista;
+    }
+
     public async Task<IReadOnlyList<Rol>> ObtenerRolesAsync(CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);

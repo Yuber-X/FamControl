@@ -63,65 +63,83 @@
             </Border>
             <StackPanel VerticalAlignment="Center" Margin="10,0,0,0">
               <TextBlock Text="{Binding NombreUsuario}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
-              <TextBlock Text="Prestamista" Style="{DynamicResource Texto.Caption}" />
+              <!-- Multiusuario: se muestra el ROL del empleado activo -->
+              <TextBlock Text="{Binding RolUsuario}" Style="{DynamicResource Texto.Caption}" />
             </StackPanel>
           </DockPanel>
         </Border>
 
         <!-- Navegación: IsChecked refleja PaginaActual (la navegación interna,
              p.ej. crear préstamo → detalle, también actualiza el sidebar) -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
           <TextBlock Text="MENÚ PRINCIPAL" Style="{DynamicResource Texto.MicroLabel}"
                      Margin="24,0,0,8" />
           <RadioButton Content="Panel" Tag="&#xE80F;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerPanel, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,
                                    Converter={StaticResource Igualdad},
                                    ConverterParameter={x:Static vm:Pagina.Panel}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.Panel}" />
           <RadioButton Content="Clientes" Tag="&#xE716;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerClientes, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,
                                    Converter={StaticResource Igualdad},
                                    ConverterParameter={x:Static vm:Pagina.Clientes}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.Clientes}" />
           <RadioButton Content="Préstamos" Tag="&#xE825;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerPrestamos, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,
                                    Converter={StaticResource Igualdad},
                                    ConverterParameter={x:Static vm:Pagina.Prestamos}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.Prestamos}" />
           <RadioButton Content="Nuevo préstamo" Tag="&#xE710;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerNuevoPrestamo, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,
                                    Converter={StaticResource Igualdad},
                                    ConverterParameter={x:Static vm:Pagina.NuevoPrestamo}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.NuevoPrestamo}" />
           <RadioButton Content="Cobros" Tag="&#xE8EF;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerCobros, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,
                                    Converter={StaticResource Igualdad},
                                    ConverterParameter={x:Static vm:Pagina.Cobros}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.Cobros}" />
           <RadioButton Content="Reportes" Tag="&#xE9D2;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerReportes, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,
                                    Converter={StaticResource Igualdad},
                                    ConverterParameter={x:Static vm:Pagina.Reportes}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.Reportes}" />
           <RadioButton Content="Historial" Tag="&#xE81C;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerHistorial, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,
                                    Converter={StaticResource Igualdad},
                                    ConverterParameter={x:Static vm:Pagina.Historial}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.Historial}" />
+          <RadioButton Content="Usuarios" Tag="&#xE77B;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerUsuarios, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Usuarios}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Usuarios}" />
           <RadioButton Content="Configuración" Tag="&#xE713;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerConfiguracion, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,
                                    Converter={StaticResource Igualdad},
                                    ConverterParameter={x:Static vm:Pagina.Configuracion}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.Configuracion}" />
         </StackPanel>
+        </ScrollViewer>
       </DockPanel>
     </Border>
 
