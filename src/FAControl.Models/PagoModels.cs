@@ -20,7 +20,10 @@ public record SolicitudPago(
     decimal Monto,
     MetodoPago MetodoPago,
     string? Notas,
-    bool EsLiquidacion = false);
+    bool EsLiquidacion = false,
+    /// <summary>Abono a capital adicional (cliente 2026-07-17). Se aplica sobre
+    /// el capital de las cuotas más próximas, exonerando su interés.</summary>
+    decimal AbonoCapital = 0m);
 
 /// <summary>Línea del recibo impreso (una por cuota afectada).</summary>
 public record ReciboLinea(

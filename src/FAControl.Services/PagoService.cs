@@ -97,6 +97,78 @@ public class PagoService
     }
 
     /// <summary>
+    /// Cobro con ABONO A CAPITAL (cliente 2026-07-17): el monto base paga las
+    /// cuotas en orden (interés + capital, como siempre), y el abono se aplica
+    /// EXTRA sobre el capital de las siguientes cuotas —soonest first—
+    /// EXONERANDO su interés. Es una liquidación parcial: el cliente adelanta
+    /// capital y se ahorra los intereses de lo que adelantó.
+    ///
+    /// El abono nunca puede exceder el capital pendiente del préstamo.
+    /// </summary>
+    public static List<AplicacionPago> DistribuirConAbono(
+        decimal montoBase, decimal abono, IReadOnlyList<Cuota> cuotasImpagas, DateOnly hoy)
+    {
+        if (abono < 0m)
+            throw new ArgumentException("El abono no puede ser negativo.", nameof(abono));
+        if (cuotasImpagas.Count == 0)
+            throw new ArgumentException("El préstamo no tiene cuotas pendientes de cobro.", nameof(cuotasImpagas));
+
+        // 1) El monto base se distribuye como siempre (paga cuota, adelanta la siguiente)
+        var aplicaciones = montoBase > 0m
+            ? DistribuirPago(montoBase, cuotasImpagas)
+            : [];
+        if (abono == 0m)
+            return aplicaciones;
+
+        // Capital que el monto base ya cubrió en cada cuota (para no cobrarlo dos veces)
+        var capitalYaAplicado = aplicaciones.ToDictionary(a => a.Cuota.Id, a => a.CapitalAplicado);
+
+        // 2) El abono va al capital de las cuotas que aún tienen capital pendiente,
+        //    de la más próxima a la más lejana, exonerando su interés.
+        var restante = abono;
+        foreach (var cuota in cuotasImpagas)
+        {
+            if (restante <= 0m)
+                break;
+
+            var yaAplicado = capitalYaAplicado.GetValueOrDefault(cuota.Id, 0m);
+            var capitalPendiente = CapitalPendiente(cuota) - yaAplicado;
+            if (capitalPendiente <= 0m)
+                continue;
+
+            var aplicarCapital = Math.Min(restante, capitalPendiente);
+            var quedaPagada = aplicarCapital == capitalPendiente;
+            // Si esta cuota ya recibió pago base, se fusiona; si no, es nueva
+            var existente = aplicaciones.FirstOrDefault(a => a.Cuota.Id == cuota.Id);
+            var interesExonerado = quedaPagada ? InteresPendiente(cuota) : 0m;
+
+            if (existente is not null)
+                aplicaciones[aplicaciones.IndexOf(existente)] = existente with
+                {
+                    MontoAplicado = existente.MontoAplicado + aplicarCapital,
+                    CapitalAplicado = existente.CapitalAplicado + aplicarCapital,
+                    QuedaPagada = existente.QuedaPagada || quedaPagada,
+                    InteresExonerado = existente.InteresExonerado + interesExonerado
+                };
+            else
+                aplicaciones.Add(new AplicacionPago(
+                    cuota, aplicarCapital, 0m, aplicarCapital, quedaPagada,
+                    InteresExonerado: interesExonerado));
+
+            restante -= aplicarCapital;
+        }
+
+        if (restante > 0m)
+        {
+            var capitalTotal = cuotasImpagas.Sum(CapitalPendiente);
+            throw new ArgumentException(
+                $"El abono ({abono:N2}) excede el capital pendiente del préstamo ({capitalTotal:N2}).");
+        }
+
+        return aplicaciones;
+    }
+
+    /// <summary>
     /// Monto necesario para liquidar hoy: cuotas vencidas o vigentes pagan su
     /// saldo completo; cuotas futuras pagan SOLO su capital pendiente
     /// (el interés futuro se exonera).
@@ -166,7 +238,9 @@ public class PagoService
 
             var aplicaciones = solicitud.EsLiquidacion
                 ? DistribuirLiquidacion(cuotas, hoy)
-                : DistribuirPago(solicitud.Monto, cuotas);
+                : solicitud.AbonoCapital > 0m
+                    ? DistribuirConAbono(solicitud.Monto, solicitud.AbonoCapital, cuotas, hoy)
+                    : DistribuirPago(solicitud.Monto, cuotas);
 
             var pagosInsertados = new List<Pago>();
             var lineas = new List<ReciboLinea>();

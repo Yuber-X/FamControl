@@ -57,6 +57,11 @@ public partial class CobrosViewModel : ObservableObject
     public ObservableCollection<PagoFila> PagosRecientes { get; } = [];
 
     [ObservableProperty] private string _montoTexto = string.Empty;
+    /// <summary>
+    /// Abono a capital (cliente 2026-07-17). Se autocompleta con el excedente
+    /// sobre la próxima cuota, y el usuario puede cambiarlo a su antojo.
+    /// </summary>
+    [ObservableProperty] private string _abonoTexto = string.Empty;
     [ObservableProperty] private bool _esLiquidacion;
     [ObservableProperty] private Opcion<MetodoPago> _metodoSeleccionado;
     [ObservableProperty] private string _notas = string.Empty;
@@ -70,13 +75,41 @@ public partial class CobrosViewModel : ObservableObject
     partial void OnPrestamoSeleccionadoChanged(PrestamoResumen? value) =>
         _ = CargarCuotasAsync(); // fire-and-forget: CargarCuotasAsync captura sus propias excepciones
 
-    partial void OnMontoTextoChanged(string value) => RecalcularPreview();
+    partial void OnMontoTextoChanged(string value)
+    {
+        AutocompletarAbono();
+        RecalcularPreview();
+    }
+
+    partial void OnAbonoTextoChanged(string value)
+    {
+        // Solo recalcula; NO reautocompleta (respeta la edición manual)
+        RecalcularPreview();
+    }
 
     partial void OnEsLiquidacionChanged(bool value)
     {
         if (value)
+        {
             MontoTexto = MontoLiquidacion.ToString("0.##", CulturaRd);
+            AbonoTexto = string.Empty;   // la liquidación ya exonera el interés futuro
+        }
         RecalcularPreview();
+    }
+
+    /// <summary>
+    /// Cuando el monto recibido supera la próxima cuota, el excedente se sugiere
+    /// como abono a capital. El usuario puede editarlo después.
+    /// </summary>
+    private void AutocompletarAbono()
+    {
+        if (EsLiquidacion || SaldoProximaCuota <= 0m)
+            return;
+        if (!decimal.TryParse(MontoTexto, NumberStyles.Number, CulturaRd, out var monto))
+            return;
+
+        var excedente = monto - SaldoProximaCuota;
+        AbonoTexto = excedente > 0m ? excedente.ToString("0.##", CulturaRd) : string.Empty;
     }
 
     public async Task CargarAsync(long? preseleccionarPrestamoId = null)
@@ -117,6 +150,7 @@ public partial class CobrosViewModel : ObservableObject
         DeudaTotal = SaldoProximaCuota = MontoLiquidacion = 0m;
         EsLiquidacion = false;
         MontoTexto = string.Empty;
+        AbonoTexto = string.Empty;
 
         if (PrestamoSeleccionado is null)
             return;
@@ -166,9 +200,16 @@ public partial class CobrosViewModel : ObservableObject
 
         try
         {
-            var aplicaciones = EsLiquidacion
-                ? PagoService.DistribuirLiquidacion(_cuotasImpagas, FechaNegocio.Hoy)
-                : PagoService.DistribuirPago(ParsearMonto(), _cuotasImpagas);
+            var abono = ParsearAbono();
+            List<AplicacionPago> aplicaciones;
+            if (EsLiquidacion)
+                aplicaciones = PagoService.DistribuirLiquidacion(_cuotasImpagas, FechaNegocio.Hoy);
+            else if (abono > 0m)
+                // El monto base es lo que va a las cuotas normal; el resto es abono
+                aplicaciones = PagoService.DistribuirConAbono(
+                    ParsearMonto() - abono, abono, _cuotasImpagas, FechaNegocio.Hoy);
+            else
+                aplicaciones = PagoService.DistribuirPago(ParsearMonto(), _cuotasImpagas);
 
             foreach (var aplicacion in aplicaciones)
                 PreviewDistribucion.Add(new AplicacionFila(aplicacion));
@@ -187,6 +228,18 @@ public partial class CobrosViewModel : ObservableObject
         if (!decimal.TryParse(MontoTexto, NumberStyles.Number, CulturaRd, out var monto))
             throw new ArgumentException("Ingresá un monto válido (ej. 1,600.00).");
         return monto;
+    }
+
+    /// <summary>Abono a capital, 0 si está vacío. Valida que no supere el monto recibido.</summary>
+    private decimal ParsearAbono()
+    {
+        if (string.IsNullOrWhiteSpace(AbonoTexto))
+            return 0m;
+        if (!decimal.TryParse(AbonoTexto, NumberStyles.Number, CulturaRd, out var abono) || abono < 0m)
+            throw new ArgumentException("Ingresá un abono válido (o dejalo vacío).");
+        if (abono > ParsearMonto())
+            throw new ArgumentException("El abono no puede ser mayor que el monto recibido.");
+        return abono;
     }
 
     // ---------- Atajos ----------
@@ -213,12 +266,17 @@ public partial class CobrosViewModel : ObservableObject
 
         try
         {
+            var abono = EsLiquidacion ? 0m : ParsearAbono();
+            // El monto base (a cuotas) es el recibido menos lo que va como abono
+            var montoBase = EsLiquidacion ? MontoLiquidacion : ParsearMonto() - abono;
+
             var solicitud = new SolicitudPago(
                 PrestamoSeleccionado.Id,
-                EsLiquidacion ? MontoLiquidacion : ParsearMonto(),
+                montoBase,
                 MetodoSeleccionado.Valor,
                 string.IsNullOrWhiteSpace(Notas) ? null : Notas.Trim(),
-                EsLiquidacion);
+                EsLiquidacion,
+                abono);
 
             var resultado = await _pagos.RegistrarPagoAsync(solicitud);
 

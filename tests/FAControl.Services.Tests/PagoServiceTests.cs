@@ -234,4 +234,55 @@ public class PagoServiceTests
         aplicaciones.Sum(a => a.MontoAplicado)
             .Should().Be(PagoService.CalcularLiquidacion(cuotas, hoy));
     }
+
+    // ============================================================
+    // Abono a capital (cliente 2026-07-17)
+    // ============================================================
+
+    [Fact]
+    public void DistribuirConAbono_paga_la_cuota_y_abona_capital_futuro()
+    {
+        // 5 cuotas de 1,600 (cap 1,000 + int 600). Base 1,600 paga la cuota 1;
+        // abono 2,000 va al capital de las cuotas 2 y 3, exonerando su interés.
+        var cuotas = Enumerable.Range(1, 5).Select(n => CrearCuota(n)).ToList();
+
+        var apps = PagoService.DistribuirConAbono(1_600m, 2_000m, cuotas, new DateOnly(2026, 7, 15));
+
+        // Cuota 1: pagada completa (1,600)
+        var c1 = apps.Single(a => a.Cuota.NumeroCuota == 1);
+        c1.MontoAplicado.Should().Be(1_600m);
+        c1.QuedaPagada.Should().BeTrue();
+
+        // Cuotas 2 y 3: solo capital (1,000 c/u), interés exonerado
+        var c2 = apps.Single(a => a.Cuota.NumeroCuota == 2);
+        c2.CapitalAplicado.Should().Be(1_000m);
+        c2.InteresAplicado.Should().Be(0m);
+        c2.InteresExonerado.Should().Be(600m);
+        c2.QuedaPagada.Should().BeTrue();
+
+        // El abono total aplicado a capital es 2,000
+        apps.Where(a => a.Cuota.NumeroCuota > 1).Sum(a => a.CapitalAplicado).Should().Be(2_000m);
+    }
+
+    [Fact]
+    public void DistribuirConAbono_sin_abono_es_igual_a_DistribuirPago()
+    {
+        var cuotas = Enumerable.Range(1, 3).Select(n => CrearCuota(n)).ToList();
+
+        var conAbono = PagoService.DistribuirConAbono(1_600m, 0m, cuotas, new DateOnly(2026, 7, 15));
+        var normal = PagoService.DistribuirPago(1_600m, cuotas);
+
+        conAbono.Should().HaveCount(normal.Count);
+        conAbono[0].MontoAplicado.Should().Be(normal[0].MontoAplicado);
+    }
+
+    [Fact]
+    public void DistribuirConAbono_rechaza_abono_mayor_al_capital_pendiente()
+    {
+        var cuotas = Enumerable.Range(1, 2).Select(n => CrearCuota(n)).ToList();
+        // capital total pendiente = 2,000; abono 5,000 lo excede
+        var accion = () => PagoService.DistribuirConAbono(1_600m, 5_000m, cuotas, new DateOnly(2026, 7, 15));
+        accion.Should().Throw<ArgumentException>().WithMessage("*excede el capital*");
+    }
+
 }
