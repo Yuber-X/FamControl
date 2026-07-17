@@ -18,7 +18,7 @@ namespace FAControl.App;
 ///    y eso persiste en ajustes.json;
 ///  - se activa/desactiva desde Configuración.
 /// </summary>
-public class NotificadorVencidos
+public class NotificadorVencidos : IAvisoVencidos
 {
     private readonly ClienteService _clientes;
     private readonly AjustesLocales _ajustes;
@@ -41,16 +41,24 @@ public class NotificadorVencidos
         _timer.Start();
     }
 
-    private async Task VerificarAsync()
+    /// <summary>
+    /// Fuerza el aviso ignorando el "ya avisé hoy". Lo usa Configuración al
+    /// restablecer los silenciados, para que el cambio se vea en el momento.
+    /// </summary>
+    public Task RevisarAhoraAsync() => VerificarAsync(forzado: true);
+
+    private async Task VerificarAsync(bool forzado = false)
     {
         try
         {
             if (!_ajustes.AvisoVencidosActivo || _mostrando)
                 return;
 
-            // Una vez por arranque; se repite solo cuando cambia el día de negocio
+            // Una vez por arranque; se repite solo cuando cambia el día de negocio.
+            // Una revisión forzada se salta el guard: si no, tras restablecer los
+            // silenciados el aviso no reaparecería hasta mañana.
             var hoy = FechaNegocio.Hoy;
-            if (_ultimaFechaAvisada == hoy)
+            if (!forzado && _ultimaFechaAvisada == hoy)
                 return;
             _ultimaFechaAvisada = hoy;
 

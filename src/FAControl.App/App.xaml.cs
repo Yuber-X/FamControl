@@ -190,6 +190,10 @@ public partial class App : Application
         servicios.AddSingleton(FAControl.Common.AjustesLocales.Cargar());
         servicios.AddSingleton<FAControl.Common.IDialogService, DialogService>();
         servicios.AddSingleton<NotificadorVencidos>();
+        // MISMA instancia: el guard "ya avisé hoy" vive en ella, y Configuración
+        // necesita resetearlo en el notificador real, no en una copia.
+        servicios.AddSingleton<FAControl.Common.IAvisoVencidos>(
+            sp => sp.GetRequiredService<NotificadorVencidos>());
 
         // ViewModels
         servicios.AddSingleton<LoginViewModel>();

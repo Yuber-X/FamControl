@@ -18,18 +18,21 @@ public partial class ConfiguracionViewModel : ObservableObject
     private readonly ExportacionService _exportacion;
     private readonly AjustesLocales _ajustes;
     private readonly IDialogService _dialogos;
+    private readonly IAvisoVencidos _avisoVencidos;
 
     /// <summary>El shell escala la UI cuando cambia el tamaño de texto.</summary>
     public event Action<double>? EscalaCambiada;
 
     public ConfiguracionViewModel(AuthService auth, RespaldoService respaldo,
-        ExportacionService exportacion, AjustesLocales ajustes, IDialogService dialogos)
+        ExportacionService exportacion, AjustesLocales ajustes, IDialogService dialogos,
+        IAvisoVencidos avisoVencidos)
     {
         _auth = auth;
         _respaldo = respaldo;
         _exportacion = exportacion;
         _ajustes = ajustes;
         _dialogos = dialogos;
+        _avisoVencidos = avisoVencidos;
 
         Tamanos =
         [
@@ -59,14 +62,29 @@ public partial class ConfiguracionViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void RestablecerSilenciados()
+    private async Task RestablecerSilenciadosAsync()
     {
         if (!_dialogos.Confirmar("Restablecer avisos",
             "Los clientes silenciados volverán a aparecer en el aviso de vencimientos. ¿Continuar?"))
             return;
+
+        var restablecidos = _ajustes.AvisoVencidosSilenciados.Count;
         _ajustes.AvisoVencidosSilenciados.Clear();
         _ajustes.Guardar();
         ActualizarSilenciados();
+
+        if (!_ajustes.AvisoVencidosActivo)
+        {
+            _dialogos.Informar("Avisos restablecidos",
+                $"Se restablecieron {restablecidos} cliente(s), pero el aviso de vencimientos " +
+                "está desactivado: no volverá a aparecer hasta que lo actives arriba.");
+            return;
+        }
+
+        // Vuelve a mostrar el aviso EN EL MOMENTO. Sin esto, el guard de
+        // "ya avisé hoy" del notificador lo posterga hasta mañana y el botón
+        // parece no hacer nada (bug reportado por el cliente 2026-07-16).
+        await _avisoVencidos.RevisarAhoraAsync();
     }
 
     private void ActualizarSilenciados()
