@@ -220,4 +220,78 @@ public class AmortizacionServiceTests
         var act = () => _sut.Calcular(Params(capital, tasa, plazo));
         act.Should().Throw<ArgumentException>();
     }
+
+    // =========================================================
+    // Pago único (cliente 2026-07-17)
+    // =========================================================
+
+    [Fact]
+    public void PagoUnico_produce_una_sola_cuota()
+    {
+        // 100k al 20%: el cliente devuelve 120k en un solo pago
+        var tabla = _sut.Calcular(Params(100_000m, 20m, 1, Modalidad.PagoUnico));
+
+        tabla.Should().HaveCount(1);
+        tabla[0].Capital.Should().Be(100_000m);
+        tabla[0].Interes.Should().Be(20_000m);
+        tabla[0].MontoTotal.Should().Be(120_000m);
+        tabla[0].SaldoDespues.Should().Be(0m);
+    }
+
+    [Fact]
+    public void PagoUnico_ignora_el_plazo_pedido()
+    {
+        // Aunque se pidan 12 cuotas, pago único es SIEMPRE una sola
+        var tabla = _sut.Calcular(Params(50_000m, 10m, 12, Modalidad.PagoUnico));
+        tabla.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void PagoUnico_vence_en_la_fecha_acordada()
+    {
+        var tabla = _sut.Calcular(Params(50_000m, 10m, 1, Modalidad.PagoUnico));
+        tabla[0].FechaVencimiento.Should().Be(PrimerPago);
+    }
+
+    // =========================================================
+    // Modo "para bobos": monto + monto final -> tasa
+    // =========================================================
+
+    [Fact]
+    public void TasaMensualParaTotal_pago_unico_es_exacta()
+    {
+        // Presta 100k, quiere recibir 130k en un pago -> 30% mensual
+        var tasa = _sut.TasaMensualParaTotal(100_000m, 130_000m, 1,
+            Modalidad.PagoUnico, MetodoAmortizacion.CuotaFija);
+
+        tasa.Should().BeApproximately(30m, 0.01m);
+    }
+
+    [Fact]
+    public void TasaMensualParaTotal_es_el_inverso_de_Calcular()
+    {
+        // Si calculo la tasa para un total y luego amortizo con esa tasa,
+        // el total debe volver a dar (a menos de unos centavos por redondeo).
+        var tasa = _sut.TasaMensualParaTotal(80_000m, 100_000m, 6,
+            Modalidad.Mensual, MetodoAmortizacion.CuotaFija);
+
+        var total = _sut.Calcular(Params(80_000m, tasa, 6)).Sum(c => c.MontoTotal);
+        total.Should().BeApproximately(100_000m, 1m);
+    }
+
+    [Fact]
+    public void TasaMensualParaTotal_sin_interes_es_cero()
+    {
+        var tasa = _sut.TasaMensualParaTotal(50_000m, 50_000m, 4,
+            Modalidad.Mensual, MetodoAmortizacion.CuotaFija);
+        tasa.Should().Be(0m);
+    }
+
+    [Fact]
+    public void TasaMensualParaTotal_rechaza_monto_final_menor_al_prestado()
+    {
+        var accion = () => _sut.TasaMensualParaTotal(50_000m, 40_000m, 4,
+            Modalidad.Mensual, MetodoAmortizacion.CuotaFija);
+        accion.Should().Throw<ArgumentException>();
+    }
 }

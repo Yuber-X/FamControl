@@ -14,12 +14,16 @@ namespace FAControl.Services;
 /// </summary>
 public class AmortizacionService
 {
-    /// <summary>Convierte la tasa mensual (%) a la tasa del período de pago, como fracción decimal.</summary>
+    /// <summary>
+    /// Convierte la tasa mensual (%) a la tasa del período de pago, como fracción
+    /// decimal. Pago único aplica la tasa UNA vez (divisor 1, como mensual).
+    /// </summary>
     public static decimal TasaPorPeriodo(decimal tasaMensualPorciento, Modalidad modalidad)
     {
         var divisor = modalidad switch
         {
             Modalidad.Mensual => 1m,
+            Modalidad.PagoUnico => 1m,
             Modalidad.Quincenal => 2m,
             Modalidad.Semanal => 4m,
             Modalidad.Diaria => 30m,
@@ -28,16 +32,66 @@ public class AmortizacionService
         return tasaMensualPorciento / 100m / divisor;
     }
 
+    /// <summary>Pago único = SIEMPRE una sola cuota, sin importar el plazo pedido.</summary>
+    private static int PlazoEfectivo(ParametrosAmortizacion p) =>
+        p.Modalidad == Modalidad.PagoUnico ? 1 : p.PlazoCuotas;
+
     /// <summary>Calcula la tabla de amortización completa según el método indicado.</summary>
     public IReadOnlyList<CuotaCalculada> Calcular(ParametrosAmortizacion p)
     {
         Validar(p);
+        // Con una sola cuota los dos métodos coinciden (capital entero + interés
+        // de un período), así que da igual cuál se use.
+        if (p.Modalidad == Modalidad.PagoUnico)
+            return CalcularCuotaFija(p);
+
         return p.Metodo switch
         {
             MetodoAmortizacion.CuotaFija => CalcularCuotaFija(p),
             MetodoAmortizacion.Frances => CalcularFrances(p),
             _ => throw new ArgumentOutOfRangeException(nameof(p.Metodo))
         };
+    }
+
+    /// <summary>
+    /// Modo "para bobos" (cliente 2026-07-17): dado el capital y el TOTAL que el
+    /// cliente devolverá, calcula la tasa mensual implícita. Es el inverso de
+    /// Calcular: se busca la tasa cuyo total a pagar es el monto final pedido.
+    ///
+    /// El total a pagar crece de forma monótona con la tasa, así que se resuelve
+    /// por bisección: funciona igual para cuota fija que para francés, y para
+    /// pago único (una cuota). Devuelve el % mensual redondeado a 4 decimales.
+    /// </summary>
+    public decimal TasaMensualParaTotal(decimal capital, decimal montoFinal, int plazo,
+        Modalidad modalidad, MetodoAmortizacion metodo)
+    {
+        if (capital <= 0m)
+            throw new ArgumentException("El monto a prestar debe ser mayor que cero.");
+        if (montoFinal < capital)
+            throw new ArgumentException("El monto final no puede ser menor que el monto prestado.");
+        if (montoFinal == capital)
+            return 0m;   // sin interés
+
+        decimal Total(decimal tasa) =>
+            Calcular(new ParametrosAmortizacion(capital, tasa, plazo, modalidad, metodo,
+                new DateOnly(2000, 1, 1))).Sum(c => c.MontoTotal);
+
+        decimal baja = 0m, alta = 1m;
+        // Ensancha el techo hasta que el total supere el objetivo (tasas altas
+        // de prestamista informal pueden ser enormes)
+        while (Total(alta) < montoFinal && alta < 1_000m)
+            alta *= 2m;
+
+        // ~60 iteraciones bastan para converger a menos de un centavo
+        for (var i = 0; i < 60; i++)
+        {
+            var medio = (baja + alta) / 2m;
+            if (Total(medio) < montoFinal)
+                baja = medio;
+            else
+                alta = medio;
+        }
+        return Math.Round((baja + alta) / 2m, 4, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>Totales de la tabla para las tarjetas del resumen (Cuota fija, Total a pagar, Interés total, Capital).</summary>
@@ -78,7 +132,7 @@ public class AmortizacionService
     private static List<CuotaCalculada> CalcularCuotaFija(ParametrosAmortizacion p)
     {
         var i = TasaPorPeriodo(p.TasaInteresMensual, p.Modalidad);
-        var n = p.PlazoCuotas;
+        var n = PlazoEfectivo(p);
 
         // Totales exactos, redondeados una sola vez (regla: redondear al final)
         var interesTotal = Math.Round(p.MontoCapital * i * n, 2, MidpointRounding.AwayFromZero);
@@ -133,7 +187,7 @@ public class AmortizacionService
     private static List<CuotaCalculada> CalcularFrances(ParametrosAmortizacion p)
     {
         var i = TasaPorPeriodo(p.TasaInteresMensual, p.Modalidad);
-        var n = p.PlazoCuotas;
+        var n = PlazoEfectivo(p);
 
         decimal cuotaRedondeada;
         if (i == 0m)
@@ -190,6 +244,8 @@ public class AmortizacionService
             Modalidad.Semanal => primerPago.AddDays(desplazamientos * 7),
             Modalidad.Quincenal => primerPago.AddDays(desplazamientos * 15),
             Modalidad.Mensual => primerPago.AddMonths(desplazamientos),
+            // Pago único: la única cuota vence en la fecha acordada
+            Modalidad.PagoUnico => primerPago,
             _ => throw new ArgumentOutOfRangeException(nameof(modalidad))
         };
     }

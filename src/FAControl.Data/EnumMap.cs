@@ -14,6 +14,7 @@ internal static class EnumMap
         Modalidad.Semanal => "semanal",
         Modalidad.Quincenal => "quincenal",
         Modalidad.Mensual => "mensual",
+        Modalidad.PagoUnico => "pago_unico",
         _ => throw new ArgumentOutOfRangeException(nameof(m))
     };
 
@@ -23,6 +24,7 @@ internal static class EnumMap
         "semanal" => Modalidad.Semanal,
         "quincenal" => Modalidad.Quincenal,
         "mensual" => Modalidad.Mensual,
+        "pago_unico" => Modalidad.PagoUnico,
         _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Modalidad desconocida en BD.")
     };
 

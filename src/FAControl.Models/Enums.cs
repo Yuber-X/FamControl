@@ -6,7 +6,12 @@ public enum Modalidad
     Diaria,
     Semanal,
     Quincenal,
-    Mensual
+    Mensual,
+    /// <summary>
+    /// Pago único: UNA sola cuota (capital + interés) en la fecha acordada.
+    /// El interés se aplica una vez, no por período. Pedido del cliente 2026-07-17.
+    /// </summary>
+    PagoUnico
 }
 
 /// <summary>

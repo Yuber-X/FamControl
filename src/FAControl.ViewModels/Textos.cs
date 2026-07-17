@@ -24,6 +24,7 @@ public static class Textos
         Modalidad.Semanal => "Semanal",
         Modalidad.Quincenal => "Quincenal",
         Modalidad.Mensual => "Mensual",
+        Modalidad.PagoUnico => "Pago único",
         _ => m.ToString()
     };
 

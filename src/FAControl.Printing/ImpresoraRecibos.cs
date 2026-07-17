@@ -26,6 +26,27 @@ public static class ImpresoraRecibos
         return true;
     }
 
+    /// <summary>
+    /// Imprime un FlowDocument, que PAGINA SOLO: sirve para documentos altos
+    /// como el pagaré de 48 cuotas, que con PrintVisual se recortaba.
+    /// El documento se ajusta al área imprimible real de la impresora elegida.
+    /// </summary>
+    public static bool ImprimirDocumento(System.Windows.Documents.FlowDocument documento, string descripcion)
+    {
+        var dialogo = new PrintDialog();
+        if (dialogo.ShowDialog() != true)
+            return false;
+
+        documento.PageWidth = dialogo.PrintableAreaWidth;
+        documento.PageHeight = dialogo.PrintableAreaHeight;
+        documento.PagePadding = new Thickness(48);
+        documento.ColumnWidth = double.PositiveInfinity;
+
+        var paginador = ((System.Windows.Documents.IDocumentPaginatorSource)documento).DocumentPaginator;
+        dialogo.PrintDocument(paginador, descripcion);
+        return true;
+    }
+
     /// <summary>Guarda el recibo como PDF de 80mm de ancho y alto proporcional.</summary>
     public static void GuardarPdf(FrameworkElement visual, string rutaDestino)
     {

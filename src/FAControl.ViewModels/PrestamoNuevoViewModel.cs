@@ -23,13 +23,18 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     private readonly AmortizacionService _amortizacion;
     private readonly IDialogService _dialogos;
     private readonly IAutorizadorAdmin _autorizador;
+    private readonly AjustesLocales _ajustes;
 
     public event Action<long>? PrestamoCreado;
+    /// <summary>La App abre la vista previa imprimible del pagaré.</summary>
+    public event Action<PagareImpreso>? PagareSolicitado;
 
     public PrestamoNuevoViewModel(PrestamoService prestamos, ClienteService clientes,
-        AmortizacionService amortizacion, IDialogService dialogos, IAutorizadorAdmin autorizador)
+        AmortizacionService amortizacion, IDialogService dialogos, IAutorizadorAdmin autorizador,
+        AjustesLocales ajustes)
     {
         _autorizador = autorizador;
+        _ajustes = ajustes;
         _prestamos = prestamos;
         _clientes = clientes;
         _amortizacion = amortizacion;
@@ -40,7 +45,8 @@ public partial class PrestamoNuevoViewModel : ObservableObject
             new Opcion<Modalidad>(Modalidad.Mensual, Textos.De(Modalidad.Mensual)),
             new Opcion<Modalidad>(Modalidad.Quincenal, Textos.De(Modalidad.Quincenal)),
             new Opcion<Modalidad>(Modalidad.Semanal, Textos.De(Modalidad.Semanal)),
-            new Opcion<Modalidad>(Modalidad.Diaria, Textos.De(Modalidad.Diaria))
+            new Opcion<Modalidad>(Modalidad.Diaria, Textos.De(Modalidad.Diaria)),
+            new Opcion<Modalidad>(Modalidad.PagoUnico, Textos.De(Modalidad.PagoUnico))
         ];
         Metodos =
         [
@@ -68,6 +74,22 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     [ObservableProperty] private string _garantia = string.Empty;
     [ObservableProperty] private string _notas = string.Empty;
 
+    // ---------- Modo "para bobos" (cliente 2026-07-17) ----------
+    // En vez de la tasa, el usuario escribe cuánto le van a devolver y el
+    // sistema calcula la tasa. Útil para quien no piensa en porcentajes.
+    [ObservableProperty] private bool _modoMontoFinal;
+    [ObservableProperty] private string _montoFinalTexto = string.Empty;
+    /// <summary>Tasa calculada a partir del monto final: se muestra como pista.</summary>
+    [ObservableProperty] private string _tasaCalculadaTexto = string.Empty;
+
+    /// <summary>Pago único: sin plazo ni método (siempre una cuota).</summary>
+    public bool EsPagoUnico => ModalidadSeleccionada?.Valor == Modalidad.PagoUnico;
+    /// <summary>El plazo y el método solo aplican a préstamos de varias cuotas.</summary>
+    public bool MuestraPlazoYMetodo => !EsPagoUnico;
+    /// <summary>La tasa se escribe a mano solo cuando NO está el modo "para bobos".</summary>
+    public bool MuestraTasaManual => !ModoMontoFinal;
+    public string EtiquetaFecha => EsPagoUnico ? "Fecha del pago" : "Fecha del primer pago";
+
     // ---------- Preview ----------
 
     public ObservableCollection<CuotaCalculada> Preview { get; } = [];
@@ -82,10 +104,26 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     partial void OnMontoTextoChanged(string value) => Recalcular();
     partial void OnTasaTextoChanged(string value) => Recalcular();
     partial void OnPlazoTextoChanged(string value) => Recalcular();
-    partial void OnModalidadSeleccionadaChanged(Opcion<Modalidad> value) => Recalcular();
     partial void OnMetodoSeleccionadoChanged(Opcion<MetodoAmortizacion> value) => Recalcular();
     partial void OnFechaPrimerPagoChanged(DateTime value) => Recalcular();
-    partial void OnClienteSeleccionadoChanged(Cliente? value) => GuardarCommand.NotifyCanExecuteChanged();
+    partial void OnMontoFinalTextoChanged(string value) => Recalcular();
+    partial void OnClienteSeleccionadoChanged(Cliente? value) => NotificarComandos();
+
+    partial void OnModalidadSeleccionadaChanged(Opcion<Modalidad> value)
+    {
+        OnPropertyChanged(nameof(EsPagoUnico));
+        OnPropertyChanged(nameof(MuestraPlazoYMetodo));
+        OnPropertyChanged(nameof(EtiquetaFecha));
+        Recalcular();
+    }
+
+    partial void OnModoMontoFinalChanged(bool value)
+    {
+        OnPropertyChanged(nameof(MuestraTasaManual));
+        // Al alternar, se limpia la pista para no dejar una tasa desactualizada
+        TasaCalculadaTexto = string.Empty;
+        Recalcular();
+    }
 
     public async Task CargarAsync()
     {
@@ -116,7 +154,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         mensaje = string.Empty;
 
         if (string.IsNullOrWhiteSpace(MontoTexto) && string.IsNullOrWhiteSpace(TasaTexto) &&
-            string.IsNullOrWhiteSpace(PlazoTexto))
+            string.IsNullOrWhiteSpace(PlazoTexto) && string.IsNullOrWhiteSpace(MontoFinalTexto))
             return null; // formulario vacío: sin preview y sin regaño
 
         if (!decimal.TryParse(MontoTexto, NumberStyles.Number, CulturaRd, out var monto) || monto <= 0m)
@@ -124,26 +162,63 @@ public partial class PrestamoNuevoViewModel : ObservableObject
             mensaje = "Ingresá un monto válido mayor que cero (ej. 75,000).";
             return null;
         }
-        if (!decimal.TryParse(TasaTexto, NumberStyles.Number, CulturaRd, out var tasa) || tasa < 0m)
+
+        var modalidad = ModalidadSeleccionada.Valor;
+        var metodo = MetodoSeleccionado.Valor;
+
+        // Pago único: siempre una sola cuota, sin plazo ni método que pedir
+        var plazo = 1;
+        if (modalidad != Modalidad.PagoUnico)
         {
-            mensaje = "Ingresá una tasa mensual válida (ej. 5).";
-            return null;
+            if (!int.TryParse(PlazoTexto, NumberStyles.Integer, CulturaRd, out plazo) || plazo <= 0)
+            {
+                mensaje = "Ingresá la cantidad de cuotas (ej. 12).";
+                return null;
+            }
+            if (plazo > 1000)
+            {
+                mensaje = "El plazo máximo soportado es de 1,000 cuotas.";
+                return null;
+            }
         }
-        if (!int.TryParse(PlazoTexto, NumberStyles.Integer, CulturaRd, out var plazo) || plazo <= 0)
+
+        decimal tasa;
+        if (ModoMontoFinal)
         {
-            mensaje = "Ingresá la cantidad de cuotas (ej. 12).";
-            return null;
+            // Modo "para bobos": la tasa sale del monto final que devolverá
+            if (!decimal.TryParse(MontoFinalTexto, NumberStyles.Number, CulturaRd, out var montoFinal) ||
+                montoFinal <= 0m)
+            {
+                mensaje = "Ingresá cuánto te devolverá el cliente en total (ej. 90,000).";
+                return null;
+            }
+            if (montoFinal < monto)
+            {
+                mensaje = "El monto final no puede ser menor que el monto prestado.";
+                return null;
+            }
+            try
+            {
+                tasa = _amortizacion.TasaMensualParaTotal(monto, montoFinal, plazo, modalidad, metodo);
+                TasaCalculadaTexto = $"Tasa calculada: {tasa:0.##}% mensual";
+            }
+            catch (ArgumentException ex)
+            {
+                mensaje = ex.Message;
+                return null;
+            }
         }
-        if (plazo > 1000)
+        else
         {
-            mensaje = "El plazo máximo soportado es de 1,000 cuotas.";
-            return null;
+            if (!decimal.TryParse(TasaTexto, NumberStyles.Number, CulturaRd, out tasa) || tasa < 0m)
+            {
+                mensaje = "Ingresá una tasa mensual válida (ej. 5).";
+                return null;
+            }
         }
 
         return new ParametrosAmortizacion(
-            monto, tasa, plazo,
-            ModalidadSeleccionada.Valor,
-            MetodoSeleccionado.Valor,
+            monto, tasa, plazo, modalidad, metodo,
             DateOnly.FromDateTime(FechaPrimerPago));
     }
 
@@ -156,7 +231,9 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         if (parametros is null)
         {
             TienePreview = false;
-            GuardarCommand.NotifyCanExecuteChanged();
+            if (ModoMontoFinal)
+                TasaCalculadaTexto = string.Empty;   // no dejar una pista vieja
+            NotificarComandos();
             return;
         }
 
@@ -170,10 +247,16 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         ResumenInteres = resumen.InteresTotal;
         ResumenCapital = resumen.Capital;
         TienePreview = true;
-        GuardarCommand.NotifyCanExecuteChanged();
+        NotificarComandos();
     }
 
     private bool PuedeGuardar() => TienePreview && ClienteSeleccionado is not null;
+
+    private void NotificarComandos()
+    {
+        GuardarCommand.NotifyCanExecuteChanged();
+        VerPagareCommand.NotifyCanExecuteChanged();
+    }
 
     [RelayCommand(CanExecute = nameof(PuedeGuardar))]
     private async Task GuardarAsync()
@@ -216,11 +299,16 @@ public partial class PrestamoNuevoViewModel : ObservableObject
 
             var (id, codigo) = await _prestamos.CrearAsync(solicitud, autorizacion);
 
+            // El pagaré se imprime SOLO al crear (pedido del cliente 2026-07-17):
+            // se abre la vista previa con el contrato listo para firmar.
+            var cliente = ClienteSeleccionado;
+            PagareSolicitado?.Invoke(ConstruirPagare(codigo, cliente, parametros));
+
             var quien = autorizacion is null
                 ? string.Empty
                 : $"\n\nAutorizado por {autorizacion.Nombre}.";
             _dialogos.Informar("Préstamo creado",
-                $"El préstamo {codigo} de {ClienteSeleccionado.NombreCompleto} se creó correctamente.{quien}");
+                $"El préstamo {codigo} de {cliente.NombreCompleto} se creó correctamente.{quien}");
             Limpiar();
             PrestamoCreado?.Invoke(id);
         }
@@ -235,12 +323,51 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// "Ver pagaré" en Nuevo Préstamo: previsualiza el contrato con los datos
+    /// actuales ANTES de crear (código en borrador). Sirve para revisarlo con
+    /// el cliente antes de firmar.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(PuedeGuardar))]
+    private void VerPagare()
+    {
+        var parametros = ParsearParametros(out _);
+        if (parametros is null || ClienteSeleccionado is null)
+            return;
+        PagareSolicitado?.Invoke(ConstruirPagare("(borrador)", ClienteSeleccionado, parametros));
+    }
+
+    /// <summary>Arma el pagaré desde el negocio (AjustesLocales), el cliente y la tabla.</summary>
+    private PagareImpreso ConstruirPagare(string codigo, Cliente cliente, ParametrosAmortizacion parametros)
+    {
+        var tabla = _amortizacion.Calcular(parametros);
+        return new PagareImpreso(
+            NombreNegocio: _ajustes.NombreNegocio,
+            Prestamista: _ajustes.Prestamista,
+            Ciudad: _ajustes.CiudadNegocio,
+            Telefono: _ajustes.TelefonoNegocio,
+            Email: _ajustes.EmailNegocio,
+            Rnc: _ajustes.RncNegocio,
+            DeudorNombre: cliente.NombreCompleto,
+            DeudorCedula: string.IsNullOrWhiteSpace(cliente.Cedula) ? "—" : cliente.Cedula,
+            CodigoPrestamo: codigo,
+            MontoPrestado: parametros.MontoCapital,
+            TotalAPagar: tabla.Sum(c => c.MontoTotal),
+            Cuotas: [.. tabla.Select(c => new PagareCuota(
+                c.NumeroCuota,
+                c.FechaVencimiento.ToString(Textos.FormatoFecha, CulturaRd),
+                c.MontoTotal))]);
+    }
+
     private void Limpiar()
     {
         ClienteSeleccionado = null;
         MontoTexto = string.Empty;
         TasaTexto = string.Empty;
         PlazoTexto = string.Empty;
+        MontoFinalTexto = string.Empty;
+        ModoMontoFinal = false;
+        TasaCalculadaTexto = string.Empty;
         ModalidadSeleccionada = Modalidades[0];
         MetodoSeleccionado = Metodos[0];
         FechaPrimerPago = FechaNegocio.Hoy.AddMonths(1).ToDateTime(TimeOnly.MinValue);

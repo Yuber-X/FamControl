@@ -36,6 +36,18 @@ public class AjustesLocales
     /// <summary>Ids de clientes silenciados con "No volver a preguntar por este cliente".</summary>
     public List<long> AvisoVencidosSilenciados { get; set; } = [];
 
+    // ---------- Datos del negocio (para el pagaré / contrato) ----------
+    // Editables en Configuración. Aparecen en el encabezado del pagaré y como
+    // el ACREEDOR al que el cliente debe pagar. Defaults: Familia Almonte.
+    public string NombreNegocio { get; set; } = "Familia Almonte Auto Import SRL";
+    /// <summary>Nombre del prestamista (acreedor que firma el pagaré).</summary>
+    public string Prestamista { get; set; } = string.Empty;
+    public string CiudadNegocio { get; set; } = string.Empty;
+    public string TelefonoNegocio { get; set; } = string.Empty;
+    public string EmailNegocio { get; set; } = string.Empty;
+    /// <summary>RNC, opcional (comprobante fiscal — ver docs/NCF-DGII.md).</summary>
+    public string RncNegocio { get; set; } = string.Empty;
+
     private static readonly string Ruta = Path.Combine(AppContext.BaseDirectory, "ajustes.json");
     private static readonly JsonSerializerOptions Opciones = new() { WriteIndented = true };
 

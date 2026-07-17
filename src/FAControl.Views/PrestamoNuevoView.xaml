@@ -37,24 +37,7 @@
           <TextBox Style="{DynamicResource Input.Texto}"
                    Text="{Binding MontoTexto, UpdateSourceTrigger=PropertyChanged}" />
 
-          <Grid Margin="0,14,0,0">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="12" />
-              <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="0">
-              <TextBlock Text="Tasa mensual (%)" Style="{DynamicResource Input.Label}" />
-              <TextBox Style="{DynamicResource Input.Texto}"
-                       Text="{Binding TasaTexto, UpdateSourceTrigger=PropertyChanged}" />
-            </StackPanel>
-            <StackPanel Grid.Column="2">
-              <TextBlock Text="Cantidad de cuotas" Style="{DynamicResource Input.Label}" />
-              <TextBox Style="{DynamicResource Input.Texto}"
-                       Text="{Binding PlazoTexto, UpdateSourceTrigger=PropertyChanged}" />
-            </StackPanel>
-          </Grid>
-
+          <!-- Modalidad primero: define si hay plazo/método o es pago único -->
           <Grid Margin="0,14,0,0">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
@@ -68,17 +51,72 @@
                         SelectedItem="{Binding ModalidadSeleccionada}" />
             </StackPanel>
             <StackPanel Grid.Column="2">
-              <TextBlock Text="Fecha del primer pago" Style="{DynamicResource Input.Label}" />
+              <!-- Etiqueta cambia a "Fecha del pago" en pago único -->
+              <TextBlock Text="{Binding EtiquetaFecha}" Style="{DynamicResource Input.Label}" />
               <DatePicker Height="40" FontSize="13"
                           SelectedDate="{Binding FechaPrimerPago}" />
             </StackPanel>
           </Grid>
 
-          <TextBlock Text="Método de cálculo" Style="{DynamicResource Input.Label}"
-                     Margin="0,14,0,6" />
-          <ComboBox Height="40" FontSize="13"
-                    ItemsSource="{Binding Metodos}"
-                    SelectedItem="{Binding MetodoSeleccionado}" />
+          <!-- Modo "para bobos": el sistema calcula la tasa desde el total -->
+          <CheckBox Content="Calcular la tasa por mí (ingreso el total a devolver)"
+                    FontSize="12" Margin="0,14,0,0"
+                    IsChecked="{Binding ModoMontoFinal}" />
+
+          <Grid Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Tasa manual (modo normal) -->
+            <StackPanel Grid.Column="0"
+                        Visibility="{Binding MuestraTasaManual, Converter={StaticResource BoolAVisibilidad}}">
+              <TextBlock Text="Tasa mensual (%)" Style="{DynamicResource Input.Label}" />
+              <TextBox Style="{DynamicResource Input.Texto}"
+                       Text="{Binding TasaTexto, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <!-- Monto final a devolver (modo "para bobos") -->
+            <StackPanel Grid.Column="0">
+              <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding ModoMontoFinal}" Value="True">
+                      <Setter Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </StackPanel.Style>
+              <TextBlock Text="Total a devolver (RD$)" Style="{DynamicResource Input.Label}" />
+              <TextBox Style="{DynamicResource Input.Texto}"
+                       Text="{Binding MontoFinalTexto, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <!-- Cuotas: oculto en pago único (siempre 1) -->
+            <StackPanel Grid.Column="2"
+                        Visibility="{Binding MuestraPlazoYMetodo, Converter={StaticResource BoolAVisibilidad}}">
+              <TextBlock Text="Cantidad de cuotas" Style="{DynamicResource Input.Label}" />
+              <TextBox Style="{DynamicResource Input.Texto}"
+                       Text="{Binding PlazoTexto, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+          </Grid>
+
+          <!-- Pista de la tasa calculada en modo "para bobos" -->
+          <TextBlock Text="{Binding TasaCalculadaTexto}"
+                     Foreground="{DynamicResource Brush.Primario}"
+                     Style="{DynamicResource Texto.Caption}" Margin="0,6,0,0" />
+
+          <!-- Método: oculto en pago único (una cuota, da igual el método) -->
+          <StackPanel Visibility="{Binding MuestraPlazoYMetodo, Converter={StaticResource BoolAVisibilidad}}">
+            <TextBlock Text="Método de cálculo" Style="{DynamicResource Input.Label}"
+                       Margin="0,14,0,6" />
+            <ComboBox Height="40" FontSize="13"
+                      ItemsSource="{Binding Metodos}"
+                      SelectedItem="{Binding MetodoSeleccionado}" />
+          </StackPanel>
 
           <TextBlock Text="Garantía (opcional)" Style="{DynamicResource Input.Label}"
                      Margin="0,14,0,6" />
@@ -97,8 +135,18 @@
                      Style="{DynamicResource Texto.Caption}"
                      TextWrapping="Wrap" Margin="0,10,0,0" />
 
-          <Button Content="Crear préstamo" Style="{DynamicResource Boton.Primario}"
-                  Command="{Binding GuardarCommand}" Margin="0,16,0,0" />
+          <Grid Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="2*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="Crear préstamo" Style="{DynamicResource Boton.Primario}"
+                    Command="{Binding GuardarCommand}" />
+            <!-- Ver el pagaré antes de crear, para revisarlo con el cliente -->
+            <Button Grid.Column="2" Content="Ver pagaré" Style="{DynamicResource Boton.Secundario}"
+                    Command="{Binding VerPagareCommand}" />
+          </Grid>
         </StackPanel>
       </ScrollViewer>
     </Border>

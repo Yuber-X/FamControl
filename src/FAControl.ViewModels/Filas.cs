@@ -10,7 +10,10 @@ public record PrestamoFila(PrestamoResumen Resumen)
     public string ClienteNombre => Resumen.ClienteNombre;
     public decimal MontoCapital => Resumen.MontoCapital;
     public decimal SaldoPendiente => Resumen.SaldoPendiente;
-    public string TasaTexto => $"{Resumen.TasaInteres:0.##}% mensual";
+    // Solo el porcentaje: la modalidad ya tiene su propia columna en el grid
+    // (pedido del cliente 2026-07-17, evitar redundancia). El detalle del
+    // préstamo sí muestra "% mensual" completo.
+    public string TasaTexto => $"{Resumen.TasaInteres:0.##}%";
     public string ModalidadTexto => Textos.De(Resumen.Modalidad);
     public string ProgresoTexto => $"{Resumen.CuotasPagadas}/{Resumen.PlazoCuotas}";
     public string ProximoVencimientoTexto => Resumen.ProximoVencimiento?.ToString(Textos.FormatoFecha, Textos.CulturaRd) ?? "—";

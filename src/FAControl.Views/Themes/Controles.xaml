@@ -199,6 +199,23 @@
   </Style>
 
   <!-- ============================================================
+       CheckBox / RadioButton: sin estilo propio, WPF pinta el texto con
+       SystemColors (oscuro fijo), y en modo noche queda negro sobre
+       negro (reportado por el cliente 2026-07-17). Estos estilos
+       implícitos fuerzan el texto al brush dinámico del tema.
+       ============================================================ -->
+  <Style TargetType="CheckBox">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
+    <Setter Property="FontFamily" Value="{DynamicResource Fuente.Interfaz}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style TargetType="RadioButton">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
+    <Setter Property="FontFamily" Value="{DynamicResource Fuente.Interfaz}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+
+  <!-- ============================================================
        ComboBox / ComboBoxItem / DatePicker modernos: redondeados,
        texto centrado y chevron. Reemplazan el look "Windows Forms"
        (rectangular, degradado gris, texto a la izquierda) que el

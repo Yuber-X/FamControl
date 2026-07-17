@@ -134,7 +134,7 @@ CREATE TABLE prestamo (
   moneda              CHAR(3)       NOT NULL DEFAULT 'DOP',
   tasa_interes        DECIMAL(8,4)  NOT NULL,     -- % mensual, ej. 10.0000
   plazo_cuotas        INT UNSIGNED  NOT NULL,
-  modalidad           ENUM('diaria','semanal','quincenal','mensual') NOT NULL,
+  modalidad           ENUM('diaria','semanal','quincenal','mensual','pago_unico') NOT NULL,
   metodo_amortizacion ENUM('frances','cuota_fija') NOT NULL DEFAULT 'cuota_fija',
   fecha_inicio        DATE          NOT NULL,     -- fecha del primer pago (hora local del negocio)
   garantia            VARCHAR(255)  NULL,
