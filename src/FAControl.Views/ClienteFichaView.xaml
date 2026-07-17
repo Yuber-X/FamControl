@@ -1,0 +1,180 @@
+<UserControl x:Class="FAControl.Views.ClienteFichaView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <!-- Header: volver + nombre + acciones -->
+    <DockPanel Grid.Row="0" Margin="0,0,0,16">
+      <Button DockPanel.Dock="Left" Content="← Clientes"
+              Style="{DynamicResource Boton.Terciario}"
+              VerticalAlignment="Center"
+              Command="{Binding VolverCommand}" />
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+        <Button Content="Eliminar" Style="{DynamicResource Boton.Destructivo}"
+                Command="{Binding EliminarCommand}" Margin="0,0,8,0" />
+        <Button Content="Editar" Style="{DynamicResource Boton.Secundario}"
+                Command="{Binding EditarCommand}" Margin="0,0,8,0" />
+        <Button Content="+ Nuevo préstamo" Style="{DynamicResource Boton.Primario}"
+                Command="{Binding NuevoPrestamoCommand}" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+        <TextBlock Text="{Binding NombreCompleto}" Style="{DynamicResource Texto.Titulo2}"
+                   VerticalAlignment="Center" />
+        <TextBlock Text="{Binding Cedula}" Style="{DynamicResource Texto.Caption}"
+                   FontFamily="{DynamicResource Fuente.Mono}"
+                   Margin="12,2,0,0" VerticalAlignment="Center" />
+      </StackPanel>
+    </DockPanel>
+
+    <!-- Cinco métricas (mockup 3) -->
+    <UniformGrid Grid.Row="1" Rows="1" Columns="5" Margin="0,0,0,12">
+      <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
+        <StackPanel>
+          <TextBlock Text="TOTAL PRESTADO" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding TotalPrestado, Converter={StaticResource Money}}"
+                     Style="{DynamicResource Texto.Titulo3}" Margin="0,4,0,0" />
+        </StackPanel>
+      </Border>
+      <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
+        <StackPanel>
+          <TextBlock Text="TOTAL COBRADO" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding TotalCobrado, Converter={StaticResource Money}}"
+                     Style="{DynamicResource Texto.Titulo3}" Margin="0,4,0,0" />
+        </StackPanel>
+      </Border>
+      <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
+        <StackPanel>
+          <TextBlock Text="SALDO PENDIENTE" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding SaldoPendiente, Converter={StaticResource Money}}"
+                     Style="{DynamicResource Texto.Titulo3}" Margin="0,4,0,0" />
+        </StackPanel>
+      </Border>
+      <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
+        <StackPanel>
+          <TextBlock Text="PRÉSTAMOS ACTIVOS" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding PrestamosActivos}"
+                     Style="{DynamicResource Texto.Titulo3}" Margin="0,4,0,0" />
+        </StackPanel>
+      </Border>
+      <Border Style="{DynamicResource Card.Metrica}">
+        <StackPanel>
+          <TextBlock Text="CUOTAS VENCIDAS" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding CuotasVencidas}" Margin="0,4,0,0">
+            <TextBlock.Style>
+              <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Titulo3}">
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Destructivo}" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding CuotasVencidas}" Value="0">
+                    <Setter Property="Foreground" Value="{DynamicResource Brush.DeltaPositivo}" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </TextBlock.Style>
+          </TextBlock>
+        </StackPanel>
+      </Border>
+    </UniformGrid>
+
+    <!-- Información de contacto -->
+    <Border Grid.Row="2" Style="{DynamicResource Card}" Margin="0,0,0,12" Padding="20,14">
+      <WrapPanel>
+        <StackPanel Margin="0,0,32,0">
+          <TextBlock Text="TELÉFONO" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding TelefonoTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+        </StackPanel>
+        <StackPanel Margin="0,0,32,0">
+          <TextBlock Text="DIRECCIÓN" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding DireccionTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                     TextWrapping="Wrap" MaxWidth="280" />
+        </StackPanel>
+        <StackPanel Margin="0,0,32,0">
+          <TextBlock Text="CORREO" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding EmailTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+        </StackPanel>
+        <StackPanel Margin="0,0,32,0">
+          <TextBlock Text="CLIENTE DESDE" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding ClienteDesdeTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+        </StackPanel>
+        <StackPanel>
+          <TextBlock Text="NOTAS" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding NotasTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                     TextWrapping="Wrap" MaxWidth="320" />
+        </StackPanel>
+      </WrapPanel>
+    </Border>
+
+    <!-- Préstamos del cliente -->
+    <Border Grid.Row="3" Style="{DynamicResource Card}" Padding="0">
+      <Grid>
+        <TextBlock Text="Este cliente aún no tiene préstamos."
+                   HorizontalAlignment="Center" VerticalAlignment="Center">
+          <TextBlock.Style>
+            <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Caption}">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding TienePrestamos}" Value="True">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </TextBlock.Style>
+        </TextBlock>
+        <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Prestamos}"
+                  Visibility="{Binding TienePrestamos, Converter={StaticResource BoolAVisibilidad}}"
+                  MouseDoubleClick="Tabla_MouseDoubleClick">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Código" Binding="{Binding Codigo}" Width="90">
+              <DataGridTextColumn.ElementStyle>
+                <Style TargetType="TextBlock">
+                  <Setter Property="FontFamily" Value="{DynamicResource Fuente.Mono}" />
+                </Style>
+              </DataGridTextColumn.ElementStyle>
+            </DataGridTextColumn>
+            <DataGridTextColumn Header="Capital"
+                                Binding="{Binding MontoCapital, Converter={StaticResource Money}}" Width="130">
+              <DataGridTextColumn.ElementStyle>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
+              </DataGridTextColumn.ElementStyle>
+            </DataGridTextColumn>
+            <DataGridTextColumn Header="Tasa" Binding="{Binding TasaTexto}" Width="110" />
+            <DataGridTextColumn Header="Cuotas" Binding="{Binding ProgresoTexto}" Width="80" />
+            <DataGridTextColumn Header="Saldo pendiente"
+                                Binding="{Binding SaldoPendiente, Converter={StaticResource Money}}" Width="140">
+              <DataGridTextColumn.ElementStyle>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
+              </DataGridTextColumn.ElementStyle>
+            </DataGridTextColumn>
+            <DataGridTextColumn Header="Próx. venc." Binding="{Binding ProximoVencimientoTexto}" Width="100" />
+            <DataGridTemplateColumn Header="Estado" Width="*"
+                                    HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Border Style="{DynamicResource Pill.EstadoPrestamo}">
+                    <TextBlock Text="{Binding EstadoTexto}"
+                               Style="{DynamicResource Pill.EstadoPrestamo.Texto}" />
+                  </Border>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Width="120">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Button Content="Ver detalle" Style="{DynamicResource Boton.Terciario}"
+                          Command="{Binding DataContext.VerPrestamoCommand,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                          CommandParameter="{Binding}" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

@@ -1,0 +1,67 @@
+<Window x:Class="FAControl.Views.AvisoVencidosWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Pagos vencidos"
+        Width="480" SizeToContent="Height" MaxHeight="560"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        Background="{DynamicResource Brush.FondoApp}">
+
+  <Border Style="{DynamicResource Card}" Margin="16">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <!-- Encabezado en rojo -->
+      <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
+        <Border Width="32" Height="32" CornerRadius="16"
+                Background="{DynamicResource Brush.EnMora.Fondo}">
+          <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                     Foreground="{DynamicResource Brush.Destructivo}"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <TextBlock Text="Pagos vencidos" Style="{DynamicResource Texto.Titulo2}"
+                   Foreground="{DynamicResource Brush.Destructivo}"
+                   VerticalAlignment="Center" Margin="10,0,0,0" />
+      </StackPanel>
+
+      <TextBlock x:Name="TextoResumen" Grid.Row="1"
+                 Style="{DynamicResource Texto.Cuerpo}" TextWrapping="Wrap"
+                 Margin="0,0,0,10" />
+
+      <!-- Mini-lista de clientes vencidos -->
+      <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" MaxHeight="320"
+                    Padding="0,0,10,0">
+        <ItemsControl x:Name="Lista">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <!-- Indicador rojo lateral: cliente pasado de fecha -->
+              <Border BorderBrush="{DynamicResource Brush.Destructivo}"
+                      BorderThickness="3,0,0,0.5" Padding="10,8"
+                      Margin="0,0,0,2">
+                <StackPanel>
+                  <TextBlock Text="{Binding Nombre}" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                             Foreground="{DynamicResource Brush.Destructivo}" />
+                  <TextBlock Text="{Binding Detalle}" Style="{DynamicResource Texto.Caption}"
+                             Margin="0,2,0,4" />
+                  <CheckBox Content="No volver a preguntar por este cliente"
+                            FontSize="11" Foreground="{DynamicResource Brush.TextoSecundario}"
+                            IsChecked="{Binding Silenciar}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <!-- Única acción: OK -->
+      <Button Grid.Row="3" Content="OK" Style="{DynamicResource Boton.Primario}"
+              Width="120" HorizontalAlignment="Right" Margin="0,14,0,0"
+              Click="BotonOk_Click" />
+    </Grid>
+  </Border>
+</Window>

@@ -1,0 +1,142 @@
+<Window x:Class="FAControl.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:FAControl.ViewModels;assembly=FAControl.ViewModels"
+        Title="FAControl — Gestión de préstamos"
+        Width="1280" Height="760"
+        WindowState="Maximized"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Brush.FondoApp}">
+
+  <!-- Raiz: recibe el LayoutTransform del tamaño de texto (Configuración) -->
+  <Grid x:Name="Raiz">
+    <Grid.ColumnDefinitions>
+      <!-- Sidebar fijo de 240px — DESIGN.md §9 -->
+      <ColumnDefinition Width="240" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <!-- ============ SIDEBAR ============ -->
+    <Border Grid.Column="0" Background="{DynamicResource Brush.FondoCard}"
+            BorderBrush="{DynamicResource Brush.BordeSutil}" BorderThickness="0,0,0.5,0">
+      <DockPanel>
+
+        <!-- Logo -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="20,20,20,24">
+          <Border Width="28" Height="28" CornerRadius="8"
+                  Background="{DynamicResource Brush.Primario}">
+            <TextBlock Text="P" Foreground="White" FontWeight="Bold" FontSize="14"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Text="FAControl" Style="{DynamicResource Texto.Titulo3}"
+                     VerticalAlignment="Center" Margin="10,0,0,0" />
+        </StackPanel>
+
+        <!-- Usuario + salir (pie del sidebar) -->
+        <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Brush.BordeSutil}"
+                BorderThickness="0,0.5,0,0" Padding="20,14">
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Content="⏻" FontSize="14" Width="28" Height="28"
+                    Cursor="Hand" Foreground="{DynamicResource Brush.TextoTerciario}"
+                    ToolTip="Cerrar sesión" Click="BotonSalir_Click">
+              <Button.Template>
+                <!-- Circular, no cuadrado (pedido de Yuber 2026-07-10, punto 10) -->
+                <ControlTemplate TargetType="Button">
+                  <Border x:Name="Fondo" CornerRadius="14" Background="Transparent">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter TargetName="Fondo" Property="Background"
+                              Value="{DynamicResource Brush.PrimarioSutil}" />
+                      <Setter Property="Foreground" Value="{DynamicResource Brush.Primario}" />
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Button.Template>
+            </Button>
+            <Border Width="32" Height="32" CornerRadius="16"
+                    Background="{DynamicResource Brush.PrimarioSutil}">
+              <TextBlock Text="{Binding Iniciales}" FontSize="11" FontWeight="SemiBold"
+                         Foreground="{DynamicResource Brush.Primario}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel VerticalAlignment="Center" Margin="10,0,0,0">
+              <TextBlock Text="{Binding NombreUsuario}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+              <TextBlock Text="Prestamista" Style="{DynamicResource Texto.Caption}" />
+            </StackPanel>
+          </DockPanel>
+        </Border>
+
+        <!-- Navegación: IsChecked refleja PaginaActual (la navegación interna,
+             p.ej. crear préstamo → detalle, también actualiza el sidebar) -->
+        <StackPanel>
+          <TextBlock Text="MENÚ PRINCIPAL" Style="{DynamicResource Texto.MicroLabel}"
+                     Margin="24,0,0,8" />
+          <RadioButton Content="Panel" Tag="&#xE80F;" Style="{DynamicResource Sidebar.Item}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Panel}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Panel}" />
+          <RadioButton Content="Clientes" Tag="&#xE716;" Style="{DynamicResource Sidebar.Item}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Clientes}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Clientes}" />
+          <RadioButton Content="Préstamos" Tag="&#xE825;" Style="{DynamicResource Sidebar.Item}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Prestamos}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Prestamos}" />
+          <RadioButton Content="Nuevo préstamo" Tag="&#xE710;" Style="{DynamicResource Sidebar.Item}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.NuevoPrestamo}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.NuevoPrestamo}" />
+          <RadioButton Content="Cobros" Tag="&#xE8EF;" Style="{DynamicResource Sidebar.Item}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Cobros}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Cobros}" />
+          <RadioButton Content="Reportes" Tag="&#xE9D2;" Style="{DynamicResource Sidebar.Item}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Reportes}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Reportes}" />
+          <RadioButton Content="Historial" Tag="&#xE81C;" Style="{DynamicResource Sidebar.Item}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Historial}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Historial}" />
+          <RadioButton Content="Configuración" Tag="&#xE713;" Style="{DynamicResource Sidebar.Item}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Configuracion}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Configuracion}" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- ============ ÁREA PRINCIPAL ============ -->
+    <Grid Grid.Column="1" Margin="32">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
+      <TextBlock Grid.Row="0" Text="{Binding TituloPagina}"
+                 Style="{DynamicResource Texto.Titulo1}" Margin="0,0,0,20" />
+
+      <!-- Página activa: el DataTemplate global (App.xaml) resuelve la View -->
+      <ContentControl Grid.Row="1" Content="{Binding PaginaActualVm}" Focusable="False" />
+    </Grid>
+  </Grid>
+</Window>

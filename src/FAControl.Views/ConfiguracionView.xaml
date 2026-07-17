@@ -1,0 +1,129 @@
+<UserControl x:Class="FAControl.Views.ConfiguracionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,12,0">
+    <StackPanel MaxWidth="720" HorizontalAlignment="Left">
+
+      <!-- ============ APARIENCIA ============ -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+        <StackPanel>
+          <TextBlock Text="Apariencia" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
+          <TextBlock Text="Tamaño del texto en toda la aplicación."
+                     Style="{DynamicResource Texto.Caption}" Margin="0,0,0,12" />
+          <StackPanel Orientation="Horizontal" Loaded="RadiosTamano_Loaded">
+            <RadioButton x:Name="RadioPequeno" Content="Pequeño" GroupName="Tamano"
+                         Margin="0,0,20,0" FontSize="13" Checked="TamanoPequeno_Checked" />
+            <RadioButton x:Name="RadioMediano" Content="Mediano" GroupName="Tamano"
+                         Margin="0,0,20,0" FontSize="13" Checked="TamanoMediano_Checked" />
+            <RadioButton x:Name="RadioGrande" Content="Grande" GroupName="Tamano"
+                         FontSize="13" Checked="TamanoGrande_Checked" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ============ AVISO DE VENCIMIENTOS ============ -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+        <StackPanel>
+          <TextBlock Text="Aviso de pagos vencidos" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="Al iniciar (y al cambiar el día con la aplicación abierta) se muestra la lista de clientes que se pasaron de su fecha de pago." />
+          <CheckBox Content="Avisar cuando un cliente se pase de su fecha de pago" FontSize="13"
+                    IsChecked="{Binding AvisoVencidosActivo}" />
+          <StackPanel Orientation="Horizontal" Margin="24,10,0,0">
+            <TextBlock Text="{Binding SilenciadosTexto}" Style="{DynamicResource Texto.Caption}"
+                       VerticalAlignment="Center" />
+            <Button Content="Restablecer silenciados" Style="{DynamicResource Boton.Terciario}"
+                    Margin="8,0,0,0" Command="{Binding RestablecerSilenciadosCommand}"
+                    Visibility="{Binding HaySilenciados, Converter={StaticResource BoolAVisibilidad}}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ============ SEGURIDAD ============ -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+        <StackPanel>
+          <TextBlock Text="Cambiar contraseña" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,12" />
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <TextBlock Text="Contraseña actual" Style="{DynamicResource Input.Label}" />
+              <PasswordBox x:Name="CajaActual" Style="{DynamicResource Input.Password}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="Nueva contraseña" Style="{DynamicResource Input.Label}" />
+              <PasswordBox x:Name="CajaNueva" Style="{DynamicResource Input.Password}" />
+            </StackPanel>
+            <StackPanel Grid.Column="4">
+              <TextBlock Text="Confirmar nueva" Style="{DynamicResource Input.Label}" />
+              <PasswordBox x:Name="CajaConfirmacion" Style="{DynamicResource Input.Password}" />
+            </StackPanel>
+          </Grid>
+          <TextBlock Text="{Binding MensajePassword}"
+                     Foreground="{DynamicResource Brush.Destructivo}"
+                     Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,10,0,0" />
+          <Button Content="Cambiar contraseña" Style="{DynamicResource Boton.Primario}"
+                  HorizontalAlignment="Left" Margin="0,12,0,0"
+                  Click="BotonCambiarPassword_Click" />
+        </StackPanel>
+      </Border>
+
+      <!-- ============ RESPALDO ============ -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+        <StackPanel>
+          <TextBlock Text="Respaldo de la base de datos" Style="{DynamicResource Texto.Titulo3}"
+                     Margin="0,0,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="El respaldo (.sql) guarda TODO tal cual está. Es la forma recomendada de migrar FAControl a otra computadora: respaldá aquí y restaurá allá." />
+          <StackPanel Orientation="Horizontal">
+            <Button Content="Respaldar ahora" Style="{DynamicResource Boton.Primario}"
+                    Click="BotonRespaldar_Click" Margin="0,0,8,0"
+                    IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}" />
+            <Button Content="Restaurar desde archivo…" Style="{DynamicResource Boton.Destructivo}"
+                    Click="BotonRestaurar_Click"
+                    IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ============ EXPORTACIÓN A EXCEL ============ -->
+      <Border Style="{DynamicResource Card}">
+        <StackPanel>
+          <TextBlock Text="Exportación a Excel" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="Genera un libro .xlsx con todos los datos (clientes, préstamos, cuotas, pagos e historial) para consultarlos fuera del sistema." />
+
+          <Button Content="Exportar ahora…" Style="{DynamicResource Boton.Secundario}"
+                  HorizontalAlignment="Left" Click="BotonExportar_Click"
+                  IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}" />
+
+          <Separator Margin="0,16" Background="{DynamicResource Brush.BordeSutil}" />
+
+          <CheckBox Content="Exportar automáticamente al abrir la aplicación" FontSize="13"
+                    IsChecked="{Binding ExportActivo}" />
+          <StackPanel Orientation="Horizontal" Margin="24,10,0,0"
+                      IsEnabled="{Binding ExportActivo}">
+            <TextBlock Text="Cada" Style="{DynamicResource Texto.Cuerpo}" VerticalAlignment="Center" />
+            <TextBox Width="60" Style="{DynamicResource Input.Texto}" Height="32" Margin="8,0"
+                     Text="{Binding ExportCadaDiasTexto, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBlock Text="días, en la carpeta:" Style="{DynamicResource Texto.Cuerpo}"
+                       VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox Width="260" Style="{DynamicResource Input.Texto}" Height="32" IsReadOnly="True"
+                     Text="{Binding ExportCarpeta}" />
+            <Button Content="Elegir…" Style="{DynamicResource Boton.Terciario}" Margin="4,0,0,0"
+                    Click="BotonElegirCarpeta_Click" />
+          </StackPanel>
+          <TextBlock Text="{Binding UltimaExportacionTexto}" Style="{DynamicResource Texto.Caption}"
+                     Margin="24,8,0,0" />
+        </StackPanel>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

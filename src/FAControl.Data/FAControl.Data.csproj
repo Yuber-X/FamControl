@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\FAControl.Models\FAControl.Models.csproj" />
+    <ProjectReference Include="..\FAControl.Common\FAControl.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySqlConnector" Version="2.6.1" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Esquema embebido para el auto-aprovisionamiento del primer arranque.
+         Única fuente de verdad: el mismo archivo de scripts/db/. -->
+    <EmbeddedResource Include="..\..\scripts\db\001_create_schema.sql"
+                      Link="001_create_schema.sql"
+                      LogicalName="FAControl.Data.001_create_schema.sql" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FAControl.Data.Tests" />
+  </ItemGroup>
+
+</Project>
