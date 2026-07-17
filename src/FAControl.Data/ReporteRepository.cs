@@ -99,4 +99,60 @@ public class ReporteRepository
         await reader.ReadAsync(ct);
         return (reader.GetInt32("cobradas"), reader.GetInt32("programadas"));
     }
+
+    /// <summary>
+    /// Totales por cliente en el período (cliente 2026-07-19): cobros, capital,
+    /// interés y cuotas de cada cliente, más su saldo pendiente actual.
+    /// Filtro opcional por usuario que cobró. Ordenado por total cobrado.
+    /// </summary>
+    public async Task<IReadOnlyList<ReporteCliente>> ObtenerPorClienteAsync(
+        DateTime inicioUtc, DateTime finUtc, long? usuarioId = null, long? clienteId = null,
+        CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT c.id AS cliente_id,
+                   TRIM(CONCAT(c.nombre, ' ', COALESCE(c.apellido, ''))) AS nombre,
+                   COALESCE(SUM(g.monto_pagado), 0)  AS total,
+                   COALESCE(SUM(g.monto_capital), 0) AS capital,
+                   COALESCE(SUM(g.monto_interes), 0) AS interes,
+                   COUNT(DISTINCT g.cuota_id)        AS cuotas,
+                   (SELECT COALESCE(SUM(q2.monto_total - q2.monto_pagado), 0)
+                    FROM {DbNames.Cuota} q2
+                    JOIN {DbNames.Prestamo} p2 ON p2.id = q2.prestamo_id
+                    WHERE p2.cliente_id = c.id
+                      AND p2.estado = 'activo'
+                      AND q2.estado <> 'cancelada') AS saldo
+            FROM {DbNames.Pago} g
+            JOIN {DbNames.Cuota} q ON q.id = g.cuota_id
+            JOIN {DbNames.Prestamo} p ON p.id = q.prestamo_id
+            JOIN {DbNames.Cliente} c ON c.id = p.cliente_id
+            WHERE g.deleted_at IS NULL
+              AND g.fecha_pago >= @inicio AND g.fecha_pago < @fin
+              AND (@usuarioId IS NULL OR g.created_by = @usuarioId)
+              AND (@clienteId IS NULL OR c.id = @clienteId)
+            GROUP BY c.id, nombre
+            ORDER BY total DESC;
+            """;
+        cmd.Parameters.AddWithValue("@inicio", inicioUtc);
+        cmd.Parameters.AddWithValue("@fin", finUtc);
+        cmd.Parameters.AddWithValue("@usuarioId", (object?)usuarioId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@clienteId", (object?)clienteId ?? DBNull.Value);
+
+        var lista = new List<ReporteCliente>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            lista.Add(new ReporteCliente(
+                reader.GetInt64("cliente_id"),
+                reader.GetString("nombre"),
+                reader.GetDecimal("total"),
+                reader.GetDecimal("capital"),
+                reader.GetDecimal("interes"),
+                Convert.ToInt32(reader["cuotas"]),
+                reader.GetDecimal("saldo")));
+        }
+        return lista;
+    }
 }

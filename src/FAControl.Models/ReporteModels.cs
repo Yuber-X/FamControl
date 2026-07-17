@@ -61,3 +61,26 @@ public record ActividadUsuario(
         }
     }
 }
+
+/// <summary>
+/// Fila del reporte por cliente (cliente 2026-07-19): totales de un cliente
+/// en el período. Sirve para el reporte individual y el global.
+/// </summary>
+public record ReporteCliente(
+    long ClienteId,
+    string Nombre,
+    decimal TotalCobrado,
+    decimal Capital,
+    decimal Interes,
+    int CuotasCobradas,
+    decimal SaldoPendiente);
+
+/// <summary>
+/// Reporte de clientes listo para imprimir (individual o global).
+/// DTO plano: la capa Printing no conoce ViewModels.
+/// </summary>
+public record ReporteClientesImpreso(
+    string Titulo,
+    string Periodo,
+    string EmitidoPor,
+    IReadOnlyList<ReporteCliente> Filas);

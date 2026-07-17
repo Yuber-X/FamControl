@@ -13,12 +13,19 @@
     <!-- Barra de rango: fechas + atajos + generar/exportar -->
     <Border Grid.Row="0" Style="{DynamicResource Card}" Padding="20,14" Margin="0,0,0,12">
       <DockPanel>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+        <WrapPanel DockPanel.Dock="Right">
           <Button Content="Generar reporte" Style="{DynamicResource Boton.Primario}"
-                  Command="{Binding GenerarCommand}" Margin="0,0,8,0" />
+                  Command="{Binding GenerarCommand}" Margin="0,0,8,6" />
+          <!-- Imprimir individual (cliente filtrado) y global (todos) -->
+          <Button Content="Imprimir cliente" Style="{DynamicResource Boton.Secundario}"
+                  Command="{Binding ImprimirClienteCommand}" Margin="0,0,8,6"
+                  ToolTip="Imprime el reporte del cliente elegido en el filtro" />
+          <Button Content="Imprimir todos" Style="{DynamicResource Boton.Secundario}"
+                  Command="{Binding ImprimirTodosCommand}" Margin="0,0,8,6"
+                  ToolTip="Imprime el reporte de todos los clientes del período" />
           <Button Content="Exportar Excel" Style="{DynamicResource Boton.Secundario}"
-                  Click="BotonExportar_Click" />
-        </StackPanel>
+                  Click="BotonExportar_Click" Margin="0,0,0,6" />
+        </WrapPanel>
         <!-- WrapPanel: con el texto en Grande una fila fija se sale de pantalla -->
         <WrapPanel Orientation="Horizontal">
           <StackPanel Margin="0,0,12,6">

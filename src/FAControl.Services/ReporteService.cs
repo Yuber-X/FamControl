@@ -33,6 +33,20 @@ public class ReporteService
     public Task<IReadOnlyList<Cliente>> ObtenerClientesAsync(CancellationToken ct = default) =>
         _clientes.ObtenerActivosAsync(ct);
 
+    /// <summary>
+    /// Totales por cliente en el período (para imprimir el reporte individual
+    /// o global). Respeta los mismos filtros que el reporte en pantalla.
+    /// </summary>
+    public Task<IReadOnlyList<ReporteCliente>> ObtenerPorClienteAsync(DateOnly desde, DateOnly hasta,
+        long? usuarioId = null, long? clienteId = null, CancellationToken ct = default)
+    {
+        if (hasta < desde)
+            throw new ArgumentException("La fecha final no puede ser anterior a la inicial.");
+        var inicioUtc = desde.ToDateTime(TimeOnly.MinValue).AddHours(OffsetRdHoras);
+        var finUtc = hasta.AddDays(1).ToDateTime(TimeOnly.MinValue).AddHours(OffsetRdHoras);
+        return _repositorio.ObtenerPorClienteAsync(inicioUtc, finUtc, usuarioId, clienteId, ct);
+    }
+
     public async Task<ReporteIngresos> ObtenerIngresosAsync(DateOnly desde, DateOnly hasta,
         long? usuarioId = null, long? clienteId = null, CancellationToken ct = default)
     {

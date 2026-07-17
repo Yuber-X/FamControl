@@ -76,10 +76,57 @@ public partial class ReportesViewModel : ObservableObject
     [ObservableProperty] private Axis[] _xAxes = [];
     [ObservableProperty] private Axis[] _yAxes = [];
 
+    /// <summary>La App imprime el reporte de clientes (individual o global).</summary>
+    public event Action<ReporteClientesImpreso>? ImpresionSolicitada;
+
     public async Task CargarAsync()
     {
         await CargarFiltrosAsync();
         await GenerarAsync();
+    }
+
+    /// <summary>Imprime el reporte del cliente FILTRADO (individual). Requiere un cliente elegido.</summary>
+    [RelayCommand]
+    private async Task ImprimirClienteAsync()
+    {
+        if (ClienteSeleccionado?.Valor is not { } clienteId)
+        {
+            _dialogos.Informar("Imprimir reporte",
+                "Elegí un cliente en el filtro para imprimir su reporte individual.");
+            return;
+        }
+        await ImprimirAsync($"Reporte de {ClienteSeleccionado.Texto}", clienteId);
+    }
+
+    /// <summary>Imprime el reporte GLOBAL: todos los clientes del período en una impresión.</summary>
+    [RelayCommand]
+    private Task ImprimirTodosAsync() => ImprimirAsync("Reporte de clientes", clienteId: null);
+
+    private async Task ImprimirAsync(string titulo, long? clienteId)
+    {
+        try
+        {
+            var filas = await _reportes.ObtenerPorClienteAsync(
+                DateOnly.FromDateTime(Desde), DateOnly.FromDateTime(Hasta),
+                UsuarioSeleccionado?.Valor, clienteId);
+
+            if (filas.Count == 0)
+            {
+                _dialogos.Informar("Imprimir reporte", "No hay cobros en el período para imprimir.");
+                return;
+            }
+
+            ImpresionSolicitada?.Invoke(new ReporteClientesImpreso(
+                titulo,
+                $"Período: {RangoTexto}",
+                SesionActual.Nombre,
+                filas));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error preparando la impresión del reporte de clientes");
+            _dialogos.MostrarError("Imprimir reporte", ex.Message);
+        }
     }
 
     /// <summary>Llena los combos de usuario y cliente una sola vez.</summary>
