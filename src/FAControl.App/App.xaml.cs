@@ -265,6 +265,7 @@ public partial class App : Application
         servicios.AddSingleton<DashboardRepository>();
         servicios.AddSingleton<ReporteRepository>();
         servicios.AddSingleton<ExportacionRepository>();
+        servicios.AddSingleton<VehiculoRepository>();
 
         // Services
         servicios.AddSingleton<AuditoriaService>();
@@ -283,6 +284,7 @@ public partial class App : Application
         servicios.AddSingleton<DashboardService>();
         servicios.AddSingleton<ReporteService>();
         servicios.AddSingleton<ExportacionService>();
+        servicios.AddSingleton<VehiculoService>();
         servicios.AddSingleton(sp =>
             new RespaldoService(sp.GetRequiredService<ConexionFactory>().CadenaConexion));
         servicios.AddSingleton(FAControl.Common.AjustesLocales.Cargar());

@@ -62,6 +62,28 @@ public static class Textos
         MetodoPago.Otro => "Otro",
         _ => m.ToString()
     };
+
+    public static string De(TipoVehiculo t) => t switch
+    {
+        TipoVehiculo.Sedan => "Sedán",
+        TipoVehiculo.Suv => "SUV",
+        TipoVehiculo.Jeepeta => "Jeepeta",
+        TipoVehiculo.Camioneta => "Camioneta",
+        TipoVehiculo.Camion => "Camión",
+        TipoVehiculo.Motor => "Motor",
+        TipoVehiculo.Otro => "Otro",
+        _ => t.ToString()
+    };
+
+    public static string De(EstadoVehiculo e) => e switch
+    {
+        EstadoVehiculo.Disponible => "Disponible",
+        EstadoVehiculo.Reservado => "Reservado",
+        EstadoVehiculo.Vendido => "Vendido",
+        EstadoVehiculo.Alquilado => "Alquilado",
+        EstadoVehiculo.Baja => "Baja",
+        _ => e.ToString()
+    };
 }
 
 /// <summary>Opción de ComboBox con valor tipado + texto en español.</summary>

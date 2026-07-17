@@ -13,6 +13,7 @@ public class ContadorRepository
 {
     public const string Prestamo = "prestamo";
     public const string Recibo = "recibo";
+    public const string Vehiculo = "vehiculo";
 
     /// <summary>Reserva y devuelve el siguiente valor del contador indicado.</summary>
     public async Task<long> SiguienteAsync(string nombre, MySqlConnection conexion,

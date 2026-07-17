@@ -19,4 +19,6 @@ public static class DbNames
     public const string Pago = "pago";
     public const string Auditoria = "auditoria";
     public const string Contador = "contador";
+    // DealerControl / AutoControl (Tier 5)
+    public const string Vehiculo = "vehiculo";
 }

@@ -95,4 +95,48 @@ internal static class EnumMap
         "otro" => MetodoPago.Otro,
         _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Método de pago desconocido en BD.")
     };
+
+    public static string ADb(TipoVehiculo t) => t switch
+    {
+        TipoVehiculo.Sedan => "sedan",
+        TipoVehiculo.Suv => "suv",
+        TipoVehiculo.Jeepeta => "jeepeta",
+        TipoVehiculo.Camioneta => "camioneta",
+        TipoVehiculo.Camion => "camion",
+        TipoVehiculo.Motor => "motor",
+        TipoVehiculo.Otro => "otro",
+        _ => throw new ArgumentOutOfRangeException(nameof(t))
+    };
+
+    public static TipoVehiculo TipoVehiculoDeDb(string valor) => valor switch
+    {
+        "sedan" => TipoVehiculo.Sedan,
+        "suv" => TipoVehiculo.Suv,
+        "jeepeta" => TipoVehiculo.Jeepeta,
+        "camioneta" => TipoVehiculo.Camioneta,
+        "camion" => TipoVehiculo.Camion,
+        "motor" => TipoVehiculo.Motor,
+        "otro" => TipoVehiculo.Otro,
+        _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Tipo de vehículo desconocido en BD.")
+    };
+
+    public static string ADb(EstadoVehiculo e) => e switch
+    {
+        EstadoVehiculo.Disponible => "disponible",
+        EstadoVehiculo.Reservado => "reservado",
+        EstadoVehiculo.Vendido => "vendido",
+        EstadoVehiculo.Alquilado => "alquilado",
+        EstadoVehiculo.Baja => "baja",
+        _ => throw new ArgumentOutOfRangeException(nameof(e))
+    };
+
+    public static EstadoVehiculo EstadoVehiculoDeDb(string valor) => valor switch
+    {
+        "disponible" => EstadoVehiculo.Disponible,
+        "reservado" => EstadoVehiculo.Reservado,
+        "vendido" => EstadoVehiculo.Vendido,
+        "alquilado" => EstadoVehiculo.Alquilado,
+        "baja" => EstadoVehiculo.Baja,
+        _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Estado de vehículo desconocido en BD.")
+    };
 }

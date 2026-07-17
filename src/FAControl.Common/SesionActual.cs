@@ -74,11 +74,15 @@ public static class Permisos
     public const string Historial = "historial";
     public const string Usuarios = "usuarios";
     public const string Configuracion = "configuracion";
+    // DealerControl (Tier 5)
+    public const string Vehiculos = "vehiculos";
+    public const string VehiculosEditar = "vehiculos_editar";
 
     /// <summary>Todos los códigos, para validar contra la BD.</summary>
     public static readonly string[] Todos =
     [
         Panel, Clientes, ClientesEditar, Prestamos, PrestamosCrear, PrestamosAutorizar,
-        PrestamosCancelar, Cobros, Reportes, Historial, Usuarios, Configuracion
+        PrestamosCancelar, Cobros, Reportes, Historial, Usuarios, Configuracion,
+        Vehiculos, VehiculosEditar
     ];
 }

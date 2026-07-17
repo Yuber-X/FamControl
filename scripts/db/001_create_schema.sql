@@ -238,7 +238,42 @@ CREATE TABLE contador (
 
 INSERT INTO contador (nombre, valor) VALUES
   ('recibo', 0),
-  ('prestamo', 0);
+  ('prestamo', 0),
+  ('vehiculo', 0);
+
+-- -------------------------------------------------------------
+-- vehiculo: inventario del dealer (DealerControl — Tier 5).
+-- El vehículo como ACTIVO: nace aquí; AutoControl lo consume por FK.
+--   costo_total = costo_adquisicion + gastos_importacion
+--   ganancia    = precio_venta - costo_total  (se calcula, no se guarda)
+-- Soft delete vía deleted_at. Código secuencial V-0001 (contador 'vehiculo').
+-- -------------------------------------------------------------
+CREATE TABLE vehiculo (
+  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  codigo             VARCHAR(20)   NOT NULL,               -- V-0001
+  vin                VARCHAR(17)   NULL,                   -- chasis / VIN
+  marca              VARCHAR(50)   NOT NULL,
+  modelo             VARCHAR(50)   NOT NULL,
+  anio               SMALLINT UNSIGNED NULL,
+  color              VARCHAR(30)   NULL,
+  placa              VARCHAR(15)   NULL,                   -- matrícula / chapa
+  tipo               ENUM('sedan','suv','jeepeta','camioneta','camion','motor','otro')
+                       NOT NULL DEFAULT 'otro',
+  kilometraje        INT UNSIGNED  NULL,
+  costo_adquisicion  DECIMAL(15,2) NOT NULL DEFAULT 0.00,  -- lo que costó comprarlo
+  gastos_importacion DECIMAL(15,2) NOT NULL DEFAULT 0.00,  -- aduana, flete, preparación
+  precio_venta       DECIMAL(15,2) NOT NULL DEFAULT 0.00,  -- precio de lista
+  estado             ENUM('disponible','reservado','vendido','alquilado','baja')
+                       NOT NULL DEFAULT 'disponible',
+  notas              TEXT          NULL,
+  created_at         DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  updated_at         DATETIME      NULL,
+  deleted_at         DATETIME      NULL,                   -- soft delete
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_vehiculo_codigo (codigo),
+  KEY ix_vehiculo_estado (estado),
+  KEY ix_vehiculo_vin (vin)
+) ENGINE=InnoDB;
 
 -- =============================================================
 -- Catálogo de roles y permisos (multicuentas — cliente 2026-07-16)
@@ -262,7 +297,9 @@ INSERT INTO permiso (codigo, nombre, descripcion) VALUES
   ('reportes',            'Reportes',                  'Reportes por fecha y por cliente'),
   ('historial',           'Historial',                 'Auditoría de operaciones'),
   ('usuarios',            'Admin de usuarios',         'CRUD de usuarios, roles y overrides'),
-  ('configuracion',       'Configuración',             'EXCLUSIVO Admin');
+  ('configuracion',       'Configuración',             'EXCLUSIVO Admin'),
+  ('vehiculos',           'Vehículos (ver)',           'Consulta del inventario de vehículos (DealerControl)'),
+  ('vehiculos_editar',    'Vehículos (crear/editar)',  'Alta, edición y baja de vehículos');
 
 -- Admin: todo
 INSERT INTO rol_permiso (rol_id, permiso_id)
@@ -274,7 +311,8 @@ INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Supervisor'
   AND p.codigo IN ('panel','clientes','clientes_editar','prestamos','prestamos_crear',
-                   'prestamos_cancelar','cobros','reportes','historial');
+                   'prestamos_cancelar','cobros','reportes','historial',
+                   'vehiculos','vehiculos_editar');
 
 -- Cobrador: cobra, consulta y SI crea prestamos, pero cada uno necesita
 -- la autorizacion de un admin (prestamos_autorizar). Sin prestamos_crear

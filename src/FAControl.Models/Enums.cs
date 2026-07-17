@@ -65,6 +65,31 @@ public enum MetodoPago
     Otro
 }
 
+/// <summary>Tipo/carrocería del vehículo (DealerControl). Coincide con ENUM vehiculo.tipo.</summary>
+public enum TipoVehiculo
+{
+    Sedan,
+    Suv,
+    Jeepeta,
+    Camioneta,
+    Camion,
+    Motor,
+    Otro
+}
+
+/// <summary>
+/// Estado del vehículo en el inventario del dealer. Coincide con ENUM vehiculo.estado.
+/// El vehículo NACE 'disponible'; AutoControl lo pasa a 'vendido' al financiarlo.
+/// </summary>
+public enum EstadoVehiculo
+{
+    Disponible,
+    Reservado,
+    Vendido,
+    Alquilado,
+    Baja
+}
+
 /// <summary>Acción registrada en auditoría. Coincide con ENUM auditoria.accion.</summary>
 public enum AccionAuditoria
 {
