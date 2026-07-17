@@ -86,7 +86,7 @@ public static class PrestamoVisualFactory
         // --- Pie ---
         contenido.Children.Add(Separador(18));
         contenido.Children.Add(Texto(
-            $"Emitido por {p.EmitidoPor} el {DateTime.Now.ToString("dd/MM/yyyy 'a las' hh:mm tt", CulturaRd)}",
+            $"Emitido por {p.EmitidoPor} el {DateTime.Now.ToString(@"dd'/'MM'/'yyyy 'a las' hh':'mm tt", CulturaRd)}",
             9, FontWeights.Normal, TintaSuave));
 
         // Layout explícito: el visual debe estar medido ANTES de imprimirse

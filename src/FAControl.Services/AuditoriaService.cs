@@ -12,8 +12,16 @@ namespace FAControl.Services;
 public class AuditoriaService
 {
     private readonly AuditoriaRepository _repositorio;
+    private readonly SesionRepository _sesiones;
+    private readonly UsuarioRepository _usuarios;
 
-    public AuditoriaService(AuditoriaRepository repositorio) => _repositorio = repositorio;
+    public AuditoriaService(AuditoriaRepository repositorio, SesionRepository sesiones,
+        UsuarioRepository usuarios)
+    {
+        _repositorio = repositorio;
+        _sesiones = sesiones;
+        _usuarios = usuarios;
+    }
 
     /// <summary>Registra una entrada con conexión propia (operaciones simples).</summary>
     public Task RegistrarAsync(AccionAuditoria accion, string entidad, long? entidadId,
@@ -31,6 +39,27 @@ public class AuditoriaService
     /// <summary>Visor del Historial (solo lectura, con filtros).</summary>
     public Task<IReadOnlyList<Auditoria>> BuscarAsync(FiltroAuditoria filtro, CancellationToken ct = default) =>
         _repositorio.BuscarAsync(filtro, ct);
+
+    /// <summary>
+    /// Actividad por usuario en el mismo rango que el historial: sesiones,
+    /// tiempo activo y operaciones (cliente 2026-07-16).
+    /// </summary>
+    public Task<IReadOnlyList<ActividadUsuario>> ObtenerActividadAsync(
+        DateOnly? desde, DateOnly? hasta, CancellationToken ct = default) =>
+        _sesiones.ObtenerActividadAsync(
+            AInstanteUtc(desde), AInstanteUtc(hasta?.AddDays(1)), ct);
+
+    /// <summary>Usuarios para el combo de filtro del Historial.</summary>
+    public Task<IReadOnlyList<Usuario>> ObtenerUsuariosAsync(CancellationToken ct = default) =>
+        _usuarios.ObtenerTodosAsync(ct);
+
+    /// <summary>
+    /// Fecha de negocio RD (UTC-4) → instante UTC del inicio de ese día.
+    /// Mismo criterio que usa AuditoriaRepository para filtrar: si no, la
+    /// actividad y el listado hablarían de rangos distintos.
+    /// </summary>
+    private static DateTime? AInstanteUtc(DateOnly? fecha) =>
+        fecha is null ? null : fecha.Value.ToDateTime(TimeOnly.MinValue).AddHours(4);
 
     private static Auditoria Construir(AccionAuditoria accion, string entidad, long? entidadId, string? descripcion)
     {

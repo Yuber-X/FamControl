@@ -63,7 +63,7 @@ public partial class ClienteFichaViewModel : ObservableObject
             DireccionTexto = cliente.Direccion ?? "—";
             EmailTexto = cliente.Email ?? "—";
             NotasTexto = string.IsNullOrWhiteSpace(cliente.Notas) ? "—" : cliente.Notas;
-            ClienteDesdeTexto = FechaNegocio.AUtcLocal(cliente.CreatedAtUtc).ToString("dd/MM/yyyy");
+            ClienteDesdeTexto = FechaNegocio.AUtcLocal(cliente.CreatedAtUtc).ToString(Textos.FormatoFecha, Textos.CulturaRd);
 
             TotalPrestado = metricas.TotalPrestado;
             TotalCobrado = metricas.TotalCobrado;

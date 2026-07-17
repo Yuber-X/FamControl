@@ -9,57 +9,147 @@
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <!-- Filtros -->
+    <!-- Filtros. WrapPanel y no StackPanel: con el texto en Mediano/Grande
+         una fila horizontal se sale de la pantalla y el último filtro queda
+         inalcanzable (lección de POS-500). -->
     <Border Grid.Row="0" Style="{DynamicResource Card}" Padding="20,14" Margin="0,0,0,12">
-      <StackPanel Orientation="Horizontal">
-        <StackPanel Margin="0,0,12,0">
+      <WrapPanel Orientation="Horizontal">
+        <StackPanel Margin="0,0,12,6">
           <TextBlock Text="Desde" Style="{DynamicResource Input.Label}" />
           <DatePicker Width="140" Height="40" FontSize="13" SelectedDate="{Binding Desde}" />
         </StackPanel>
-        <StackPanel Margin="0,0,12,0">
+        <StackPanel Margin="0,0,12,6">
           <TextBlock Text="Hasta" Style="{DynamicResource Input.Label}" />
           <DatePicker Width="140" Height="40" FontSize="13" SelectedDate="{Binding Hasta}" />
         </StackPanel>
-        <StackPanel Margin="0,0,12,0">
+        <!-- Filtro por usuario: multiusuario, "quién hizo qué" -->
+        <StackPanel Margin="0,0,12,6">
+          <TextBlock Text="Usuario" Style="{DynamicResource Input.Label}" />
+          <ComboBox Width="180" Height="40" FontSize="13"
+                    ItemsSource="{Binding Usuarios}"
+                    SelectedItem="{Binding UsuarioSeleccionado}" />
+        </StackPanel>
+        <StackPanel Margin="0,0,12,6">
           <TextBlock Text="Entidad" Style="{DynamicResource Input.Label}" />
           <ComboBox Width="170" Height="40" FontSize="13"
                     ItemsSource="{Binding Entidades}"
                     SelectedItem="{Binding EntidadSeleccionada}" />
         </StackPanel>
-        <StackPanel Margin="0,0,16,0">
+        <StackPanel Margin="0,0,16,6">
           <TextBlock Text="Acción" Style="{DynamicResource Input.Label}" />
           <ComboBox Width="170" Height="40" FontSize="13"
                     ItemsSource="{Binding Acciones}"
                     SelectedItem="{Binding AccionSeleccionada}" />
         </StackPanel>
         <Button Content="Limpiar filtros" Style="{DynamicResource Boton.Terciario}"
-                VerticalAlignment="Bottom" Margin="0,0,0,6"
+                VerticalAlignment="Bottom" Margin="0,0,0,12"
                 Command="{Binding LimpiarFiltrosCommand}" />
-      </StackPanel>
+      </WrapPanel>
     </Border>
 
-    <!-- Tabla de auditoría (solo lectura) -->
-    <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0">
-      <DataGrid Style="{DynamicResource Tabla}" RowHeight="38" ItemsSource="{Binding Filas}">
-        <DataGrid.Columns>
-          <DataGridTextColumn Header="Fecha y hora" Binding="{Binding FechaTexto}" Width="170" />
-          <DataGridTextColumn Header="Acción" Binding="{Binding AccionTexto}" Width="130"
-                              HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-          <DataGridTextColumn Header="Entidad" Binding="{Binding EntidadTexto}" Width="100"
-                              HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-          <DataGridTextColumn Header="Id" Binding="{Binding EntidadIdTexto}" Width="60" />
-          <DataGridTextColumn Header="Descripción" Binding="{Binding DescripcionTexto}" Width="*" MinWidth="200"
-                              HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
-            <DataGridTextColumn.ElementStyle>
-              <Style TargetType="TextBlock">
-                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-                <Setter Property="ToolTip" Value="{Binding DescripcionTexto}" />
-              </Style>
-            </DataGridTextColumn.ElementStyle>
-          </DataGridTextColumn>
-        </DataGrid.Columns>
-      </DataGrid>
-    </Border>
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" MinWidth="420" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <!-- Tabla de auditoría (solo lectura) -->
+      <Border Grid.Column="0" Style="{DynamicResource Card}" Padding="0">
+        <DataGrid Style="{DynamicResource Tabla}" RowHeight="38" ItemsSource="{Binding Filas}">
+          <DataGrid.Columns>
+            <!-- 200 y no 170: en es-DO la hora es "04:15:47 a. m." (más larga
+                 que "AM"). Con 170 se recortaba el sufijo. -->
+            <DataGridTextColumn Header="Fecha y hora" Binding="{Binding FechaTexto}"
+                                Width="200" MinWidth="200" />
+            <!-- QUIÉN hizo la acción (pedido del cliente 2026-07-16) -->
+            <DataGridTextColumn Header="Usuario" Binding="{Binding UsuarioTexto}"
+                                Width="130" MinWidth="130"
+                                HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+            <DataGridTextColumn Header="Acción" Binding="{Binding AccionTexto}"
+                                Width="130" MinWidth="130"
+                                HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+            <DataGridTextColumn Header="Entidad" Binding="{Binding EntidadTexto}"
+                                Width="100" MinWidth="100"
+                                HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+            <DataGridTextColumn Header="Id" Binding="{Binding EntidadIdTexto}" Width="60" MinWidth="60" />
+            <DataGridTextColumn Header="Descripción" Binding="{Binding DescripcionTexto}"
+                                Width="*" MinWidth="200"
+                                HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
+              <DataGridTextColumn.ElementStyle>
+                <Style TargetType="TextBlock">
+                  <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                  <Setter Property="ToolTip" Value="{Binding DescripcionTexto}" />
+                </Style>
+              </DataGridTextColumn.ElementStyle>
+            </DataGridTextColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </Border>
+
+      <!-- Actividad por usuario: sesiones y tiempo activo del mismo rango -->
+      <Border Grid.Column="1" Width="290" Margin="12,0,0,0" Style="{DynamicResource Card}">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="Actividad de usuarios"
+                     Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          <TextBlock DockPanel.Dock="Top" Text="{Binding ActividadTexto}"
+                     Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap"
+                     Margin="0,4,0,10" />
+
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Actividad}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Padding="0,8" BorderThickness="0,0,0,1"
+                          BorderBrush="{DynamicResource Brush.BordeSutil}">
+                    <StackPanel>
+                      <DockPanel>
+                        <!-- Punto verde: sesión abierta ahora mismo -->
+                        <Ellipse DockPanel.Dock="Right" Width="8" Height="8"
+                                 VerticalAlignment="Center"
+                                 Fill="{DynamicResource Brush.DeltaPositivo}"
+                                 Visibility="{Binding EnLinea, Converter={StaticResource BoolAVisibilidad}}"
+                                 ToolTip="En línea ahora" />
+                        <TextBlock Text="{Binding Nombre}" TextTrimming="CharacterEllipsis"
+                                   Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+                      </DockPanel>
+                      <TextBlock Text="{Binding RolTexto}" Style="{DynamicResource Texto.Caption}" />
+
+                      <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                          <TextBlock Text="TIEMPO ACTIVO" Style="{DynamicResource Texto.MicroLabel}" />
+                          <TextBlock Text="{Binding TiempoActivoTexto}"
+                                     Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="SESIONES" Style="{DynamicResource Texto.MicroLabel}" />
+                          <TextBlock Text="{Binding Sesiones}"
+                                     Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+                        </StackPanel>
+                      </Grid>
+
+                      <!-- TextWrapping obligatorio: sin él la fecha se recorta
+                           ("... 02:45 A") — la queja del cliente sobre datos cortados -->
+                      <TextBlock Style="{DynamicResource Texto.Caption}" Margin="0,4,0,0"
+                                 TextWrapping="Wrap">
+                        <Run Text="{Binding Operaciones, Mode=OneWay}" />
+                        <Run Text="operación(es)" />
+                        <LineBreak />
+                        <Run Text="Último acceso:" />
+                        <Run Text="{Binding UltimoAccesoTexto, Mode=OneWay}" />
+                      </TextBlock>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Grid>
 
     <TextBlock Grid.Row="2" Text="{Binding ContadorTexto}"
                Style="{DynamicResource Texto.Caption}" Margin="4,10,0,0" />

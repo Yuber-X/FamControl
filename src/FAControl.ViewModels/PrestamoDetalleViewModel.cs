@@ -68,7 +68,7 @@ public partial class PrestamoDetalleViewModel : ObservableObject
             TasaTexto = $"{prestamo.TasaInteres:0.##}% mensual";
             ModalidadTexto = Textos.De(prestamo.Modalidad);
             MetodoTexto = Textos.De(prestamo.MetodoAmortizacion);
-            FechaInicioTexto = prestamo.FechaInicio.ToString("dd/MM/yyyy");
+            FechaInicioTexto = prestamo.FechaInicio.ToString(Textos.FormatoFecha, Textos.CulturaRd);
             GarantiaTexto = string.IsNullOrWhiteSpace(prestamo.Garantia) ? "—" : prestamo.Garantia;
             NotasTexto = string.IsNullOrWhiteSpace(prestamo.Notas) ? "—" : prestamo.Notas;
 

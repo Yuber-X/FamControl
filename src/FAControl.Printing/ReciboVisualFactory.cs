@@ -30,7 +30,7 @@ public static class ReciboVisualFactory
         panel.Children.Add(Separador());
 
         panel.Children.Add(Fila("Recibo:", recibo.NumeroReciboPrincipal));
-        panel.Children.Add(Fila("Fecha:", FechaNegocio.AUtcLocal(recibo.FechaPagoUtc).ToString("dd/MM/yyyy hh:mm tt", CulturaRd)));
+        panel.Children.Add(Fila("Fecha:", FechaNegocio.AUtcLocal(recibo.FechaPagoUtc).ToString(@"dd'/'MM'/'yyyy hh':'mm tt", CulturaRd)));
         panel.Children.Add(Fila("Cliente:", recibo.ClienteNombre));
         panel.Children.Add(Fila("Préstamo:", recibo.PrestamoCodigo));
         panel.Children.Add(Fila("Método:", TextoMetodo(recibo.MetodoPago)));

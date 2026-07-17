@@ -1,3 +1,4 @@
+using System.Globalization;
 using FAControl.Models;
 
 namespace FAControl.ViewModels;
@@ -5,6 +6,18 @@ namespace FAControl.ViewModels;
 /// <summary>Textos en español para los enums del dominio (UI y recibos).</summary>
 public static class Textos
 {
+    /// <summary>Cultura del negocio. Fija: no depende de la config de Windows del cliente.</summary>
+    public static readonly CultureInfo CulturaRd = CultureInfo.GetCultureInfo("es-DO");
+
+    // Los separadores van ESCAPADOS ('/' y ':'). Sin escapar son comodines que
+    // .NET reemplaza por los de la cultura de Windows: la misma app mostraría
+    // 17/07/2026 en un binding XAML (que usa en-US) y 17-07-2026 en un
+    // ToString de C# (que usa la cultura de la máquina). Escapados, la fecha
+    // se ve IGUAL en cualquier PC.
+    public const string FormatoFecha = @"dd'/'MM'/'yyyy";
+    public const string FormatoFechaHora = @"dd'/'MM'/'yyyy hh':'mm tt";
+    public const string FormatoFechaHoraSegundos = @"dd'/'MM'/'yyyy hh':'mm':'ss tt";
+
     public static string De(Modalidad m) => m switch
     {
         Modalidad.Diaria => "Diaria",

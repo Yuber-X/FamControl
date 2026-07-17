@@ -131,6 +131,11 @@ public class Auditoria
 {
     public long Id { get; set; }
     public long UsuarioId { get; set; }
+    /// <summary>
+    /// Nombre del usuario que hizo la acción (JOIN, no columna).
+    /// Multiusuario: el Historial debe decir QUIÉN, no solo qué.
+    /// </summary>
+    public string UsuarioNombre { get; set; } = string.Empty;
     public string Entidad { get; set; } = string.Empty;
     public long? EntidadId { get; set; }
     public AccionAuditoria Accion { get; set; }

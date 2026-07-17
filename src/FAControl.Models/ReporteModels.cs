@@ -28,4 +28,36 @@ public record FiltroAuditoria(
     DateOnly? Hasta,
     string? Entidad,
     AccionAuditoria? Accion,
+    /// <summary>null = todos los usuarios.</summary>
+    long? UsuarioId = null,
     int Limite = 300);
+
+/// <summary>
+/// Actividad de un usuario en el rango consultado (cliente 2026-07-16:
+/// "agregar los usuarios en el historial y su tiempo activo").
+/// </summary>
+public record ActividadUsuario(
+    long UsuarioId,
+    string Nombre,
+    string RolNombre,
+    int Sesiones,
+    int TiempoActivoSegundos,
+    int Operaciones,
+    DateTime? UltimoAccesoUtc,
+    /// <summary>True si tiene una sesión abierta ahora mismo.</summary>
+    bool EnLinea)
+{
+    /// <summary>Tiempo activo legible: "3h 25m". Menos de un minuto se muestra en segundos.</summary>
+    public string TiempoActivoTexto
+    {
+        get
+        {
+            var t = TimeSpan.FromSeconds(TiempoActivoSegundos);
+            if (t.TotalMinutes < 1)
+                return $"{t.Seconds}s";
+            if (t.TotalHours < 1)
+                return $"{t.Minutes}m";
+            return $"{(int)t.TotalHours}h {t.Minutes:D2}m";
+        }
+    }
+}

@@ -13,7 +13,7 @@ public record PrestamoFila(PrestamoResumen Resumen)
     public string TasaTexto => $"{Resumen.TasaInteres:0.##}% mensual";
     public string ModalidadTexto => Textos.De(Resumen.Modalidad);
     public string ProgresoTexto => $"{Resumen.CuotasPagadas}/{Resumen.PlazoCuotas}";
-    public string ProximoVencimientoTexto => Resumen.ProximoVencimiento?.ToString("dd/MM/yyyy") ?? "—";
+    public string ProximoVencimientoTexto => Resumen.ProximoVencimiento?.ToString(Textos.FormatoFecha, Textos.CulturaRd) ?? "—";
     public EstadoPrestamo Estado => Resumen.Estado;
     public string EstadoTexto => Textos.De(Resumen.Estado);
 }
@@ -22,7 +22,7 @@ public record PrestamoFila(PrestamoResumen Resumen)
 public record CuotaFila(Cuota Cuota, SemaforoCuota Semaforo)
 {
     public int Numero => Cuota.NumeroCuota;
-    public string FechaTexto => Cuota.FechaVencimiento.ToString("dd/MM/yyyy");
+    public string FechaTexto => Cuota.FechaVencimiento.ToString(Textos.FormatoFecha, Textos.CulturaRd);
     public decimal Capital => Cuota.Capital;
     public decimal Interes => Cuota.Interes;
     public decimal MontoTotal => Cuota.MontoTotal;
@@ -49,7 +49,7 @@ public record AplicacionFila(AplicacionPago Aplicacion)
 public record PagoFila(PagoResumen Resumen)
 {
     public string NumeroRecibo => Resumen.NumeroRecibo;
-    public string FechaTexto => Common.FechaNegocio.AUtcLocal(Resumen.FechaPagoUtc).ToString("dd/MM/yyyy hh:mm tt");
+    public string FechaTexto => Common.FechaNegocio.AUtcLocal(Resumen.FechaPagoUtc).ToString(Textos.FormatoFechaHora, Textos.CulturaRd);
     public string ClienteNombre => Resumen.ClienteNombre;
     public string PrestamoCodigo => Resumen.PrestamoCodigo;
     public string CuotaTexto => $"Cuota {Resumen.NumeroCuota}";

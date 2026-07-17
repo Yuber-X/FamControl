@@ -33,7 +33,8 @@ public class FlujoPrestamoPagoTests : IAsyncLifetime
         var clienteRepo = new ClienteRepository(_factory);
         var pagoRepo = new PagoRepository(_factory);
         var contadorRepo = new ContadorRepository();
-        var auditoria = new AuditoriaService(new AuditoriaRepository(_factory));
+        var auditoria = new AuditoriaService(new AuditoriaRepository(_factory),
+            new SesionRepository(_factory), new UsuarioRepository(_factory));
 
         _prestamos = new PrestamoService(_factory, prestamoRepo, contadorRepo,
             new AmortizacionService(), auditoria);

@@ -17,7 +17,7 @@ public record UsuarioFila(Usuario Usuario)
     public string RolTexto => string.IsNullOrEmpty(Usuario.RolNombre) ? "(sin rol)" : Usuario.RolNombre;
     public string EstadoTexto => Usuario.Activo ? "Activo" : "Inactivo";
     public string UltimoAccesoTexto => Usuario.LastLoginAtUtc is { } fecha
-        ? FechaNegocio.AUtcLocal(fecha).ToString("dd/MM/yyyy hh:mm tt")
+        ? FechaNegocio.AUtcLocal(fecha).ToString(Textos.FormatoFechaHora, Textos.CulturaRd)
         : "Nunca";
     /// <summary>El usuario de la sesión actual: la UI lo marca para evitar accidentes.</summary>
     public bool EsElActual => Usuario.Id == SesionActual.Id;

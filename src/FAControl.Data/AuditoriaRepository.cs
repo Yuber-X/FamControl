@@ -44,14 +44,20 @@ public class AuditoriaRepository
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
+        // LEFT JOIN y no INNER: la auditoría es inmutable y debe sobrevivir
+        // aunque el usuario se borre. Con INNER esas filas desaparecerían del
+        // historial, que es justo lo que la auditoría existe para impedir.
         cmd.CommandText = $"""
-            SELECT id, usuario_id, entidad, entidad_id, accion, descripcion, ip_local, timestamp
-            FROM {DbNames.Auditoria}
-            WHERE (@desde IS NULL OR timestamp >= @desde)
-              AND (@hasta IS NULL OR timestamp < @hasta)
-              AND (@entidad IS NULL OR entidad = @entidad)
-              AND (@accion IS NULL OR accion = @accion)
-            ORDER BY id DESC
+            SELECT a.id, a.usuario_id, COALESCE(u.nombre, '(usuario eliminado)') AS usuario_nombre,
+                   a.entidad, a.entidad_id, a.accion, a.descripcion, a.ip_local, a.timestamp
+            FROM {DbNames.Auditoria} a
+            LEFT JOIN {DbNames.Usuario} u ON u.id = a.usuario_id
+            WHERE (@desde IS NULL OR a.timestamp >= @desde)
+              AND (@hasta IS NULL OR a.timestamp < @hasta)
+              AND (@entidad IS NULL OR a.entidad = @entidad)
+              AND (@accion IS NULL OR a.accion = @accion)
+              AND (@usuarioId IS NULL OR a.usuario_id = @usuarioId)
+            ORDER BY a.id DESC
             LIMIT @limite;
             """;
         // Los límites llegan en UTC (el llamador convierte el día de negocio RD)
@@ -59,6 +65,7 @@ public class AuditoriaRepository
         cmd.Parameters.AddWithValue("@hasta", (object?)ADateTimeUtc(filtro.Hasta?.AddDays(1)) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@entidad", (object?)filtro.Entidad ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@accion", filtro.Accion is null ? DBNull.Value : AccionADb(filtro.Accion.Value));
+        cmd.Parameters.AddWithValue("@usuarioId", (object?)filtro.UsuarioId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@limite", filtro.Limite);
 
         var entradas = new List<Auditoria>();
@@ -69,6 +76,7 @@ public class AuditoriaRepository
             {
                 Id = reader.GetInt64("id"),
                 UsuarioId = reader.GetInt64("usuario_id"),
+                UsuarioNombre = reader.GetString("usuario_nombre"),
                 Entidad = reader.GetString("entidad"),
                 EntidadId = reader.IsDBNull(reader.GetOrdinal("entidad_id")) ? null : reader.GetInt64("entidad_id"),
                 Accion = AccionDeDb(reader.GetString("accion")),
