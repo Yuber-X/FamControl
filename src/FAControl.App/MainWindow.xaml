@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:FAControl.ViewModels;assembly=FAControl.ViewModels"
+        xmlns:views="clr-namespace:FAControl.Views;assembly=FAControl.Views"
         Title="FAControl — Gestión de préstamos"
         Width="1280" Height="760"
         WindowState="Maximized"
@@ -21,40 +22,57 @@
             BorderBrush="{DynamicResource Brush.BordeSutil}" BorderThickness="0,0,0.5,0">
       <DockPanel>
 
-        <!-- Logo -->
+        <!-- Marca del MODO activo: el color lo pone MostrarModo() según el
+             modo elegido en el launcher, para que se vea de un vistazo
+             dónde está parado el usuario -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="20,20,20,24">
-          <Border Width="28" Height="28" CornerRadius="8"
+          <Border x:Name="MarcaModo" Width="30" Height="30" CornerRadius="8"
                   Background="{DynamicResource Brush.Primario}">
-            <TextBlock Text="P" Foreground="White" FontWeight="Bold" FontSize="14"
-                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <views:LogoFA Width="20" Height="20"
+                          ColorF="White" ColorA="White" ColorVentana="Transparent" />
           </Border>
-          <TextBlock Text="FAControl" Style="{DynamicResource Texto.Titulo3}"
-                     VerticalAlignment="Center" Margin="10,0,0,0" />
+          <StackPanel VerticalAlignment="Center" Margin="10,0,0,0">
+            <TextBlock x:Name="NombreModo" Text="FAControl"
+                       Style="{DynamicResource Texto.Titulo3}" />
+            <TextBlock x:Name="EtiquetaModo" Text="Familia Almonte"
+                       Style="{DynamicResource Texto.Caption}" />
+          </StackPanel>
         </StackPanel>
 
         <!-- Usuario + salir (pie del sidebar) -->
         <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Brush.BordeSutil}"
                 BorderThickness="0,0.5,0,0" Padding="20,14">
           <DockPanel>
+            <!-- Template circular compartido por los dos botones del pie
+                 (pedido de Yuber 2026-07-10, punto 10) -->
+            <DockPanel.Resources>
+              <ControlTemplate x:Key="BotonCircular" TargetType="Button">
+                <Border x:Name="Fondo" CornerRadius="14" Background="Transparent">
+                  <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <ControlTemplate.Triggers>
+                  <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Fondo" Property="Background"
+                            Value="{DynamicResource Brush.PrimarioSutil}" />
+                    <Setter Property="Foreground" Value="{DynamicResource Brush.Primario}" />
+                  </Trigger>
+                </ControlTemplate.Triggers>
+              </ControlTemplate>
+            </DockPanel.Resources>
+
+            <!-- Cerrar sesión: vuelve al LAUNCHER -->
             <Button DockPanel.Dock="Right" Content="⏻" FontSize="14" Width="28" Height="28"
                     Cursor="Hand" Foreground="{DynamicResource Brush.TextoTerciario}"
-                    ToolTip="Cerrar sesión" Click="BotonSalir_Click">
-              <Button.Template>
-                <!-- Circular, no cuadrado (pedido de Yuber 2026-07-10, punto 10) -->
-                <ControlTemplate TargetType="Button">
-                  <Border x:Name="Fondo" CornerRadius="14" Background="Transparent">
-                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                  </Border>
-                  <ControlTemplate.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                      <Setter TargetName="Fondo" Property="Background"
-                              Value="{DynamicResource Brush.PrimarioSutil}" />
-                      <Setter Property="Foreground" Value="{DynamicResource Brush.Primario}" />
-                    </Trigger>
-                  </ControlTemplate.Triggers>
-                </ControlTemplate>
-              </Button.Template>
-            </Button>
+                    Template="{StaticResource BotonCircular}"
+                    ToolTip="Cerrar sesión y volver al inicio" Click="BotonSalir_Click" />
+
+            <!-- Cambiar usuario: vuelve al LOGIN de este mismo modo, para el
+                 relevo de turno (pedido de Yuber 2026-07-17) -->
+            <Button DockPanel.Dock="Right" Content="&#xE748;" FontFamily="Segoe MDL2 Assets"
+                    FontSize="13" Width="28" Height="28" Margin="0,0,4,0"
+                    Cursor="Hand" Foreground="{DynamicResource Brush.TextoTerciario}"
+                    Template="{StaticResource BotonCircular}"
+                    ToolTip="Cambiar de usuario" Click="BotonCambiarUsuario_Click" />
             <Border Width="32" Height="32" CornerRadius="16"
                     Background="{DynamicResource Brush.PrimarioSutil}">
               <TextBlock Text="{Binding Iniciales}" FontSize="11" FontWeight="SemiBold"

@@ -54,4 +54,19 @@ public partial class LoginWindow : Window
         else
             await _vm.IntentarLoginAsync(CajaPassword.Password);
     }
+
+    /// <summary>
+    /// Muestra a qué modo se está entrando (el elegido en el launcher).
+    /// El acento de color evita que el usuario crea que entró al modo equivocado.
+    /// </summary>
+    public void MostrarModo(FAControl.Common.IdentidadModo modo)
+    {
+        Title = $"{modo.Nombre} — Iniciar sesión";
+        NombreModo.Text = modo.Nombre;
+        DescripcionModo.Text = modo.Descripcion;
+        Logo.ColorA = new System.Windows.Media.SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(modo.ColorHex));
+        Logo.ColorF = (System.Windows.Media.Brush)FindResource("Brush.TextoPrincipal");
+        Logo.ColorVentana = (System.Windows.Media.Brush)FindResource("Brush.FondoCard");
+    }
 }

@@ -1,6 +1,7 @@
 <Window x:Class="FAControl.Views.LoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:FAControl.Views"
         Title="FAControl — Iniciar sesión"
         Width="440" SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
@@ -17,11 +18,15 @@
             Padding="32" Margin="0,40">
       <StackPanel>
 
-        <!-- Encabezado -->
-        <TextBlock Text="FAControl" Style="{DynamicResource Texto.Titulo1}"
+        <!-- Encabezado: identifica el MODO elegido en el launcher, para que
+             el usuario sepa a dónde está entrando (MostrarModo lo rellena) -->
+        <local:LogoFA x:Name="Logo" Width="52" Height="52" HorizontalAlignment="Center"
+                      Margin="0,0,0,10" />
+        <TextBlock x:Name="NombreModo" Text="FAControl" Style="{DynamicResource Texto.Titulo1}"
                    HorizontalAlignment="Center" />
-        <TextBlock Text="Gestión de préstamos" Style="{DynamicResource Texto.Caption}"
-                   HorizontalAlignment="Center" Margin="0,4,0,24" />
+        <TextBlock x:Name="DescripcionModo" Text="Familia Almonte Auto Import SRL"
+                   Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap"
+                   TextAlignment="Center" HorizontalAlignment="Center" Margin="0,4,0,24" />
 
         <!-- Título contextual (login vs primer arranque) -->
         <TextBlock x:Name="TituloContexto" Text="Inicia sesión para continuar"

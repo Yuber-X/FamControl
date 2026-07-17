@@ -1,0 +1,181 @@
+<Window x:Class="FAControl.Views.LauncherWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="FAControl — Familia Almonte Auto Import SRL"
+        Width="1100" Height="700"
+        MinWidth="900" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Background="#0D1B2A">
+
+  <Window.Resources>
+    <!-- Navy de la marca: el launcher NO sigue el tema claro/oscuro, es la
+         puerta de entrada y siempre lleva la identidad de Familia Almonte -->
+    <SolidColorBrush x:Key="Launcher.Fondo" Color="#0D1B2A" />
+    <SolidColorBrush x:Key="Launcher.Card" Color="#152234" />
+    <SolidColorBrush x:Key="Launcher.Borde" Color="#24344A" />
+    <SolidColorBrush x:Key="Launcher.Texto" Color="#F2F4F7" />
+    <SolidColorBrush x:Key="Launcher.TextoSuave" Color="#8FA0B5" />
+    <SolidColorBrush x:Key="Launcher.Dorado" Color="#C9A15A" />
+
+    <!-- Columna de modo. El hover: se agranda y brilla con su propio color
+         mas oscuro (pedido del cliente 2026-07-16). -->
+    <Style x:Key="Columna.Modo" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Background" Value="{DynamicResource Launcher.Card}" />
+      <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Marco"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{DynamicResource Launcher.Borde}"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Padding="28,32">
+              <Border.RenderTransform>
+                <ScaleTransform x:Name="Escala" ScaleX="1" ScaleY="1" />
+              </Border.RenderTransform>
+              <Border.Effect>
+                <DropShadowEffect x:Name="Brillo" BlurRadius="0" ShadowDepth="0" Opacity="0"
+                                  Color="{Binding Tag.ColorGlow,
+                                          RelativeSource={RelativeSource TemplatedParent}}" />
+              </Border.Effect>
+              <ContentPresenter />
+            </Border>
+
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Trigger.EnterActions>
+                  <BeginStoryboard>
+                    <Storyboard>
+                      <DoubleAnimation Storyboard.TargetName="Escala"
+                                       Storyboard.TargetProperty="ScaleX"
+                                       To="1.04" Duration="0:0:0.18">
+                        <DoubleAnimation.EasingFunction>
+                          <CubicEase EasingMode="EaseOut" />
+                        </DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
+                      <DoubleAnimation Storyboard.TargetName="Escala"
+                                       Storyboard.TargetProperty="ScaleY"
+                                       To="1.04" Duration="0:0:0.18">
+                        <DoubleAnimation.EasingFunction>
+                          <CubicEase EasingMode="EaseOut" />
+                        </DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
+                      <DoubleAnimation Storyboard.TargetName="Brillo"
+                                       Storyboard.TargetProperty="BlurRadius"
+                                       To="42" Duration="0:0:0.18" />
+                      <DoubleAnimation Storyboard.TargetName="Brillo"
+                                       Storyboard.TargetProperty="Opacity"
+                                       To="0.95" Duration="0:0:0.18" />
+                    </Storyboard>
+                  </BeginStoryboard>
+                </Trigger.EnterActions>
+                <Trigger.ExitActions>
+                  <BeginStoryboard>
+                    <Storyboard>
+                      <DoubleAnimation Storyboard.TargetName="Escala"
+                                       Storyboard.TargetProperty="ScaleX"
+                                       To="1" Duration="0:0:0.18" />
+                      <DoubleAnimation Storyboard.TargetName="Escala"
+                                       Storyboard.TargetProperty="ScaleY"
+                                       To="1" Duration="0:0:0.18" />
+                      <DoubleAnimation Storyboard.TargetName="Brillo"
+                                       Storyboard.TargetProperty="BlurRadius"
+                                       To="0" Duration="0:0:0.18" />
+                      <DoubleAnimation Storyboard.TargetName="Brillo"
+                                       Storyboard.TargetProperty="Opacity"
+                                       To="0" Duration="0:0:0.18" />
+                    </Storyboard>
+                  </BeginStoryboard>
+                </Trigger.ExitActions>
+                <Setter TargetName="Marco" Property="BorderBrush"
+                        Value="{Binding Tag.Acento, RelativeSource={RelativeSource TemplatedParent}}" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <!-- ============ ENCABEZADO: logo + marca ============ -->
+    <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,44,0,0">
+      <ContentControl x:Name="ContenedorLogo" HorizontalAlignment="Center" />
+      <TextBlock Text="FAMILIA ALMONTE" HorizontalAlignment="Center"
+                 FontFamily="Segoe UI" FontSize="26" FontWeight="Light"
+                 Foreground="{StaticResource Launcher.Texto}"
+                 Margin="0,14,0,0" />
+      <TextBlock Text="AUTO IMPORT SRL" HorizontalAlignment="Center"
+                 FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold"
+                 Foreground="{StaticResource Launcher.Dorado}" />
+      <Border Height="1" Width="220" Margin="0,14,0,0"
+              Background="{StaticResource Launcher.Borde}" />
+      <TextBlock Text="CONFIANZA  ·  COMPROMISO  ·  SOLUCIONES"
+                 HorizontalAlignment="Center" FontSize="10" FontWeight="SemiBold"
+                 Foreground="{StaticResource Launcher.TextoSuave}" Margin="0,12,0,0" />
+    </StackPanel>
+
+    <!-- ============ LAS 3 COLUMNAS ============ -->
+    <ItemsControl Grid.Row="1" x:Name="ListaModos" Margin="48,36,48,0"
+                  VerticalAlignment="Center">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <UniformGrid Rows="1" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate>
+          <!-- Tag lleva los colores: el template los lee para el glow y el borde -->
+          <Button Style="{StaticResource Columna.Modo}" Margin="12,0"
+                  Tag="{Binding}" Click="Modo_Click">
+            <StackPanel>
+              <!-- Ícono del modo -->
+              <Border Width="56" Height="56" CornerRadius="14"
+                      HorizontalAlignment="Left"
+                      Background="{Binding AcentoSutil}">
+                <TextBlock Text="{Binding Icono}" FontFamily="Segoe MDL2 Assets"
+                           FontSize="26" Foreground="{Binding Acento}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+
+              <TextBlock Text="{Binding Nombre}" FontSize="21" FontWeight="SemiBold"
+                         Foreground="{StaticResource Launcher.Texto}" Margin="0,20,0,0" />
+              <TextBlock Text="{Binding Etiqueta}" FontSize="11" FontWeight="SemiBold"
+                         Foreground="{Binding Acento}" Margin="0,2,0,0" />
+              <TextBlock Text="{Binding Descripcion}" FontSize="12" TextWrapping="Wrap"
+                         Foreground="{StaticResource Launcher.TextoSuave}"
+                         Margin="0,14,0,0" MinHeight="54" />
+
+              <!-- Estado: disponible vs en desarrollo -->
+              <Border CornerRadius="6" Padding="9,4" HorizontalAlignment="Left"
+                      Margin="0,16,0,0" Background="{Binding AcentoSutil}">
+                <TextBlock Text="{Binding EstadoTexto}" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{Binding Acento}" />
+              </Border>
+            </StackPanel>
+          </Button>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <!-- ============ PIE ============ -->
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center"
+                Margin="0,28,0,28">
+      <TextBlock Text="Elegí un modo para iniciar sesión."
+                 FontSize="11" Foreground="{StaticResource Launcher.TextoSuave}"
+                 VerticalAlignment="Center" Margin="0,0,16,0" />
+      <Button Content="Salir" Cursor="Hand" Padding="18,7"
+              Foreground="{StaticResource Launcher.TextoSuave}"
+              Background="Transparent" BorderThickness="0"
+              Click="BotonSalir_Click" />
+    </StackPanel>
+  </Grid>
+</Window>

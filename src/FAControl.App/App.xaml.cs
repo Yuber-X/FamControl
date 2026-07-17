@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
+using FAControl.Common;
 using FAControl.Data;
 using FAControl.Services;
 using FAControl.ViewModels;
@@ -39,34 +40,114 @@ public partial class App : Application
             return;
         }
 
-        var login = _servicios.GetRequiredService<LoginWindow>();
-        var loginVm = _servicios.GetRequiredService<LoginViewModel>();
+        // El ciclo de vida se maneja a mano: nada de OnMainWindowClose, porque
+        // las ventanas van y vienen (launcher → login → shell → launcher...).
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        await CicloDeVidaAsync();
+    }
 
+    /// <summary>
+    /// Ciclo completo pedido por Yuber (2026-07-17):
+    ///   launcher → (elegir modo) → login → shell
+    ///   shell "cerrar sesión"   → vuelve al LAUNCHER
+    ///   shell "cambiar usuario" → vuelve al LOGIN del mismo modo
+    ///   cerrar el launcher      → cierra la aplicación
+    /// </summary>
+    private async Task CicloDeVidaAsync()
+    {
+        while (true)
+        {
+            var modo = MostrarLauncher();
+            if (modo is null)
+                break;                       // cerró el launcher → se acaba la app
+
+            // Se queda en el login de ESTE modo hasta que entre o cancele.
+            // "Cambiar usuario" vuelve acá sin pasar por el launcher.
+            var volverAlLauncher = false;
+            while (!volverAlLauncher)
+            {
+                if (!MostrarLogin(modo.Value))
+                    break;                   // canceló el login → vuelve al launcher
+
+                volverAlLauncher = await AbrirShellAsync(modo.Value);
+            }
+        }
+
+        Shutdown();
+    }
+
+    /// <summary>Devuelve el modo elegido, o null si el usuario cerró el launcher.</summary>
+    private ModoApp? MostrarLauncher()
+    {
+        var launcher = _servicios!.GetRequiredService<LauncherWindow>();
+        MainWindow = launcher;
+        return launcher.ShowDialog() == true ? launcher.ModoElegido : null;
+    }
+
+    /// <summary>True si el login fue exitoso; false si se canceló.</summary>
+    private bool MostrarLogin(ModoApp modo)
+    {
+        var login = _servicios!.GetRequiredService<LoginWindow>();
+        // El VM se toma de la ventana, NO del contenedor: ambos son transient,
+        // así que pedirlo aparte devolvería OTRA instancia y nos suscribiríamos
+        // a un LoginExitoso que nunca se dispara.
+        var loginVm = (LoginViewModel)login.DataContext;
+        login.MostrarModo(IdentidadModo.De(modo));
+        MainWindow = login;
+
+        var entro = false;
         loginVm.LoginExitoso += (_, _) =>
         {
-            var shell = _servicios.GetRequiredService<MainWindow>();
-            var ajustes = _servicios.GetRequiredService<FAControl.Common.AjustesLocales>();
-
-            // Tamaño de texto guardado + reacción a cambios desde Configuración
-            shell.AplicarEscala(ajustes.FactorEscala);
-            var configuracionVm = _servicios.GetRequiredService<ConfiguracionViewModel>();
-            configuracionVm.EscalaCambiada += shell.AplicarEscala;
-            configuracionVm.TemaCambiado += Tema.Aplicar;
-
-            MainWindow = shell;
-            ShutdownMode = ShutdownMode.OnMainWindowClose;
-            shell.Show();
-            login.Close();
-            _ = _servicios.GetRequiredService<MainViewModel>().InicializarAsync();
-
-            // Export automático a Excel (si está activo y toca) — en segundo plano
-            _ = _servicios.GetRequiredService<ExportacionService>().EjecutarAutomaticoSiTocaAsync(ajustes);
-
-            // Aviso de clientes pasados de fecha (una vez por arranque + cambio de día)
-            _servicios.GetRequiredService<NotificadorVencidos>().Iniciar();
+            entro = true;
+            login.DialogResult = true;
         };
+        login.ShowDialog();
+        return entro;
+    }
 
-        login.Show();
+    /// <summary>
+    /// Abre el shell y espera a que se cierre.
+    /// True  = hay que volver al launcher (cerrar sesión).
+    /// False = hay que volver al login del mismo modo (cambiar usuario).
+    /// </summary>
+    private async Task<bool> AbrirShellAsync(ModoApp modo)
+    {
+        var servicios = _servicios!;
+        var shell = servicios.GetRequiredService<MainWindow>();
+        var ajustes = servicios.GetRequiredService<AjustesLocales>();
+        var mainVm = servicios.GetRequiredService<MainViewModel>();
+
+        // El shell es nuevo pero el VM es el mismo: hay que reajustarlo al
+        // usuario que acaba de entrar (sus permisos cambian el sidebar).
+        mainVm.RefrescarPermisos();
+
+        shell.AplicarEscala(ajustes.FactorEscala);
+        shell.MostrarModo(IdentidadModo.De(modo));
+
+        var configuracionVm = servicios.GetRequiredService<ConfiguracionViewModel>();
+        configuracionVm.EscalaCambiada += shell.AplicarEscala;
+        configuracionVm.TemaCambiado += Tema.Aplicar;
+
+        MainWindow = shell;
+        shell.Show();
+        await mainVm.InicializarAsync();
+
+        // Export automático a Excel (si está activo y toca) — en segundo plano
+        _ = servicios.GetRequiredService<ExportacionService>().EjecutarAutomaticoSiTocaAsync(ajustes);
+        // Aviso de clientes pasados de fecha
+        servicios.GetRequiredService<NotificadorVencidos>().Iniciar();
+
+        // Espera a que el shell se cierre sin bloquear el hilo de UI
+        var cerrado = new TaskCompletionSource<bool>();
+        shell.Closed += (_, _) => cerrado.TrySetResult(shell.VolverAlLauncher);
+        var volverAlLauncher = await cerrado.Task;
+
+        // Se desuscribe: el shell muere acá y dejarlo enganchado al VM singleton
+        // haría que Configuración escale una ventana ya cerrada.
+        configuracionVm.EscalaCambiada -= shell.AplicarEscala;
+        configuracionVm.TemaCambiado -= Tema.Aplicar;
+
+        return volverAlLauncher;
     }
 
     /// <summary>
@@ -206,7 +287,11 @@ public partial class App : Application
             sp => sp.GetRequiredService<NotificadorVencidos>());
 
         // ViewModels
-        servicios.AddSingleton<LoginViewModel>();
+        // TRANSIENT: el login se abre varias veces (launcher → login, cambiar
+        // usuario, cerrar sesión → launcher → login). Una ventana WPF CERRADA
+        // no se puede volver a mostrar, y su VM arrastra el estado del intento
+        // anterior. Cada apertura estrena ventana y VM.
+        servicios.AddTransient<LoginViewModel>();
         servicios.AddSingleton<UsuariosViewModel>();
         servicios.AddSingleton<ClientesViewModel>();
         servicios.AddSingleton<ClienteFichaViewModel>();
@@ -222,8 +307,13 @@ public partial class App : Application
         servicios.AddSingleton<MainViewModel>();
 
         // Views
-        servicios.AddSingleton<LoginWindow>();
-        servicios.AddSingleton<MainWindow>();
+        // Todas TRANSIENT por la misma razón: al cerrar sesión el shell se
+        // cierra y hay que estrenar uno al volver a entrar. El MainViewModel
+        // sigue siendo singleton (conserva los VM de página); solo la ventana
+        // se rehace, y RefrescarPermisos() la reajusta al usuario nuevo.
+        servicios.AddTransient<LoginWindow>();
+        servicios.AddTransient<MainWindow>();
+        servicios.AddTransient<LauncherWindow>();
 
         return servicios.BuildServiceProvider();
     }

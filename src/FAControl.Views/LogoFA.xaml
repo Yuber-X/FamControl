@@ -1,0 +1,40 @@
+<UserControl x:Class="FAControl.Views.LogoFA"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Logo de Familia Almonte: monograma FA donde la A forma el techo de una
+       casa con ventana. VECTORIAL (Path), no una imagen: el cliente pidió que
+       "no se vea como una imagen pegada y sea responsive".
+
+       Viewbox de 140x120: escala a cualquier tamaño sin perder nitidez, y sirve
+       igual para el launcher (92px) que para el encabezado de una factura. -->
+  <Viewbox Stretch="Uniform">
+    <Canvas Width="140" Height="120">
+
+      <!-- F — navy de la marca. Sobre fondo oscuro se pinta claro:
+           FBrush es DependencyProperty para poder invertirlo. -->
+      <Path Fill="{Binding ColorF, RelativeSource={RelativeSource AncestorType=UserControl}}">
+        <Path.Data>
+          <!-- Astil + brazo superior + brazo medio, en un solo trazo -->
+          <PathGeometry Figures="M 10,8 L 62,8 L 62,24 L 28,24 L 28,52 L 56,52 L 56,68
+                                 L 28,68 L 28,112 L 10,112 Z" />
+        </Path.Data>
+      </Path>
+
+      <!-- A = techo de la casa, dorado -->
+      <Path Fill="{Binding ColorA, RelativeSource={RelativeSource AncestorType=UserControl}}">
+        <Path.Data>
+          <PathGeometry Figures="M 88,8 L 138,112 L 116,112 L 88,50 L 60,112 L 38,112 Z" />
+        </Path.Data>
+      </Path>
+
+      <!-- Ventana de 4 paños: el detalle que convierte la A en casa -->
+      <Rectangle Canvas.Left="76" Canvas.Top="72" Width="24" Height="24"
+                 Fill="{Binding ColorA, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+      <Rectangle Canvas.Left="86.5" Canvas.Top="72" Width="3" Height="24"
+                 Fill="{Binding ColorVentana, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+      <Rectangle Canvas.Left="76" Canvas.Top="82.5" Width="24" Height="3"
+                 Fill="{Binding ColorVentana, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+    </Canvas>
+  </Viewbox>
+</UserControl>
