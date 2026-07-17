@@ -2,6 +2,20 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [1.1.0] — 2026-07-17 · Tier 4 — Reportes individuales, contratos, recordatorios Gmail e intimación de pago
+
+### Added
+- **Intimación de pago** imprimible por préstamo (`IntimacionDocumentFactory` + `IntimacionImpresa`): requerimiento formal PREVIO a la vía judicial que emite el acreedor para las cuotas vencidas, con encabezado del negocio, datos del deudor, tabla de cuotas vencidas, saldo, plazo configurable (`AjustesLocales.PlazoIntimacionDias`, default 15 días) y firma. Botón en el detalle del préstamo → vista previa imprimible. Se aclara en `docs/INTIMACION-Y-MANDAMIENTO.md` que NO es el "mandamiento de pago" (acto de alguacil): la app genera la intimación, que es lo que el acreedor sí puede emitir por su cuenta.
+- **Recordatorios de cobro por Gmail** (`RecordatorioService` + `EmailService`, SMTP `smtp.gmail.com:587` STARTTLS): correo por cliente con cuotas próximas a vencer + resumen al dueño, envío manual o automático una vez al día. Contraseña de aplicación de Gmail cifrada con DPAPI (`Secreto`, por usuario/PC). Destinatario: cliente + dueño. WhatsApp documentado y diferido (`docs/WHATSAPP.md`).
+- **Reporte por cliente** (individual y global) imprimible: cobros, capital recuperado y saldo pendiente por cliente, con filtro por usuario cobrador y por cliente.
+- **Almacén de contratos**: lista con vista previa lateral del pagaré (`ContratoService` + `ContratosView`).
+- Datos del negocio configurables (nombre, prestamista, ciudad, teléfono, email, RNC) para encabezados de pagaré e intimación; doc explicativo de NCF/DGII (`docs/NCF-DGII.md`).
+- Respaldo automático cada N días/meses (a carpeta local o sincronizada a la nube).
+
+### Fixed
+- **Filtro por usuario en Reportes mostraba todo en 0**: los pagos previos a la columna `pago.created_by` la tenían en `NULL`. Migración `007_pago_created_by.sql` con backfill desde auditoría por `fecha_pago`. Los pagos nuevos ya guardan quién cobró.
+- **Responsive**: los textos y dígitos ya no se recortan al cambiar el tamaño de letra en Configuración (columnas de fecha ensanchadas a 185px, tarjetas de métricas envueltas en `Viewbox`, `MinWidth` en columnas estrella).
+
 ## [1.0.1] — 2026-07-11 · Arranque robusto sin base de datos + auto-aprovisionamiento
 
 ### Fixed

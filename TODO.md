@@ -1,6 +1,16 @@
 # TODO.md — FAControl
 
-> Actualizado: 2026-07-10 (cierre de Fases 2, 3 y 4)
+> Actualizado: 2026-07-17 (cierre del Tier 4)
+
+## ✅ Tier 4 — Cobranza y comunicación (COMPLETO)
+- [x] Fix filtro por usuario en Reportes (backfill `pago.created_by` — migración 007)
+- [x] Reporte por cliente (individual y global) imprimible
+- [x] Fix responsive: textos/dígitos ya no se cortan al escalar en cada pantalla
+- [x] Almacén de contratos con vista previa lateral del pagaré
+- [x] Datos del negocio configurables + doc NCF/DGII
+- [x] Recordatorios de cobro por Gmail (SMTP + DPAPI) — cliente y dueño; WhatsApp diferido y documentado
+- [x] Respaldo automático cada N días/meses
+- [x] Intimación de pago imprimible para cuotas vencidas (no "mandamiento" — ver doc)
 
 ## ✅ Fase 2 — Clientes (COMPLETA)
 - [x] Lista con búsqueda por nombre/cédula/teléfono + agregados (préstamos activos, saldo)

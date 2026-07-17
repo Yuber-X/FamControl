@@ -62,6 +62,8 @@ public class AjustesLocales
     public string EmailNegocio { get; set; } = string.Empty;
     /// <summary>RNC, opcional (comprobante fiscal — ver docs/NCF-DGII.md).</summary>
     public string RncNegocio { get; set; } = string.Empty;
+    /// <summary>Plazo (días) que se concede en la intimación de pago antes de la vía legal.</summary>
+    public int PlazoIntimacionDias { get; set; } = 15;
 
     // ---------- Recordatorios por correo (Gmail) — cliente 2026-07-19 ----------
     public bool RecordatoriosActivos { get; set; }

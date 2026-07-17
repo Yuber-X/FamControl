@@ -23,6 +23,11 @@
         <Button Content="Imprimir" Style="{DynamicResource Boton.Secundario}"
                 Command="{Binding ImprimirCommand}"
                 Margin="0,0,8,0" />
+        <!-- Intimación de pago: requerimiento formal para cuotas vencidas
+             (ver docs/INTIMACION-Y-MANDAMIENTO.md) -->
+        <Button Content="Intimación de pago" Style="{DynamicResource Boton.Secundario}"
+                Command="{Binding ImprimirIntimacionCommand}"
+                Margin="0,0,8,0" />
         <Button Content="Cancelar préstamo" Style="{DynamicResource Boton.Destructivo}"
                 Command="{Binding CancelarPrestamoCommand}"
                 Visibility="{Binding EsActivo, Converter={StaticResource BoolAVisibilidad}}"

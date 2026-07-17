@@ -14,18 +14,23 @@ public partial class PrestamoDetalleViewModel : ObservableObject
     private readonly PrestamoService _prestamos;
     private readonly ClienteService _clientes;
     private readonly IDialogService _dialogos;
+    private readonly AjustesLocales _ajustes;
     private long _prestamoId;
 
     public event Action<long>? CobrarSolicitado;
     public event Action? VolverSolicitado;
     /// <summary>La App abre la vista previa imprimible del préstamo.</summary>
     public event Action<PrestamoImpreso>? ImpresionSolicitada;
+    /// <summary>La App abre la vista previa de la intimación de pago.</summary>
+    public event Action<IntimacionImpresa>? IntimacionSolicitada;
 
-    public PrestamoDetalleViewModel(PrestamoService prestamos, ClienteService clientes, IDialogService dialogos)
+    public PrestamoDetalleViewModel(PrestamoService prestamos, ClienteService clientes,
+        IDialogService dialogos, AjustesLocales ajustes)
     {
         _prestamos = prestamos;
         _clientes = clientes;
         _dialogos = dialogos;
+        _ajustes = ajustes;
     }
 
     public ObservableCollection<CuotaFila> Cuotas { get; } = [];
@@ -112,6 +117,29 @@ public partial class PrestamoDetalleViewModel : ObservableObject
             [.. Cuotas.Select(c => new CuotaImpresa(
                 c.Numero, c.FechaTexto, c.Capital, c.Interes,
                 c.MontoTotal, c.SaldoDespues, c.SemaforoTexto))]));
+    }
+
+    /// <summary>
+    /// Genera la intimación de pago (requerimiento formal previo a lo judicial)
+    /// para las cuotas vencidas. Ver docs/INTIMACION-Y-MANDAMIENTO.md.
+    /// </summary>
+    [RelayCommand]
+    private void ImprimirIntimacion()
+    {
+        var vencidas = Cuotas.Where(c => c.EstaVencida).ToList();
+        if (vencidas.Count == 0)
+        {
+            _dialogos.Informar("Intimación de pago",
+                "Este préstamo no tiene cuotas vencidas, así que no procede una intimación de pago.");
+            return;
+        }
+
+        IntimacionSolicitada?.Invoke(new IntimacionImpresa(
+            _ajustes.NombreNegocio, _ajustes.Prestamista, _ajustes.CiudadNegocio,
+            _ajustes.TelefonoNegocio, _ajustes.RncNegocio,
+            ClienteNombre, ClienteCedula, Codigo, MontoCapital, SaldoPendiente,
+            [.. vencidas.Select(c => new IntimacionCuota(c.Numero, c.FechaTexto, c.SaldoPendiente))],
+            _ajustes.PlazoIntimacionDias));
     }
 
     [RelayCommand]
