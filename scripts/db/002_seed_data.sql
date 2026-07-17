@@ -5,6 +5,8 @@
 -- desde el wizard de primer arranque de la aplicación.
 -- =============================================================
 
+-- Fuerza UTF-8: mysql.exe asume la codificacion de la consola y corrompe los acentos.
+SET NAMES utf8mb4;
 USE facontrol_db;
 
 -- Clientes de prueba (nombres ficticios, cédulas de formato válido pero inventadas)

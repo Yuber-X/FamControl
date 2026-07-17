@@ -198,11 +198,227 @@
     </Setter>
   </Style>
 
-  <!-- ComboBox implícito: texto centrado verticalmente en toda la app -->
-  <Style TargetType="ComboBox">
-    <Setter Property="VerticalContentAlignment" Value="Center" />
+  <!-- ============================================================
+       ComboBox / ComboBoxItem / DatePicker modernos: redondeados,
+       texto centrado y chevron. Reemplazan el look "Windows Forms"
+       (rectangular, degradado gris, texto a la izquierda) que el
+       cliente pidio cambiar. Portados de POS-500.
+       ============================================================ -->
+  <!-- Botón de apertura: transparente, el borde lo pinta el ComboBox -->
+  <ControlTemplate x:Key="ComboBox.BotonToggle" TargetType="ToggleButton">
+    <Border Background="Transparent" />
+  </ControlTemplate>
+
+  <Style TargetType="ComboBoxItem">
     <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
-    <Setter Property="Padding" Value="10,0" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
+    <Setter Property="Padding" Value="10,9" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ComboBoxItem">
+          <Border x:Name="Fondo" Background="Transparent" CornerRadius="6"
+                  Padding="{TemplateBinding Padding}" Margin="4,1">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+              <Setter TargetName="Fondo" Property="Background"
+                      Value="{DynamicResource Brush.PrimarioSutil}" />
+              <Setter Property="Foreground" Value="{DynamicResource Brush.Primario}" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="Fondo" Property="Background"
+                      Value="{DynamicResource Brush.PrimarioSutil}" />
+              <Setter Property="Foreground" Value="{DynamicResource Brush.Primario}" />
+              <Setter Property="FontWeight" Value="SemiBold" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="ComboBox">
+    <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.FondoCard}" />
+    <Setter Property="Height" Value="40" />
+    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ComboBox">
+          <Grid>
+            <Border x:Name="Marco"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{DynamicResource Brush.BordeEstandar}"
+                    BorderThickness="1" CornerRadius="8" />
+
+            <!-- El ToggleButton cubre toda la caja para que abra al hacer clic -->
+            <ToggleButton Template="{StaticResource ComboBox.BotonToggle}"
+                          Focusable="False" ClickMode="Press"
+                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay,
+                                      RelativeSource={RelativeSource TemplatedParent}}" />
+
+            <!-- Texto seleccionado: centrado (el chevron no lo desplaza) -->
+            <ContentPresenter x:Name="Contenido"
+                              Margin="28,0"
+                              IsHitTestVisible="False"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Content="{TemplateBinding SelectionBoxItem}"
+                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" />
+
+            <!-- Chevron -->
+            <Path x:Name="Chevron" Data="M 0 0 L 4 4 L 8 0"
+                  Stroke="{DynamicResource Brush.TextoTerciario}" StrokeThickness="1.6"
+                  StrokeEndLineCap="Round" StrokeStartLineCap="Round"
+                  HorizontalAlignment="Right" VerticalAlignment="Center"
+                  Margin="0,0,14,0" IsHitTestVisible="False" />
+
+            <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
+                   AllowsTransparency="True" PopupAnimation="Fade" Focusable="False"
+                   VerticalOffset="4">
+              <Border Background="{DynamicResource Brush.FondoCard}"
+                      BorderBrush="{DynamicResource Brush.BordeSutil}"
+                      BorderThickness="1" CornerRadius="8" Padding="0,4"
+                      MinWidth="{TemplateBinding ActualWidth}"
+                      MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                <Border.Effect>
+                  <DropShadowEffect Color="#000000" Opacity="0.10" BlurRadius="14"
+                                    ShadowDepth="2" Direction="270" />
+                </Border.Effect>
+                <ScrollViewer>
+                  <ItemsPresenter />
+                </ScrollViewer>
+              </Border>
+            </Popup>
+          </Grid>
+
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Marco" Property="BorderBrush"
+                      Value="{DynamicResource Brush.Primario}" />
+            </Trigger>
+            <Trigger Property="IsDropDownOpen" Value="True">
+              <Setter TargetName="Marco" Property="BorderBrush"
+                      Value="{DynamicResource Brush.Primario}" />
+              <Setter TargetName="Marco" Property="BorderThickness" Value="1.5" />
+              <!-- Chevron invertido al abrir -->
+              <Setter TargetName="Chevron" Property="RenderTransform">
+                <Setter.Value>
+                  <RotateTransform Angle="180" CenterX="4" CenterY="2" />
+                </Setter.Value>
+              </Setter>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Marco" Property="Background"
+                      Value="{DynamicResource Brush.FondoApp}" />
+              <Setter Property="Foreground" Value="{DynamicResource Brush.TextoDeshabilitado}" />
+              <Setter Property="Cursor" Value="Arrow" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ============================================================
+       DatePicker moderno: mismo lenguaje que ComboBox/Input.Texto
+       (el template por defecto también se ve como Windows Forms).
+       ============================================================ -->
+  <Style TargetType="DatePickerTextBox">
+    <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="DatePickerTextBox">
+          <ScrollViewer x:Name="PART_ContentHost" Background="Transparent"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Focusable="False" HorizontalScrollBarVisibility="Hidden"
+                        VerticalScrollBarVisibility="Hidden" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="DatePicker">
+    <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Height" Value="40" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.FondoCard}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="DatePicker">
+          <Border x:Name="Marco"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{DynamicResource Brush.BordeEstandar}"
+                  BorderThickness="1" CornerRadius="8">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+
+              <DatePickerTextBox x:Name="PART_TextBox" Grid.Column="0"
+                                 Margin="12,0,0,0" VerticalAlignment="Center" />
+
+              <!-- Botón del calendario: icono, no el cuadrito clásico -->
+              <Button x:Name="PART_Button" Grid.Column="1" Width="34" Focusable="False"
+                      Cursor="Hand" Background="Transparent" BorderThickness="0">
+                <Button.Template>
+                  <ControlTemplate TargetType="Button">
+                    <Border x:Name="FondoBoton" Background="Transparent" CornerRadius="6"
+                            Margin="0,4,4,4">
+                      <TextBlock Text="&#xE787;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                 Foreground="{DynamicResource Brush.TextoTerciario}"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="FondoBoton" Property="Background"
+                                Value="{DynamicResource Brush.PrimarioSutil}" />
+                      </Trigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Button.Template>
+              </Button>
+
+              <Popup x:Name="PART_Popup" Grid.Column="0" Placement="Bottom"
+                     AllowsTransparency="True" StaysOpen="False" />
+            </Grid>
+          </Border>
+
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Marco" Property="BorderBrush"
+                      Value="{DynamicResource Brush.Primario}" />
+            </Trigger>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+              <Setter TargetName="Marco" Property="BorderBrush"
+                      Value="{DynamicResource Brush.Primario}" />
+              <Setter TargetName="Marco" Property="BorderThickness" Value="1.5" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Marco" Property="Background"
+                      Value="{DynamicResource Brush.FondoApp}" />
+              <Setter Property="Foreground" Value="{DynamicResource Brush.TextoDeshabilitado}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
   <!-- ============================================================

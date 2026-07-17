@@ -8,6 +8,8 @@
 --   La aplicación NUNCA debe correr como root en producción.
 -- =============================================================
 
+-- Fuerza UTF-8: mysql.exe asume la codificacion de la consola y corrompe los acentos.
+SET NAMES utf8mb4;
 CREATE USER IF NOT EXISTS 'facontrol'@'localhost'
   IDENTIFIED BY 'CAMBIAR-ESTA-CLAVE';
 

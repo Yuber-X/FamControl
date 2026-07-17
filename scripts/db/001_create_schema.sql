@@ -5,6 +5,8 @@
 -- Regla: dinero en DECIMAL(15,2), fechas DATETIME en UTC
 -- =============================================================
 
+-- Fuerza UTF-8: mysql.exe asume la codificacion de la consola y corrompe los acentos.
+SET NAMES utf8mb4;
 CREATE DATABASE IF NOT EXISTS facontrol_db
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
