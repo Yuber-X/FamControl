@@ -46,6 +46,9 @@
       <DataTemplate DataType="{x:Type vm:PanelViewModel}">
         <views:PanelView />
       </DataTemplate>
+      <DataTemplate DataType="{x:Type vm:ContratosViewModel}">
+        <views:ContratosView />
+      </DataTemplate>
       <DataTemplate DataType="{x:Type vm:UsuariosViewModel}">
         <views:UsuariosView />
       </DataTemplate>

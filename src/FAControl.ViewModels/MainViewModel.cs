@@ -13,6 +13,7 @@ public enum Pagina
     Prestamos,
     NuevoPrestamo,
     Cobros,
+    Contratos,
     Reportes,
     Historial,
     Usuarios,
@@ -36,18 +37,20 @@ public partial class MainViewModel : ObservableObject
     private readonly ReportesViewModel _reportesVm;
     private readonly HistorialViewModel _historialVm;
     private readonly UsuariosViewModel _usuariosVm;
+    private readonly ContratosViewModel _contratosVm;
     private readonly ConfiguracionViewModel _configuracionVm;
 
     public MainViewModel(PrestamosViewModel prestamosVm, PrestamoNuevoViewModel nuevoVm,
         PrestamoDetalleViewModel detalleVm, CobrosViewModel cobrosVm,
         ClientesViewModel clientesVm, ClienteFichaViewModel fichaVm, ClienteFormViewModel clienteFormVm,
         PanelViewModel panelVm, ReportesViewModel reportesVm, HistorialViewModel historialVm,
-        UsuariosViewModel usuariosVm, ConfiguracionViewModel configuracionVm)
+        UsuariosViewModel usuariosVm, ContratosViewModel contratosVm, ConfiguracionViewModel configuracionVm)
     {
         _panelVm = panelVm;
         _reportesVm = reportesVm;
         _historialVm = historialVm;
         _usuariosVm = usuariosVm;
+        _contratosVm = contratosVm;
         _configuracionVm = configuracionVm;
         _panelVm.CobrarSolicitado += id => _ = AbrirCobrosAsync(id);
         _prestamosVm = prestamosVm;
@@ -97,6 +100,8 @@ public partial class MainViewModel : ObservableObject
     public bool PuedeVerPrestamos => SesionActual.TienePermiso(Permisos.Prestamos);
     public bool PuedeVerNuevoPrestamo => SesionActual.TienePermiso(Permisos.PrestamosCrear);
     public bool PuedeVerCobros => SesionActual.TienePermiso(Permisos.Cobros);
+    /// <summary>El contrato es el pagaré del préstamo: reusa el permiso de préstamos.</summary>
+    public bool PuedeVerContratos => SesionActual.TienePermiso(Permisos.Prestamos);
     public bool PuedeVerReportes => SesionActual.TienePermiso(Permisos.Reportes);
     public bool PuedeVerHistorial => SesionActual.TienePermiso(Permisos.Historial);
     public bool PuedeVerUsuarios => SesionActual.TienePermiso(Permisos.Usuarios);
@@ -117,6 +122,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(PuedeVerPrestamos));
         OnPropertyChanged(nameof(PuedeVerNuevoPrestamo));
         OnPropertyChanged(nameof(PuedeVerCobros));
+        OnPropertyChanged(nameof(PuedeVerContratos));
         OnPropertyChanged(nameof(PuedeVerReportes));
         OnPropertyChanged(nameof(PuedeVerHistorial));
         OnPropertyChanged(nameof(PuedeVerUsuarios));
@@ -177,6 +183,10 @@ public partial class MainViewModel : ObservableObject
                 case Pagina.Historial:
                     await _historialVm.CargarAsync();
                     PaginaActualVm = _historialVm;
+                    break;
+                case Pagina.Contratos:
+                    await _contratosVm.CargarAsync();
+                    PaginaActualVm = _contratosVm;
                     break;
                 case Pagina.Usuarios:
                     await _usuariosVm.CargarAsync();
@@ -277,6 +287,7 @@ public partial class MainViewModel : ObservableObject
         Pagina.Prestamos => "Préstamos",
         Pagina.NuevoPrestamo => "Nuevo préstamo",
         Pagina.Cobros => "Cobros",
+        Pagina.Contratos => "Almacén de contratos",
         Pagina.Reportes => "Reportes",
         Pagina.Historial => "Historial",
         Pagina.Usuarios => "Usuarios",

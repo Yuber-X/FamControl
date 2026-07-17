@@ -274,6 +274,7 @@ public partial class App : Application
         servicios.AddSingleton<AmortizacionService>();
         servicios.AddSingleton<ClienteService>();
         servicios.AddSingleton<PrestamoService>();
+        servicios.AddSingleton<ContratoService>();
         servicios.AddSingleton<PagoService>();
         servicios.AddSingleton<DashboardService>();
         servicios.AddSingleton<ReporteService>();
@@ -295,6 +296,7 @@ public partial class App : Application
         // anterior. Cada apertura estrena ventana y VM.
         servicios.AddTransient<LoginViewModel>();
         servicios.AddSingleton<UsuariosViewModel>();
+        servicios.AddSingleton<ContratosViewModel>();
         servicios.AddSingleton<ClientesViewModel>();
         servicios.AddSingleton<ClienteFichaViewModel>();
         servicios.AddSingleton<ClienteFormViewModel>();

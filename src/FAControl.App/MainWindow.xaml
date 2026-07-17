@@ -128,6 +128,13 @@
                                    ConverterParameter={x:Static vm:Pagina.Cobros}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.Cobros}" />
+          <RadioButton Content="Contratos" Tag="&#xE8A5;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerContratos, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Contratos}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Contratos}" />
           <RadioButton Content="Reportes" Tag="&#xE9D2;" Style="{DynamicResource Sidebar.Item}"
                        Visibility="{Binding PuedeVerReportes, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,
