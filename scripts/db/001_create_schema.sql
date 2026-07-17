@@ -14,18 +14,75 @@ CREATE DATABASE IF NOT EXISTS facontrol_db
 USE facontrol_db;
 
 -- -------------------------------------------------------------
--- usuario: cuenta única del prestamista (sistema mono-usuario)
+-- rol: catálogo (Admin / Supervisor / Cobrador)
+-- Multicuentas — pedido del cliente 2026-07-16.
+-- -------------------------------------------------------------
+CREATE TABLE rol (
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  nombre      VARCHAR(50)  NOT NULL,
+  descripcion VARCHAR(200) NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_rol_nombre (nombre)
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- permiso: catálogo por módulo/acción
+-- -------------------------------------------------------------
+CREATE TABLE permiso (
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  codigo      VARCHAR(50)  NOT NULL,             -- ej: 'prestamos_crear'
+  nombre      VARCHAR(100) NOT NULL,
+  descripcion VARCHAR(200) NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_permiso_codigo (codigo)
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- rol_permiso: qué otorga cada rol (los defaults por rol)
+-- -------------------------------------------------------------
+CREATE TABLE rol_permiso (
+  rol_id     INT UNSIGNED NOT NULL,
+  permiso_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (rol_id, permiso_id),
+  CONSTRAINT fk_rolperm_rol FOREIGN KEY (rol_id)
+    REFERENCES rol (id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_rolperm_permiso FOREIGN KEY (permiso_id)
+    REFERENCES permiso (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- usuario: empleados del negocio (MULTIUSUARIO desde 2026-07-16)
 -- -------------------------------------------------------------
 CREATE TABLE usuario (
   id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   username      VARCHAR(50)  NOT NULL,
   password_hash VARCHAR(100) NOT NULL,           -- BCrypt cost 12
   nombre        VARCHAR(100) NOT NULL,
+  apellido      VARCHAR(100) NULL,
+  rol_id        INT UNSIGNED NULL,
   activo        TINYINT(1)   NOT NULL DEFAULT 1,
   created_at    DATETIME     NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  updated_at    DATETIME     NULL,
   last_login_at DATETIME     NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_usuario_username (username)
+  UNIQUE KEY uq_usuario_username (username),
+  CONSTRAINT fk_usuario_rol FOREIGN KEY (rol_id)
+    REFERENCES rol (id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- usuario_permiso: permisos EFECTIVOS por usuario.
+-- Los triggers los siembran desde rol_permiso; el Admin los ajusta
+-- uno por uno (overrides) sin tocar el rol.
+-- -------------------------------------------------------------
+CREATE TABLE usuario_permiso (
+  usuario_id BIGINT UNSIGNED NOT NULL,
+  permiso_id INT UNSIGNED    NOT NULL,
+  PRIMARY KEY (usuario_id, permiso_id),
+  CONSTRAINT fk_usuperm_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuario (id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_usuperm_permiso FOREIGN KEY (permiso_id)
+    REFERENCES permiso (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
@@ -179,3 +236,87 @@ CREATE TABLE contador (
 INSERT INTO contador (nombre, valor) VALUES
   ('recibo', 0),
   ('prestamo', 0);
+
+-- =============================================================
+-- Catálogo de roles y permisos (multicuentas — cliente 2026-07-16)
+-- Va acá y no en el seed porque NO son datos de prueba: sin esto la
+-- aplicación no puede autenticar a nadie.
+-- =============================================================
+INSERT INTO rol (nombre, descripcion) VALUES
+  ('Admin',      'Control total: usuarios, configuración y autorización de préstamos'),
+  ('Supervisor', 'Opera y supervisa la cartera, sin administrar usuarios ni configuración'),
+  ('Cobrador',   'Cobra en la calle: registra pagos y consulta su cartera');
+
+INSERT INTO permiso (codigo, nombre, descripcion) VALUES
+  ('panel',               'Panel',                     'KPIs de la cartera'),
+  ('clientes',            'Clientes (ver)',            'Consulta de clientes'),
+  ('clientes_editar',     'Clientes (crear/editar)',   'Alta, edición y baja de clientes'),
+  ('prestamos',           'Préstamos (ver)',           'Consulta de préstamos y su amortización'),
+  ('prestamos_crear',     'Préstamos (crear)',         'Crear préstamos nuevos'),
+  ('prestamos_autorizar', 'Autorizar préstamos',       'Aprobar préstamos nuevos'),
+  ('prestamos_cancelar',  'Cancelar préstamos',        'Permiso especial: cancelación con auditoría'),
+  ('cobros',              'Cobros',                    'Registrar pagos y emitir recibos'),
+  ('reportes',            'Reportes',                  'Reportes por fecha y por cliente'),
+  ('historial',           'Historial',                 'Auditoría de operaciones'),
+  ('usuarios',            'Admin de usuarios',         'CRUD de usuarios, roles y overrides'),
+  ('configuracion',       'Configuración',             'EXCLUSIVO Admin');
+
+-- Admin: todo
+INSERT INTO rol_permiso (rol_id, permiso_id)
+SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+WHERE r.nombre = 'Admin';
+
+-- Supervisor: toda la operación, sin usuarios/configuración ni autorizar
+INSERT INTO rol_permiso (rol_id, permiso_id)
+SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+WHERE r.nombre = 'Supervisor'
+  AND p.codigo IN ('panel','clientes','clientes_editar','prestamos','prestamos_crear',
+                   'prestamos_cancelar','cobros','reportes','historial');
+
+-- Cobrador: cobra y consulta; NO crea prestamos ni edita clientes
+INSERT INTO rol_permiso (rol_id, permiso_id)
+SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+WHERE r.nombre = 'Cobrador'
+  AND p.codigo IN ('panel','clientes','prestamos','cobros');
+
+-- =============================================================
+-- TRIGGERS: sincronizan usuario_permiso con el rol (patrón POS-400/POS-500).
+--
+-- OJO: los marcadores "DELIMITER $$" y el separador "$$" NO son decoración
+-- ni sirven solo para mysql.exe. El protocolo de MySQL rechaza DELIMITER,
+-- asi que VerificadorBaseDatos.ObtenerBloquesEjecutables() parte esta zona
+-- y manda cada trigger como comando independiente. No reformatear a mano.
+-- =============================================================
+
+DELIMITER $$
+
+CREATE TRIGGER trg_usuario_after_insert
+AFTER INSERT ON usuario
+FOR EACH ROW
+BEGIN
+  IF NEW.rol_id IS NOT NULL THEN
+    INSERT IGNORE INTO usuario_permiso (usuario_id, permiso_id)
+    SELECT NEW.id, rp.permiso_id
+    FROM rol_permiso rp
+    WHERE rp.rol_id = NEW.rol_id;
+  END IF;
+END$$
+
+CREATE TRIGGER trg_usuario_after_update
+AFTER UPDATE ON usuario
+FOR EACH ROW
+BEGIN
+  IF (OLD.rol_id IS NULL AND NEW.rol_id IS NOT NULL)
+     OR (OLD.rol_id IS NOT NULL AND NEW.rol_id IS NULL)
+     OR (OLD.rol_id <> NEW.rol_id) THEN
+    DELETE FROM usuario_permiso WHERE usuario_id = NEW.id;
+    IF NEW.rol_id IS NOT NULL THEN
+      INSERT IGNORE INTO usuario_permiso (usuario_id, permiso_id)
+      SELECT NEW.id, rp.permiso_id
+      FROM rol_permiso rp
+      WHERE rp.rol_id = NEW.rol_id;
+    END IF;
+  END IF;
+END$$
+
+DELIMITER ;

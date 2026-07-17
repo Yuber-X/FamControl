@@ -13,9 +13,14 @@ public enum ResultadoLogin
 }
 
 /// <summary>
-/// Autenticación mono-usuario con BCrypt (cost 12) y rate-limiting:
+/// Autenticación MULTIUSUARIO con BCrypt (cost 12) y rate-limiting:
 /// 5 intentos fallidos → bloqueo temporal de 5 minutos.
-/// No hay roles, permisos, 2FA ni recuperación por correo (por diseño).
+/// El login carga rol y permisos efectivos en SesionActual.
+/// Sigue sin haber 2FA ni recuperación por correo (por diseño).
+///
+/// El wizard de primer arranque crea al PRIMER Admin; a partir de ahí
+/// los empleados los crea el Admin desde la pantalla de Usuarios
+/// (UsuarioService), nunca este wizard.
 /// </summary>
 public class AuthService
 {
@@ -42,7 +47,11 @@ public class AuthService
     public async Task<bool> RequiereCuentaInicialAsync(CancellationToken ct = default) =>
         !await _usuarios.ExisteAlgunUsuarioAsync(ct);
 
-    /// <summary>Crea la cuenta única del prestamista desde el wizard de primer arranque.</summary>
+    /// <summary>
+    /// Crea el PRIMER Admin desde el wizard de primer arranque.
+    /// Solo corre cuando la tabla usuario está vacía: los demás empleados
+    /// los crea el Admin desde Usuarios (regla del cliente 2026-07-16).
+    /// </summary>
     public async Task<long> CrearCuentaInicialAsync(string username, string nombre, string password, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(username))
@@ -52,10 +61,17 @@ public class AuthService
         ValidarPassword(password);
 
         if (await _usuarios.ExisteAlgunUsuarioAsync(ct))
-            throw new InvalidOperationException("Ya existe una cuenta. Este sistema es mono-usuario.");
+            throw new InvalidOperationException(
+                "Ya existe una cuenta. Los empleados nuevos los crea un Admin desde la pantalla de Usuarios.");
+
+        // El primer usuario SIEMPRE es Admin: si no, nadie podría administrar nada.
+        var roles = await _usuarios.ObtenerRolesAsync(ct);
+        var admin = roles.FirstOrDefault(r => r.Nombre == Roles.Admin)
+            ?? throw new InvalidOperationException(
+                "El catálogo de roles está vacío. Ejecutá scripts/db/005_multicuentas.sql.");
 
         var hash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: CostBcrypt);
-        return await _usuarios.CrearAsync(username.Trim(), hash, nombre.Trim(), ct);
+        return await _usuarios.CrearAsync(username.Trim(), hash, nombre.Trim(), null, admin.Id, ct);
     }
 
     /// <summary>
@@ -81,11 +97,30 @@ public class AuthService
         var sesionId = await _sesiones.RegistrarLoginAsync(usuario.Id, ahoraUtc, ipLocal: null, ct);
         await _usuarios.ActualizarUltimoLoginAsync(usuario.Id, ahoraUtc, ct);
 
-        SesionActual.Iniciar(usuario.Id, usuario.Username, usuario.Nombre, ahoraUtc, sesionId);
+        // Permisos EFECTIVOS (rol + overrides): se leen en el login y viven en
+        // SesionActual mientras dure la sesión.
+        var permisos = await _usuarios.ObtenerPermisosAsync(usuario.Id, ct);
+        SesionActual.Iniciar(usuario.Id, usuario.Username, usuario.Nombre,
+            usuario.RolNombre, permisos, ahoraUtc, sesionId);
         await _auditoria.RegistrarAsync(AccionAuditoria.Login, DbNames.Usuario, usuario.Id,
-            $"Login de {usuario.Username}", ct);
+            $"Login de {usuario.Username} ({usuario.RolNombre})", ct);
 
         return ResultadoLogin.Exitoso;
+    }
+
+    /// <summary>
+    /// Verifica credenciales SIN abrir sesión ni tocar SesionActual.
+    /// Lo usa la autorización de préstamos: un Admin pone su contraseña para
+    /// aprobar la operación de un cobrador, pero NO se cambia el usuario activo.
+    /// Devuelve el usuario autorizante, o null si las credenciales no valen.
+    /// </summary>
+    public async Task<Usuario?> VerificarCredencialesAsync(string username, string password,
+        CancellationToken ct = default)
+    {
+        var usuario = await _usuarios.ObtenerPorUsernameAsync(username.Trim(), ct);
+        if (usuario is null || !BCrypt.Net.BCrypt.Verify(password, usuario.PasswordHash))
+            return null;
+        return usuario;
     }
 
     /// <summary>Cierra la sesión: registra logout en BD, audita y limpia SesionActual.</summary>

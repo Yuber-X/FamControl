@@ -7,9 +7,34 @@ public class Usuario
     public string Username { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public string Nombre { get; set; } = string.Empty;
+    public string? Apellido { get; set; }
+    /// <summary>Rol asignado. NULL = sin rol (no recibe permisos por defecto).</summary>
+    public int? RolId { get; set; }
+    public string RolNombre { get; set; } = string.Empty;
     public bool Activo { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; }
+    public DateTime? UpdatedAtUtc { get; set; }
     public DateTime? LastLoginAtUtc { get; set; }
+
+    public string NombreCompleto =>
+        string.IsNullOrWhiteSpace(Apellido) ? Nombre : $"{Nombre} {Apellido}";
+}
+
+/// <summary>Rol del catálogo (Admin / Supervisor / Cobrador).</summary>
+public class Rol
+{
+    public int Id { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string? Descripcion { get; set; }
+}
+
+/// <summary>Permiso del catálogo. `Codigo` es lo que consulta SesionActual.TienePermiso.</summary>
+public class Permiso
+{
+    public int Id { get; set; }
+    public string Codigo { get; set; } = string.Empty;
+    public string Nombre { get; set; } = string.Empty;
+    public string? Descripcion { get; set; }
 }
 
 /// <summary>Registro de login/logout en la tabla sesion.</summary>

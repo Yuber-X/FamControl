@@ -91,10 +91,13 @@ public class VerificadorBaseDatos
 
         await conexion.ChangeDatabaseAsync(nombreBd, ct);
 
-        await using var esquema = conexion.CreateCommand();
-        esquema.CommandText = LeerEsquemaSinEncabezado();
-        esquema.CommandTimeout = 120;
-        await esquema.ExecuteNonQueryAsync(ct);
+        foreach (var bloque in ObtenerBloquesEjecutables())
+        {
+            await using var cmd = conexion.CreateCommand();
+            cmd.CommandText = bloque;
+            cmd.CommandTimeout = 120;
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
     }
 
     /// <summary>
@@ -114,5 +117,42 @@ public class VerificadorBaseDatos
         sql = Regex.Replace(sql, @"^\s*USE\s+[0-9A-Za-z$_]+\s*;", string.Empty,
             RegexOptions.IgnoreCase | RegexOptions.Multiline);
         return sql;
+    }
+
+    /// <summary>
+    /// Prepara el esquema para ejecutarse POR PROTOCOLO (no por mysql.exe):
+    ///  - la parte normal va en un solo batch multi-statement;
+    ///  - cada trigger (entre DELIMITER $$ y DELIMITER ;) va como comando aparte.
+    ///
+    /// Hace falta porque DELIMITER es un comando del CLIENTE mysql.exe, no SQL:
+    /// mandarlo por el protocolo revienta. Patrón heredado de POS-500.
+    /// </summary>
+    internal static List<string> ObtenerBloquesEjecutables()
+    {
+        var bloques = new List<string>();
+        var sql = LeerEsquemaSinEncabezado();
+
+        // Zona de triggers: DELIMITER $$ ... DELIMITER ;
+        var partes = Regex.Split(sql, @"^\s*DELIMITER\s+\$\$\s*$", RegexOptions.Multiline);
+        AgregarSiTieneContenido(bloques, partes[0]);
+
+        for (var i = 1; i < partes.Length; i++)
+        {
+            var zona = Regex.Split(partes[i], @"^\s*DELIMITER\s+;\s*$", RegexOptions.Multiline);
+            foreach (var trigger in zona[0].Split("$$", StringSplitOptions.RemoveEmptyEntries))
+                AgregarSiTieneContenido(bloques, trigger);
+            if (zona.Length > 1)
+                AgregarSiTieneContenido(bloques, zona[1]);
+        }
+        return bloques;
+    }
+
+    private static void AgregarSiTieneContenido(List<string> bloques, string sql)
+    {
+        // Un bloque de solo comentarios/espacios no es ejecutable: MySQL
+        // devuelve error de sintaxis si se le manda vacío.
+        var sinComentarios = Regex.Replace(sql, @"^\s*--.*$", string.Empty, RegexOptions.Multiline);
+        if (!string.IsNullOrWhiteSpace(sinComentarios.Replace(";", string.Empty)))
+            bloques.Add(sql.Trim());
     }
 }

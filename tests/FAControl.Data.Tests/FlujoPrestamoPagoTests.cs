@@ -51,7 +51,10 @@ public class FlujoPrestamoPagoTests : IAsyncLifetime
                 SELECT LAST_INSERT_ID();
                 """;
             var usuarioId = Convert.ToInt64(await cmd.ExecuteScalarAsync());
-            SesionActual.Iniciar(usuarioId, "test", "Usuario Test", DateTime.UtcNow, 1);
+            // Admin con todos los permisos: este test cubre el flujo de negocio,
+            // no la autorización (esa tiene sus propios tests).
+            SesionActual.Iniciar(usuarioId, "test", "Usuario Test", Roles.Admin,
+                Permisos.Todos, DateTime.UtcNow, 1);
         }
         using (var cmd = conexion.CreateCommand())
         {
@@ -70,13 +73,14 @@ public class FlujoPrestamoPagoTests : IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    /// <summary>Recrea facontrol_test ejecutando el script real del esquema.</summary>
+    /// <summary>
+    /// Recrea facontrol_test con el MISMO camino que usa la app en la máquina
+    /// del cliente: VerificadorBaseDatos.ObtenerBloquesEjecutables(). Ejecutar
+    /// el .sql de un tirón no serviría — el protocolo de MySQL rechaza DELIMITER
+    /// y los triggers no se crearían.
+    /// </summary>
     private static async Task CrearBaseDeDatosDePruebaAsync()
     {
-        var rutaScript = BuscarScriptSchema();
-        var script = await File.ReadAllTextAsync(rutaScript);
-        script = script.Replace("facontrol_db", "facontrol_test");
-
         using var conexion = new MySqlConnection(CadenaServidor);
         await conexion.OpenAsync();
         using (var drop = conexion.CreateCommand())
@@ -86,23 +90,19 @@ public class FlujoPrestamoPagoTests : IAsyncLifetime
         }
         using (var crear = conexion.CreateCommand())
         {
-            crear.CommandText = script;
+            crear.CommandText =
+                "CREATE DATABASE facontrol_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;";
             await crear.ExecuteNonQueryAsync();
         }
-    }
+        await conexion.ChangeDatabaseAsync("facontrol_test");
 
-    private static string BuscarScriptSchema()
-    {
-        // Sube desde bin/ hasta la raíz del repo
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
+        foreach (var bloque in VerificadorBaseDatos.ObtenerBloquesEjecutables())
         {
-            var candidato = Path.Combine(directorio.FullName, "scripts", "db", "001_create_schema.sql");
-            if (File.Exists(candidato))
-                return candidato;
-            directorio = directorio.Parent;
+            using var cmd = conexion.CreateCommand();
+            cmd.CommandText = bloque;
+            cmd.CommandTimeout = 120;
+            await cmd.ExecuteNonQueryAsync();
         }
-        throw new FileNotFoundException("No se encontró scripts/db/001_create_schema.sql");
     }
 
     [Fact]

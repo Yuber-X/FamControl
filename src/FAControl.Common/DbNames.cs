@@ -8,6 +8,11 @@ public static class DbNames
 {
     public const string Usuario = "usuario";
     public const string Sesion = "sesion";
+    // Multicuentas (005_multicuentas.sql)
+    public const string Rol = "rol";
+    public const string Permiso = "permiso";
+    public const string RolPermiso = "rol_permiso";
+    public const string UsuarioPermiso = "usuario_permiso";
     public const string Cliente = "cliente";
     public const string Prestamo = "prestamo";
     public const string Cuota = "cuota";
