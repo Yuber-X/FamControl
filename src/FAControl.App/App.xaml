@@ -58,6 +58,12 @@
       <DataTemplate DataType="{x:Type vm:HistorialViewModel}">
         <views:HistorialView />
       </DataTemplate>
+      <DataTemplate DataType="{x:Type vm:VehiculosViewModel}">
+        <views:VehiculosListView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vm:VehiculoFormViewModel}">
+        <views:VehiculoFormView />
+      </DataTemplate>
       <DataTemplate DataType="{x:Type vm:ConfiguracionViewModel}">
         <views:ConfiguracionView />
       </DataTemplate>

@@ -46,7 +46,7 @@ public record IdentidadModo(
         new(ModoApp.DealerControl, "DealerControl", "Dealer",
             "Inventario de vehículos, importación, costos y rent a car.",
             // Azul acero + glow azul vivo para que resalte como el dorado
-            "#3D5A80", "#5B90D4", Disponible: false),
+            "#3D5A80", "#5B90D4", Disponible: true),
 
         new(ModoApp.AutoControl, "AutoControl", "Ventas de vehículos",
             "Venta financiada: crédito con el vehículo en garantía, cuotas y pagaré.",

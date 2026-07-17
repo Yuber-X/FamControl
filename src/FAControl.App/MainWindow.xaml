@@ -142,6 +142,13 @@
                                    ConverterParameter={x:Static vm:Pagina.Reportes}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.Reportes}" />
+          <RadioButton Content="Vehículos" Tag="&#xE804;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerVehiculos, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Vehiculos}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Vehiculos}" />
           <RadioButton Content="Historial" Tag="&#xE81C;" Style="{DynamicResource Sidebar.Item}"
                        Visibility="{Binding PuedeVerHistorial, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,

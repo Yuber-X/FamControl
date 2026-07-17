@@ -118,8 +118,8 @@ public partial class App : Application
         var mainVm = servicios.GetRequiredService<MainViewModel>();
 
         // El shell es nuevo pero el VM es el mismo: hay que reajustarlo al
-        // usuario que acaba de entrar (sus permisos cambian el sidebar).
-        mainVm.RefrescarPermisos();
+        // usuario y al MODO activos (ambos cambian qué muestra el sidebar).
+        mainVm.EstablecerModo(modo);
 
         shell.AplicarEscala(ajustes.FactorEscala);
         shell.MostrarModo(IdentidadModo.De(modo));
@@ -314,6 +314,8 @@ public partial class App : Application
         servicios.AddSingleton<ReportesViewModel>();
         servicios.AddSingleton<HistorialViewModel>();
         servicios.AddSingleton<ConfiguracionViewModel>();
+        servicios.AddSingleton<VehiculosViewModel>();
+        servicios.AddSingleton<VehiculoFormViewModel>();
         servicios.AddSingleton<MainViewModel>();
 
         // Views
