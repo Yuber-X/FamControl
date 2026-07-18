@@ -64,6 +64,21 @@
       <DataTemplate DataType="{x:Type vm:VehiculoFormViewModel}">
         <views:VehiculoFormView />
       </DataTemplate>
+      <DataTemplate DataType="{x:Type vm:VentasViewModel}">
+        <views:VentasView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vm:VentaNuevaViewModel}">
+        <views:VentaNuevaView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vm:AlquileresViewModel}">
+        <views:AlquileresView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vm:AlquilerNuevoViewModel}">
+        <views:AlquilerNuevoView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vm:GastosViewModel}">
+        <views:GastosView />
+      </DataTemplate>
       <DataTemplate DataType="{x:Type vm:ConfiguracionViewModel}">
         <views:ConfiguracionView />
       </DataTemplate>

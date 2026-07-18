@@ -1,6 +1,14 @@
 # TODO.md — FAControl
 
-> Actualizado: 2026-07-17 (cierre del Tier 4)
+> Actualizado: 2026-07-17 (cierre del Tier 5 — suite completa de 3 modos)
+
+## ✅ Tier 5 — DealerControl + AutoControl (COMPLETO)
+- [x] 5.1 Dominio `vehiculo` (schema 001+008, modelo/repo/service, código V-0001, tests)
+- [x] 5.2 Shell mode-aware + Inventario de vehículos (lista + formulario CRUD)
+- [x] 5.3 DealerControl: venta al contado (VC-0001), rent a car (AL-0001, con devolución), gestión de importación (ledger de gastos)
+- [x] 5.4 AutoControl: crédito vehicular = `prestamo` con `vehiculo_id` (garantía), reusa amortización/cuotas/cobros/pagaré; al financiar el vehículo pasa a vendido
+- [x] Migración 009 + reorden de `vehiculo` en 001; 114 tests verdes; flujos atómicos verificados
+- Pendiente de pulido (para revisión de Yuber): paletas por modo (hoy usan el acento global indigo), inicial/enganche en crédito vehicular, panel/dashboard propio de Dealer y Auto.
 
 ## ✅ Tier 4 — Cobranza y comunicación (COMPLETO)
 - [x] Fix filtro por usuario en Reportes (backfill `pago.created_by` — migración 007)

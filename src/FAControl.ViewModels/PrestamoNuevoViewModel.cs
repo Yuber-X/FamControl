@@ -64,6 +64,26 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     public IReadOnlyList<Opcion<Modalidad>> Modalidades { get; }
     public IReadOnlyList<Opcion<MetodoAmortizacion>> Metodos { get; }
 
+    // ---------- AutoControl: crédito vehicular ----------
+    /// <summary>Lo fija el shell: en AutoControl el préstamo financia un vehículo (picker + garantía).</summary>
+    [ObservableProperty] private bool _esVehicular;
+    /// <summary>Vehículos disponibles para financiar (solo se cargan en modo vehicular).</summary>
+    public ObservableCollection<VehiculoResumen> VehiculosDisponibles { get; } = [];
+
+    [ObservableProperty] private VehiculoResumen? _vehiculoSeleccionado;
+
+    partial void OnVehiculoSeleccionadoChanged(VehiculoResumen? value)
+    {
+        if (value is not null)
+        {
+            // Sugiere el precio del vehículo como monto a financiar y su descripción como garantía.
+            if (string.IsNullOrWhiteSpace(MontoTexto))
+                MontoTexto = value.PrecioVenta.ToString("0.##", CulturaRd);
+            Garantia = $"Vehículo {value.Codigo} — {value.Descripcion}";
+        }
+        NotificarComandos();
+    }
+
     [ObservableProperty] private Cliente? _clienteSeleccionado;
     [ObservableProperty] private string _montoTexto = string.Empty;
     [ObservableProperty] private string _tasaTexto = string.Empty;
@@ -136,6 +156,17 @@ public partial class PrestamoNuevoViewModel : ObservableObject
                 Clientes.Add(cliente);
             // Conserva la selección si el cliente sigue existiendo
             ClienteSeleccionado = clientes.FirstOrDefault(c => c.Id == seleccionado?.Id);
+
+            // AutoControl: cargar los vehículos disponibles para financiar
+            if (EsVehicular)
+            {
+                var vehiculos = await _prestamos.ObtenerVehiculosDisponiblesAsync();
+                var vehSel = VehiculoSeleccionado;
+                VehiculosDisponibles.Clear();
+                foreach (var v in vehiculos.Where(v => v.Estado == EstadoVehiculo.Disponible))
+                    VehiculosDisponibles.Add(v);
+                VehiculoSeleccionado = VehiculosDisponibles.FirstOrDefault(v => v.Id == vehSel?.Id);
+            }
         }
         catch (Exception ex)
         {
@@ -250,7 +281,8 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         NotificarComandos();
     }
 
-    private bool PuedeGuardar() => TienePreview && ClienteSeleccionado is not null;
+    private bool PuedeGuardar() =>
+        TienePreview && ClienteSeleccionado is not null && (!EsVehicular || VehiculoSeleccionado is not null);
 
     private void NotificarComandos()
     {
@@ -295,7 +327,8 @@ public partial class PrestamoNuevoViewModel : ObservableObject
                 parametros.Metodo,
                 parametros.FechaPrimerPago,
                 string.IsNullOrWhiteSpace(Garantia) ? null : Garantia.Trim(),
-                string.IsNullOrWhiteSpace(Notas) ? null : Notas.Trim());
+                string.IsNullOrWhiteSpace(Notas) ? null : Notas.Trim(),
+                EsVehicular ? VehiculoSeleccionado?.Id : null);
 
             var (id, codigo) = await _prestamos.CrearAsync(solicitud, autorizacion);
 
@@ -362,6 +395,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     private void Limpiar()
     {
         ClienteSeleccionado = null;
+        VehiculoSeleccionado = null;
         MontoTexto = string.Empty;
         TasaTexto = string.Empty;
         PlazoTexto = string.Empty;

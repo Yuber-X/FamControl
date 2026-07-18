@@ -17,6 +17,19 @@
           <TextBlock Text="Datos del préstamo" Style="{DynamicResource Texto.Titulo3}"
                      Margin="0,0,0,16" />
 
+          <!-- AutoControl: vehículo a financiar (solo en modo vehicular) -->
+          <StackPanel Visibility="{Binding EsVehicular, Converter={StaticResource BoolAVisibilidad}}"
+                      Margin="0,0,0,14">
+            <TextBlock Text="Vehículo a financiar (en garantía)" Style="{DynamicResource Input.Label}" />
+            <ComboBox Height="40" FontSize="13"
+                      ItemsSource="{Binding VehiculosDisponibles}"
+                      SelectedItem="{Binding VehiculoSeleccionado}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate><TextBlock Text="{Binding Descripcion}" /></DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+
           <TextBlock Text="Cliente" Style="{DynamicResource Input.Label}" />
           <ComboBox Height="40" FontSize="13"
                     ItemsSource="{Binding Clientes}"

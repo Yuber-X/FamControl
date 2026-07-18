@@ -139,4 +139,20 @@ internal static class EnumMap
         "baja" => EstadoVehiculo.Baja,
         _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Estado de vehículo desconocido en BD.")
     };
+
+    public static string ADb(EstadoAlquiler e) => e switch
+    {
+        EstadoAlquiler.Activo => "activo",
+        EstadoAlquiler.Finalizado => "finalizado",
+        EstadoAlquiler.Cancelado => "cancelado",
+        _ => throw new ArgumentOutOfRangeException(nameof(e))
+    };
+
+    public static EstadoAlquiler EstadoAlquilerDeDb(string valor) => valor switch
+    {
+        "activo" => EstadoAlquiler.Activo,
+        "finalizado" => EstadoAlquiler.Finalizado,
+        "cancelado" => EstadoAlquiler.Cancelado,
+        _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Estado de alquiler desconocido en BD.")
+    };
 }

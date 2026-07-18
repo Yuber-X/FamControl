@@ -73,6 +73,38 @@ public class VehiculoRepository
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    /// <summary>Variante transaccional: cambia el estado dentro de una operación multi-paso (venta/alquiler).</summary>
+    public async Task CambiarEstadoAsync(long id, EstadoVehiculo estado, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            UPDATE {DbNames.Vehiculo}
+            SET estado = @estado, updated_at = UTC_TIMESTAMP()
+            WHERE id = @id AND deleted_at IS NULL;
+            """;
+        cmd.Parameters.AddWithValue("@estado", EnumMap.ADb(estado));
+        cmd.Parameters.AddWithValue("@id", id);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>Actualiza gastos_importacion = suma del ledger de gastos (dentro de una transacción).</summary>
+    public async Task FijarGastosImportacionAsync(long id, decimal total, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            UPDATE {DbNames.Vehiculo}
+            SET gastos_importacion = @total, updated_at = UTC_TIMESTAMP()
+            WHERE id = @id AND deleted_at IS NULL;
+            """;
+        cmd.Parameters.AddWithValue("@total", total);
+        cmd.Parameters.AddWithValue("@id", id);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     /// <summary>Soft delete (nunca DELETE físico — AutoControl puede referenciarlo por FK).</summary>
     public async Task EliminarAsync(long id, CancellationToken ct = default)
     {

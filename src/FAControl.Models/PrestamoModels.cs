@@ -10,7 +10,9 @@ public record NuevoPrestamo(
     MetodoAmortizacion Metodo,
     DateOnly FechaPrimerPago,
     string? Garantia,
-    string? Notas);
+    string? Notas,
+    /// <summary>AutoControl: vehículo en garantía. NULL = préstamo personal (PrestControl).</summary>
+    long? VehiculoId = null);
 
 /// <summary>
 /// Fila de la lista de préstamos: préstamo + cliente + agregados de sus cuotas

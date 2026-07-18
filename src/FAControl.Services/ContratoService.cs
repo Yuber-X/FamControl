@@ -28,7 +28,7 @@ public class ContratoService
 
     /// <summary>Todos los préstamos como filas del almacén de contratos.</summary>
     public Task<IReadOnlyList<PrestamoResumen>> ObtenerContratosAsync(CancellationToken ct = default) =>
-        _prestamos.ObtenerResumenesAsync(ct);
+        _prestamos.ObtenerResumenesAsync(ct: ct);
 
     /// <summary>
     /// Reconstruye el pagaré de un préstamo existente (para verlo o reimprimirlo).

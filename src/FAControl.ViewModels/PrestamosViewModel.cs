@@ -36,6 +36,12 @@ public partial class PrestamosViewModel : ObservableObject
     public ObservableCollection<PrestamoFila> Filas { get; } = [];
     public IReadOnlyList<Opcion<EstadoPrestamo?>> FiltrosEstado { get; }
 
+    /// <summary>
+    /// Filtro por modo (lo fija el shell): null = todos; false = solo personales
+    /// (PrestControl); true = solo créditos vehiculares (AutoControl).
+    /// </summary>
+    public bool? SoloVehiculares { get; set; }
+
     [ObservableProperty]
     private string _textoBusqueda = string.Empty;
 
@@ -63,7 +69,7 @@ public partial class PrestamosViewModel : ObservableObject
         try
         {
             Cargando = true;
-            _todos = await _servicio.ObtenerResumenesAsync();
+            _todos = await _servicio.ObtenerResumenesAsync(SoloVehiculares);
             AplicarFiltro();
         }
         catch (Exception ex)

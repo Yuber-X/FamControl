@@ -19,7 +19,10 @@ public enum Pagina
     Usuarios,
     Configuracion,
     // DealerControl (Tier 5)
-    Vehiculos
+    Vehiculos,
+    Ventas,
+    Alquileres,
+    Gastos
 }
 
 /// <summary>
@@ -43,13 +46,20 @@ public partial class MainViewModel : ObservableObject
     private readonly ConfiguracionViewModel _configuracionVm;
     private readonly VehiculosViewModel _vehiculosVm;
     private readonly VehiculoFormViewModel _vehiculoFormVm;
+    private readonly VentasViewModel _ventasVm;
+    private readonly VentaNuevaViewModel _ventaNuevaVm;
+    private readonly AlquileresViewModel _alquileresVm;
+    private readonly AlquilerNuevoViewModel _alquilerNuevoVm;
+    private readonly GastosViewModel _gastosVm;
 
     public MainViewModel(PrestamosViewModel prestamosVm, PrestamoNuevoViewModel nuevoVm,
         PrestamoDetalleViewModel detalleVm, CobrosViewModel cobrosVm,
         ClientesViewModel clientesVm, ClienteFichaViewModel fichaVm, ClienteFormViewModel clienteFormVm,
         PanelViewModel panelVm, ReportesViewModel reportesVm, HistorialViewModel historialVm,
         UsuariosViewModel usuariosVm, ContratosViewModel contratosVm, ConfiguracionViewModel configuracionVm,
-        VehiculosViewModel vehiculosVm, VehiculoFormViewModel vehiculoFormVm)
+        VehiculosViewModel vehiculosVm, VehiculoFormViewModel vehiculoFormVm,
+        VentasViewModel ventasVm, VentaNuevaViewModel ventaNuevaVm,
+        AlquileresViewModel alquileresVm, AlquilerNuevoViewModel alquilerNuevoVm, GastosViewModel gastosVm)
     {
         _panelVm = panelVm;
         _reportesVm = reportesVm;
@@ -86,10 +96,25 @@ public partial class MainViewModel : ObservableObject
         _clienteFormVm.Cancelado += () => _ = NavegarAsync(Pagina.Clientes);
 
         // DealerControl: inventario → alta/edición → vuelta a la lista
+        _ventasVm = ventasVm;
+        _ventaNuevaVm = ventaNuevaVm;
+        _alquileresVm = alquileresVm;
+        _alquilerNuevoVm = alquilerNuevoVm;
+        _gastosVm = gastosVm;
         _vehiculosVm.NuevoSolicitado += AbrirVehiculoNuevo;
         _vehiculosVm.EditarSolicitado += id => _ = AbrirVehiculoEdicionAsync(id);
         _vehiculoFormVm.Guardado += id => _ = NavegarAsync(Pagina.Vehiculos);
         _vehiculoFormVm.Cancelado += () => _ = NavegarAsync(Pagina.Vehiculos);
+
+        // Ventas al contado: lista → nueva venta → vuelta
+        _ventasVm.NuevoSolicitado += () => _ = AbrirVentaNuevaAsync();
+        _ventaNuevaVm.Registrado += () => _ = NavegarAsync(Pagina.Ventas);
+        _ventaNuevaVm.Cancelado += () => _ = NavegarAsync(Pagina.Ventas);
+
+        // Alquileres: lista → nuevo alquiler → vuelta
+        _alquileresVm.NuevoSolicitado += () => _ = AbrirAlquilerNuevoAsync();
+        _alquilerNuevoVm.Registrado += () => _ = NavegarAsync(Pagina.Alquileres);
+        _alquilerNuevoVm.Cancelado += () => _ = NavegarAsync(Pagina.Alquileres);
     }
 
     [ObservableProperty]
@@ -108,23 +133,34 @@ public partial class MainViewModel : ObservableObject
     public ModoApp Modo { get; private set; } = ModoApp.PrestControl;
     public bool EsPrestControl => Modo == ModoApp.PrestControl;
     public bool EsDealerControl => Modo == ModoApp.DealerControl;
+    public bool EsAutoControl => Modo == ModoApp.AutoControl;
+    /// <summary>Clientes, cobros, contratos y reportes son compartidos por los modos de crédito.</summary>
+    private bool EsCredito => EsPrestControl || EsAutoControl;
 
     // ------------------------------------------------------------------
     // Visibilidad del sidebar por MODO + permiso (multicuentas 2026-07-16,
     // multimodo Tier 5). Esto es UX, NO seguridad: la regla la aplica el Service.
-    // Los módulos de PrestControl solo aparecen en ese modo; el inventario, en Dealer.
-    // Historial / Usuarios / Configuración son transversales a los modos.
+    //   PrestControl: préstamos personales.  AutoControl: créditos vehiculares
+    //   (reusa la misma maquinaria, filtrada).  DealerControl: inventario/ventas.
+    //   Historial / Usuarios / Configuración son transversales a los modos.
     // ------------------------------------------------------------------
     public bool PuedeVerPanel => EsPrestControl && SesionActual.TienePermiso(Permisos.Panel);
-    public bool PuedeVerClientes => EsPrestControl && SesionActual.TienePermiso(Permisos.Clientes);
+    public bool PuedeVerClientes => EsCredito && SesionActual.TienePermiso(Permisos.Clientes);
     public bool PuedeVerPrestamos => EsPrestControl && SesionActual.TienePermiso(Permisos.Prestamos);
     public bool PuedeVerNuevoPrestamo => EsPrestControl && SesionActual.TienePermiso(Permisos.PrestamosCrear);
-    public bool PuedeVerCobros => EsPrestControl && SesionActual.TienePermiso(Permisos.Cobros);
+    /// <summary>AutoControl: lista de créditos vehiculares (misma página, filtrada).</summary>
+    public bool PuedeVerVentasFinanciadas => EsAutoControl && SesionActual.TienePermiso(Permisos.Prestamos);
+    /// <summary>AutoControl: alta de crédito vehicular (mismo wizard, con picker de vehículo).</summary>
+    public bool PuedeVerNuevaVentaFinanciada => EsAutoControl && SesionActual.TienePermiso(Permisos.PrestamosCrear);
+    public bool PuedeVerCobros => EsCredito && SesionActual.TienePermiso(Permisos.Cobros);
     /// <summary>El contrato es el pagaré del préstamo: reusa el permiso de préstamos.</summary>
-    public bool PuedeVerContratos => EsPrestControl && SesionActual.TienePermiso(Permisos.Prestamos);
-    public bool PuedeVerReportes => EsPrestControl && SesionActual.TienePermiso(Permisos.Reportes);
-    /// <summary>Inventario de vehículos: exclusivo de DealerControl.</summary>
+    public bool PuedeVerContratos => EsCredito && SesionActual.TienePermiso(Permisos.Prestamos);
+    public bool PuedeVerReportes => EsCredito && SesionActual.TienePermiso(Permisos.Reportes);
+    /// <summary>Inventario, ventas al contado, alquileres y gastos: exclusivos de DealerControl.</summary>
     public bool PuedeVerVehiculos => EsDealerControl && SesionActual.TienePermiso(Permisos.Vehiculos);
+    public bool PuedeVerVentas => EsDealerControl && SesionActual.TienePermiso(Permisos.Vehiculos);
+    public bool PuedeVerAlquileres => EsDealerControl && SesionActual.TienePermiso(Permisos.Vehiculos);
+    public bool PuedeVerGastos => EsDealerControl && SesionActual.TienePermiso(Permisos.Vehiculos);
     public bool PuedeVerHistorial => SesionActual.TienePermiso(Permisos.Historial);
     public bool PuedeVerUsuarios => SesionActual.TienePermiso(Permisos.Usuarios);
     /// <summary>Configuración es EXCLUSIVA de Admin (regla del cliente).</summary>
@@ -135,9 +171,13 @@ public partial class MainViewModel : ObservableObject
     public void EstablecerModo(ModoApp modo)
     {
         Modo = modo;
+        // AutoControl reusa el VM de préstamos, filtrado a créditos vehiculares.
+        _prestamosVm.SoloVehiculares = EsAutoControl ? true : (EsPrestControl ? false : null);
+        _nuevoVm.EsVehicular = EsAutoControl;
         OnPropertyChanged(nameof(Modo));
         OnPropertyChanged(nameof(EsPrestControl));
         OnPropertyChanged(nameof(EsDealerControl));
+        OnPropertyChanged(nameof(EsAutoControl));
         RefrescarPermisos();
     }
 
@@ -153,10 +193,15 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(PuedeVerClientes));
         OnPropertyChanged(nameof(PuedeVerPrestamos));
         OnPropertyChanged(nameof(PuedeVerNuevoPrestamo));
+        OnPropertyChanged(nameof(PuedeVerVentasFinanciadas));
+        OnPropertyChanged(nameof(PuedeVerNuevaVentaFinanciada));
         OnPropertyChanged(nameof(PuedeVerCobros));
         OnPropertyChanged(nameof(PuedeVerContratos));
         OnPropertyChanged(nameof(PuedeVerReportes));
         OnPropertyChanged(nameof(PuedeVerVehiculos));
+        OnPropertyChanged(nameof(PuedeVerVentas));
+        OnPropertyChanged(nameof(PuedeVerAlquileres));
+        OnPropertyChanged(nameof(PuedeVerGastos));
         OnPropertyChanged(nameof(PuedeVerHistorial));
         OnPropertyChanged(nameof(PuedeVerUsuarios));
         OnPropertyChanged(nameof(PuedeVerConfiguracion));
@@ -181,7 +226,9 @@ public partial class MainViewModel : ObservableObject
     /// (Panel en PrestControl, Vehículos en DealerControl).
     /// </summary>
     public Task InicializarAsync() =>
-        NavegarAsync(EsDealerControl ? Pagina.Vehiculos : Pagina.Panel);
+        NavegarAsync(EsDealerControl ? Pagina.Vehiculos
+                   : EsAutoControl ? Pagina.Prestamos          // ventas financiadas
+                   : Pagina.Panel);
 
     [RelayCommand]
     private async Task NavegarAsync(Pagina destino)
@@ -232,6 +279,18 @@ public partial class MainViewModel : ObservableObject
                 case Pagina.Vehiculos:
                     await _vehiculosVm.CargarAsync();
                     PaginaActualVm = _vehiculosVm;
+                    break;
+                case Pagina.Ventas:
+                    await _ventasVm.CargarAsync();
+                    PaginaActualVm = _ventasVm;
+                    break;
+                case Pagina.Alquileres:
+                    await _alquileresVm.CargarAsync();
+                    PaginaActualVm = _alquileresVm;
+                    break;
+                case Pagina.Gastos:
+                    await _gastosVm.CargarAsync();
+                    PaginaActualVm = _gastosVm;
                     break;
                 case Pagina.Configuracion:
                     PaginaActualVm = _configuracionVm;
@@ -329,6 +388,22 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private async Task AbrirVentaNuevaAsync()
+    {
+        await _ventaNuevaVm.CargarAsync();
+        PaginaActual = Pagina.Ventas;
+        TituloPagina = "Nueva venta al contado";
+        PaginaActualVm = _ventaNuevaVm;
+    }
+
+    private async Task AbrirAlquilerNuevoAsync()
+    {
+        await _alquilerNuevoVm.CargarAsync();
+        PaginaActual = Pagina.Alquileres;
+        TituloPagina = "Nuevo alquiler";
+        PaginaActualVm = _alquilerNuevoVm;
+    }
+
     private async Task AbrirCobrosAsync(long prestamoId)
     {
         try
@@ -344,12 +419,13 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    private static string TituloDe(Pagina pagina) => pagina switch
+    private string TituloDe(Pagina pagina) => pagina switch
     {
         Pagina.Panel => "Panel de control",
         Pagina.Clientes => "Clientes",
-        Pagina.Prestamos => "Préstamos",
-        Pagina.NuevoPrestamo => "Nuevo préstamo",
+        // En AutoControl los préstamos son ventas financiadas de vehículos.
+        Pagina.Prestamos => EsAutoControl ? "Ventas financiadas" : "Préstamos",
+        Pagina.NuevoPrestamo => EsAutoControl ? "Nueva venta financiada" : "Nuevo préstamo",
         Pagina.Cobros => "Cobros",
         Pagina.Contratos => "Almacén de contratos",
         Pagina.Reportes => "Reportes",
@@ -357,6 +433,9 @@ public partial class MainViewModel : ObservableObject
         Pagina.Usuarios => "Usuarios",
         Pagina.Configuracion => "Configuración",
         Pagina.Vehiculos => "Inventario de vehículos",
+        Pagina.Ventas => "Ventas al contado",
+        Pagina.Alquileres => "Alquileres (rent a car)",
+        Pagina.Gastos => "Gestión de importación",
         _ => string.Empty
     };
 }

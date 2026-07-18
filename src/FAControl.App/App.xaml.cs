@@ -266,6 +266,9 @@ public partial class App : Application
         servicios.AddSingleton<ReporteRepository>();
         servicios.AddSingleton<ExportacionRepository>();
         servicios.AddSingleton<VehiculoRepository>();
+        servicios.AddSingleton<VentaVehiculoRepository>();
+        servicios.AddSingleton<AlquilerRepository>();
+        servicios.AddSingleton<VehiculoGastoRepository>();
 
         // Services
         servicios.AddSingleton<AuditoriaService>();
@@ -285,6 +288,9 @@ public partial class App : Application
         servicios.AddSingleton<ReporteService>();
         servicios.AddSingleton<ExportacionService>();
         servicios.AddSingleton<VehiculoService>();
+        servicios.AddSingleton<VentaVehiculoService>();
+        servicios.AddSingleton<AlquilerService>();
+        servicios.AddSingleton<VehiculoGastoService>();
         servicios.AddSingleton(sp =>
             new RespaldoService(sp.GetRequiredService<ConexionFactory>().CadenaConexion));
         servicios.AddSingleton(FAControl.Common.AjustesLocales.Cargar());
@@ -316,6 +322,11 @@ public partial class App : Application
         servicios.AddSingleton<ConfiguracionViewModel>();
         servicios.AddSingleton<VehiculosViewModel>();
         servicios.AddSingleton<VehiculoFormViewModel>();
+        servicios.AddSingleton<VentasViewModel>();
+        servicios.AddSingleton<VentaNuevaViewModel>();
+        servicios.AddSingleton<AlquileresViewModel>();
+        servicios.AddSingleton<AlquilerNuevoViewModel>();
+        servicios.AddSingleton<GastosViewModel>();
         servicios.AddSingleton<MainViewModel>();
 
         // Views

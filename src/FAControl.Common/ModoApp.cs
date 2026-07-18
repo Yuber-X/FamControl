@@ -51,7 +51,7 @@ public record IdentidadModo(
         new(ModoApp.AutoControl, "AutoControl", "Ventas de vehículos",
             "Venta financiada: crédito con el vehículo en garantía, cuotas y pagaré.",
             // Verde esmeralda (aprobado por Yuber 2026-07-17) + glow verde vivo
-            "#3A7D5C", "#48B07E", Disponible: false)
+            "#3A7D5C", "#48B07E", Disponible: true)
     ];
 
     public static IdentidadModo De(ModoApp modo) => Todos.First(m => m.Modo == modo);

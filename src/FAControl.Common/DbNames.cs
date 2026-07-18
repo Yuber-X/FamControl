@@ -21,4 +21,7 @@ public static class DbNames
     public const string Contador = "contador";
     // DealerControl / AutoControl (Tier 5)
     public const string Vehiculo = "vehiculo";
+    public const string VentaVehiculo = "venta_vehiculo";
+    public const string Alquiler = "alquiler";
+    public const string VehiculoGasto = "vehiculo_gasto";
 }

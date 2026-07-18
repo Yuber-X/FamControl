@@ -37,7 +37,7 @@ public class FlujoPrestamoPagoTests : IAsyncLifetime
             new SesionRepository(_factory), new UsuarioRepository(_factory));
 
         _prestamos = new PrestamoService(_factory, prestamoRepo, contadorRepo,
-            new AmortizacionService(), auditoria);
+            new AmortizacionService(), auditoria, new VehiculoRepository(_factory));
         _pagos = new PagoService(_factory, prestamoRepo, pagoRepo, clienteRepo,
             contadorRepo, auditoria);
         _clientes = new ClienteService(clienteRepo, auditoria);

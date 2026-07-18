@@ -121,6 +121,21 @@
                                    ConverterParameter={x:Static vm:Pagina.NuevoPrestamo}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.NuevoPrestamo}" />
+          <!-- AutoControl: mismas páginas de préstamo, con otra etiqueta -->
+          <RadioButton Content="Ventas financiadas" Tag="&#xE825;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerVentasFinanciadas, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Prestamos}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Prestamos}" />
+          <RadioButton Content="Nueva venta financiada" Tag="&#xE710;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerNuevaVentaFinanciada, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.NuevoPrestamo}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.NuevoPrestamo}" />
           <RadioButton Content="Cobros" Tag="&#xE8EF;" Style="{DynamicResource Sidebar.Item}"
                        Visibility="{Binding PuedeVerCobros, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,
@@ -149,6 +164,27 @@
                                    ConverterParameter={x:Static vm:Pagina.Vehiculos}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.Vehiculos}" />
+          <RadioButton Content="Ventas al contado" Tag="&#xE7BF;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerVentas, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Ventas}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Ventas}" />
+          <RadioButton Content="Alquileres" Tag="&#xE8C7;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerAlquileres, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Alquileres}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Alquileres}" />
+          <RadioButton Content="Importación / gastos" Tag="&#xE7BE;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerGastos, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Gastos}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Gastos}" />
           <RadioButton Content="Historial" Tag="&#xE81C;" Style="{DynamicResource Sidebar.Item}"
                        Visibility="{Binding PuedeVerHistorial, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,

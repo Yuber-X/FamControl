@@ -71,6 +71,8 @@ public class Prestamo
     public long Id { get; set; }
     public string Codigo { get; set; } = string.Empty;      // P-0001
     public long ClienteId { get; set; }
+    /// <summary>AutoControl: vehículo en garantía. NULL = préstamo personal (PrestControl).</summary>
+    public long? VehiculoId { get; set; }
     public decimal MontoCapital { get; set; }
     public string Moneda { get; set; } = "DOP";
     /// <summary>Tasa de interés MENSUAL en porcentaje (ej. 10 = 10% mensual).</summary>

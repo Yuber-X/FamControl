@@ -1,0 +1,93 @@
+<UserControl x:Class="FAControl.Views.AlquilerNuevoView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <Border Style="{DynamicResource Card}" MaxWidth="640" VerticalAlignment="Top"
+            HorizontalAlignment="Center" Padding="32" Margin="0,8">
+      <StackPanel>
+        <TextBlock Text="Nuevo alquiler (rent a car)" Style="{DynamicResource Texto.Titulo2}"
+                   Margin="0,0,0,20" />
+
+        <TextBlock Text="Vehículo (disponible)" Style="{DynamicResource Input.Label}" />
+        <ComboBox Height="40" FontSize="13"
+                  ItemsSource="{Binding Vehiculos}" SelectedItem="{Binding VehiculoSeleccionado}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate><TextBlock Text="{Binding Descripcion}" /></DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+
+        <TextBlock Text="Cliente" Style="{DynamicResource Input.Label}" Margin="0,14,0,6" />
+        <ComboBox Height="40" FontSize="13"
+                  ItemsSource="{Binding Clientes}" SelectedItem="{Binding ClienteSeleccionado}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate><TextBlock Text="{Binding NombreCompleto}" /></DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+
+        <Grid Margin="0,14,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <StackPanel Grid.Column="0">
+            <TextBlock Text="Fecha de inicio" Style="{DynamicResource Input.Label}" />
+            <DatePicker SelectedDate="{Binding FechaInicio}" />
+          </StackPanel>
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="Devolución pactada" Style="{DynamicResource Input.Label}" />
+            <DatePicker SelectedDate="{Binding FechaFin}" />
+          </StackPanel>
+        </Grid>
+
+        <TextBlock Text="Tarifa por día (RD$)" Style="{DynamicResource Input.Label}" Margin="0,14,0,6" />
+        <TextBox Style="{DynamicResource Input.Texto}"
+                 Text="{Binding TarifaTexto, UpdateSourceTrigger=PropertyChanged}" />
+
+        <Border Background="{DynamicResource Brush.PrimarioSutil}" CornerRadius="10"
+                Padding="16,12" Margin="0,16,0,0">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <TextBlock Text="DÍAS" Style="{DynamicResource Texto.MicroLabel}" />
+              <TextBlock Text="{Binding DiasPreview}" Style="{DynamicResource Texto.Titulo3}" Margin="0,2,0,0" />
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+              <TextBlock Text="TOTAL" Style="{DynamicResource Texto.MicroLabel}" />
+              <TextBlock Text="{Binding TotalPreview, Converter={StaticResource Money}}"
+                         Style="{DynamicResource Texto.Titulo3}" Margin="0,2,0,0" />
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <TextBlock Text="Notas" Style="{DynamicResource Input.Label}" Margin="0,14,0,6" />
+        <TextBox Style="{DynamicResource Input.Texto}" Height="72"
+                 TextWrapping="Wrap" AcceptsReturn="True"
+                 VerticalContentAlignment="Top" Padding="10,8"
+                 Text="{Binding Notas, UpdateSourceTrigger=PropertyChanged}" />
+
+        <TextBlock Text="{Binding MensajeError}"
+                   Foreground="{DynamicResource Brush.Destructivo}"
+                   Style="{DynamicResource Texto.Caption}"
+                   TextWrapping="Wrap" Margin="0,12,0,0" />
+
+        <Grid Margin="0,20,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Button Grid.Column="0" Content="Cancelar" Style="{DynamicResource Boton.Secundario}"
+                  Command="{Binding CancelarCommand}" />
+          <Button Grid.Column="2" Content="Registrar alquiler" Style="{DynamicResource Boton.Primario}"
+                  Command="{Binding GuardarCommand}"
+                  IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}" />
+        </Grid>
+      </StackPanel>
+    </Border>
+  </ScrollViewer>
+</UserControl>

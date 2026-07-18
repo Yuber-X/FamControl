@@ -126,10 +126,49 @@ CREATE TABLE cliente (
 -- tasa_interes: tasa MENSUAL en % (convención prestamista RD);
 --   se convierte a tasa por período según modalidad al calcular
 -- -------------------------------------------------------------
+-- -------------------------------------------------------------
+-- vehiculo: inventario del dealer (DealerControl — Tier 5).
+-- El vehículo como ACTIVO: nace aquí; AutoControl lo consume por FK
+-- (prestamo.vehiculo_id). Va ANTES de prestamo por esa dependencia.
+--   costo_total = costo_adquisicion + gastos_importacion
+--   ganancia    = precio_venta - costo_total  (se calcula, no se guarda)
+-- Soft delete vía deleted_at. Código secuencial V-0001 (contador 'vehiculo').
+-- -------------------------------------------------------------
+CREATE TABLE vehiculo (
+  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  codigo             VARCHAR(20)   NOT NULL,               -- V-0001
+  vin                VARCHAR(17)   NULL,                   -- chasis / VIN
+  marca              VARCHAR(50)   NOT NULL,
+  modelo             VARCHAR(50)   NOT NULL,
+  anio               SMALLINT UNSIGNED NULL,
+  color              VARCHAR(30)   NULL,
+  placa              VARCHAR(15)   NULL,                   -- matrícula / chapa
+  tipo               ENUM('sedan','suv','jeepeta','camioneta','camion','motor','otro')
+                       NOT NULL DEFAULT 'otro',
+  kilometraje        INT UNSIGNED  NULL,
+  costo_adquisicion  DECIMAL(15,2) NOT NULL DEFAULT 0.00,  -- lo que costó comprarlo
+  gastos_importacion DECIMAL(15,2) NOT NULL DEFAULT 0.00,  -- aduana, flete, preparación
+  precio_venta       DECIMAL(15,2) NOT NULL DEFAULT 0.00,  -- precio de lista
+  estado             ENUM('disponible','reservado','vendido','alquilado','baja')
+                       NOT NULL DEFAULT 'disponible',
+  notas              TEXT          NULL,
+  created_at         DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  updated_at         DATETIME      NULL,
+  deleted_at         DATETIME      NULL,                   -- soft delete
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_vehiculo_codigo (codigo),
+  KEY ix_vehiculo_estado (estado),
+  KEY ix_vehiculo_vin (vin)
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- prestamo: contrato de préstamo (PrestControl y AutoControl)
+-- -------------------------------------------------------------
 CREATE TABLE prestamo (
   id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   codigo              VARCHAR(10)   NOT NULL,     -- P-0001
   cliente_id          BIGINT UNSIGNED NOT NULL,
+  vehiculo_id         BIGINT UNSIGNED NULL,       -- AutoControl: vehículo en garantía (NULL = préstamo personal)
   monto_capital       DECIMAL(15,2) NOT NULL,
   moneda              CHAR(3)       NOT NULL DEFAULT 'DOP',
   tasa_interes        DECIMAL(8,4)  NOT NULL,     -- % mensual, ej. 10.0000
@@ -145,9 +184,12 @@ CREATE TABLE prestamo (
   PRIMARY KEY (id),
   UNIQUE KEY uq_prestamo_codigo (codigo),
   KEY ix_prestamo_cliente (cliente_id),
+  KEY ix_prestamo_vehiculo (vehiculo_id),
   KEY ix_prestamo_estado (estado),
   CONSTRAINT fk_prestamo_cliente FOREIGN KEY (cliente_id)
-    REFERENCES cliente (id) ON DELETE RESTRICT
+    REFERENCES cliente (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_prestamo_vehiculo FOREIGN KEY (vehiculo_id)
+    REFERENCES vehiculo (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
@@ -239,40 +281,77 @@ CREATE TABLE contador (
 INSERT INTO contador (nombre, valor) VALUES
   ('recibo', 0),
   ('prestamo', 0),
-  ('vehiculo', 0);
+  ('vehiculo', 0),
+  ('venta', 0),
+  ('alquiler', 0);
 
 -- -------------------------------------------------------------
--- vehiculo: inventario del dealer (DealerControl — Tier 5).
--- El vehículo como ACTIVO: nace aquí; AutoControl lo consume por FK.
---   costo_total = costo_adquisicion + gastos_importacion
---   ganancia    = precio_venta - costo_total  (se calcula, no se guarda)
--- Soft delete vía deleted_at. Código secuencial V-0001 (contador 'vehiculo').
+-- venta_vehiculo: venta al contado del dealer (DealerControl — Tier 5).
+-- Al vender, el vehículo pasa a 'vendido' (Service, en transacción).
 -- -------------------------------------------------------------
-CREATE TABLE vehiculo (
-  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  codigo             VARCHAR(20)   NOT NULL,               -- V-0001
-  vin                VARCHAR(17)   NULL,                   -- chasis / VIN
-  marca              VARCHAR(50)   NOT NULL,
-  modelo             VARCHAR(50)   NOT NULL,
-  anio               SMALLINT UNSIGNED NULL,
-  color              VARCHAR(30)   NULL,
-  placa              VARCHAR(15)   NULL,                   -- matrícula / chapa
-  tipo               ENUM('sedan','suv','jeepeta','camioneta','camion','motor','otro')
-                       NOT NULL DEFAULT 'otro',
-  kilometraje        INT UNSIGNED  NULL,
-  costo_adquisicion  DECIMAL(15,2) NOT NULL DEFAULT 0.00,  -- lo que costó comprarlo
-  gastos_importacion DECIMAL(15,2) NOT NULL DEFAULT 0.00,  -- aduana, flete, preparación
-  precio_venta       DECIMAL(15,2) NOT NULL DEFAULT 0.00,  -- precio de lista
-  estado             ENUM('disponible','reservado','vendido','alquilado','baja')
-                       NOT NULL DEFAULT 'disponible',
-  notas              TEXT          NULL,
-  created_at         DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
-  updated_at         DATETIME      NULL,
-  deleted_at         DATETIME      NULL,                   -- soft delete
+CREATE TABLE venta_vehiculo (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  codigo      VARCHAR(20)   NOT NULL,              -- VC-0001
+  vehiculo_id BIGINT UNSIGNED NOT NULL,
+  cliente_id  BIGINT UNSIGNED NOT NULL,
+  fecha_venta DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  precio      DECIMAL(15,2) NOT NULL,
+  metodo_pago ENUM('efectivo','transferencia','cheque','otro') NOT NULL DEFAULT 'efectivo',
+  notas       TEXT          NULL,
+  created_at  DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  created_by  BIGINT UNSIGNED NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_vehiculo_codigo (codigo),
-  KEY ix_vehiculo_estado (estado),
-  KEY ix_vehiculo_vin (vin)
+  UNIQUE KEY uq_venta_codigo (codigo),
+  KEY ix_venta_vehiculo (vehiculo_id),
+  KEY ix_venta_cliente (cliente_id),
+  CONSTRAINT fk_venta_vehiculo FOREIGN KEY (vehiculo_id) REFERENCES vehiculo (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_venta_cliente  FOREIGN KEY (cliente_id)  REFERENCES cliente (id)  ON DELETE RESTRICT,
+  CONSTRAINT fk_venta_usuario  FOREIGN KEY (created_by)  REFERENCES usuario (id)  ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- alquiler: rent a car (DealerControl — Tier 5).
+-- -------------------------------------------------------------
+CREATE TABLE alquiler (
+  id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  codigo           VARCHAR(20)   NOT NULL,          -- AL-0001
+  vehiculo_id      BIGINT UNSIGNED NOT NULL,
+  cliente_id       BIGINT UNSIGNED NOT NULL,
+  fecha_inicio     DATE          NOT NULL,
+  fecha_fin        DATE          NOT NULL,           -- devolución pactada
+  fecha_devolucion DATE          NULL,               -- devolución real
+  tarifa_dia       DECIMAL(15,2) NOT NULL,
+  dias             INT UNSIGNED  NOT NULL,
+  monto_total      DECIMAL(15,2) NOT NULL,
+  estado           ENUM('activo','finalizado','cancelado') NOT NULL DEFAULT 'activo',
+  notas            TEXT          NULL,
+  created_at       DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  created_by       BIGINT UNSIGNED NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_alquiler_codigo (codigo),
+  KEY ix_alquiler_vehiculo (vehiculo_id),
+  KEY ix_alquiler_estado (estado),
+  CONSTRAINT fk_alquiler_vehiculo FOREIGN KEY (vehiculo_id) REFERENCES vehiculo (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_alquiler_cliente  FOREIGN KEY (cliente_id)  REFERENCES cliente (id)  ON DELETE RESTRICT,
+  CONSTRAINT fk_alquiler_usuario  FOREIGN KEY (created_by)  REFERENCES usuario (id)  ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- vehiculo_gasto: gestión de importación (gastos detallados).
+-- La suma se refleja en vehiculo.gastos_importacion (lo mantiene el Service).
+-- -------------------------------------------------------------
+CREATE TABLE vehiculo_gasto (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  vehiculo_id BIGINT UNSIGNED NOT NULL,
+  concepto    VARCHAR(100)  NOT NULL,
+  monto       DECIMAL(15,2) NOT NULL,
+  fecha       DATE          NOT NULL,
+  created_at  DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  created_by  BIGINT UNSIGNED NULL,
+  PRIMARY KEY (id),
+  KEY ix_gasto_vehiculo (vehiculo_id),
+  CONSTRAINT fk_gasto_vehiculo FOREIGN KEY (vehiculo_id) REFERENCES vehiculo (id) ON DELETE CASCADE,
+  CONSTRAINT fk_gasto_usuario  FOREIGN KEY (created_by)  REFERENCES usuario (id)  ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- =============================================================

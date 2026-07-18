@@ -2,6 +2,21 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [1.2.0] — 2026-07-17 · Tier 5 — DealerControl y AutoControl (suite de 3 modos)
+
+### Added
+- **Suite multimodo**: el shell ahora es *mode-aware*. El launcher abre uno de tres modos y el sidebar/landing se adapta. **DealerControl** y **AutoControl** habilitados.
+- **Dominio de vehículo** (`vehiculo`, schema 001 + migración 008): el vehículo como ACTIVO que nace en Dealer; código `V-0001`, soft delete, costo vs precio (costo total y ganancia calculados), estados disponible/reservado/vendido/alquilado/baja. Permisos `vehiculos`/`vehiculos_editar`.
+- **DealerControl — Inventario**: alta/edición/baja de vehículos con vista previa de costo total y ganancia.
+- **DealerControl — Venta al contado** (`venta_vehiculo`, código `VC-0001`): venta atómica (marca el vehículo `vendido` + auditoría en una transacción), con cliente, precio y método de pago.
+- **DealerControl — Rent a car** (`alquiler`, código `AL-0001`): alquiler con cálculo automático de días y total; devolución/cancelación que libera el vehículo. Atómico.
+- **DealerControl — Gestión de importación** (`vehiculo_gasto`): ledger de gastos (aduana, flete, etc.) cuya suma se refleja en el costo del vehículo.
+- **AutoControl — Crédito vehicular**: un crédito vehicular es un `prestamo` con `vehiculo_id` (el vehículo en garantía), reutilizando amortización, cuotas, cobros, pagaré y reportes. Al financiar, el vehículo pasa a `vendido` en la misma transacción; la garantía se autocompleta con el vehículo. La lista y el wizard de préstamos se filtran/adaptan por modo (picker de vehículo disponible).
+
+### Cambios técnicos
+- Migración 009: `prestamo.vehiculo_id`, tablas `venta_vehiculo`/`alquiler`/`vehiculo_gasto`, contadores `venta`/`alquiler`. Reordenada `vehiculo` antes de `prestamo` en 001 por la FK. 001 validado contra BD desechable.
+- 13 tests nuevos (114 verdes). Flujos atómicos verificados end-to-end contra `facontrol_db`.
+
 ## [1.1.0] — 2026-07-17 · Tier 4 — Reportes individuales, contratos, recordatorios Gmail e intimación de pago
 
 ### Added

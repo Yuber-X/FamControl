@@ -26,15 +26,16 @@ public class PrestamoRepository
         cmd.Transaction = transaccion;
         cmd.CommandText = $"""
             INSERT INTO {DbNames.Prestamo}
-              (codigo, cliente_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
+              (codigo, cliente_id, vehiculo_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
                modalidad, metodo_amortizacion, fecha_inicio, garantia, estado, notas)
             VALUES
-              (@codigo, @clienteId, @montoCapital, @moneda, @tasaInteres, @plazoCuotas,
+              (@codigo, @clienteId, @vehiculoId, @montoCapital, @moneda, @tasaInteres, @plazoCuotas,
                @modalidad, @metodo, @fechaInicio, @garantia, @estado, @notas);
             SELECT LAST_INSERT_ID();
             """;
         cmd.Parameters.AddWithValue("@codigo", prestamo.Codigo);
         cmd.Parameters.AddWithValue("@clienteId", prestamo.ClienteId);
+        cmd.Parameters.AddWithValue("@vehiculoId", (object?)prestamo.VehiculoId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@montoCapital", prestamo.MontoCapital);
         cmd.Parameters.AddWithValue("@moneda", prestamo.Moneda);
         cmd.Parameters.AddWithValue("@tasaInteres", prestamo.TasaInteres);
@@ -155,8 +156,13 @@ public class PrestamoRepository
     // Lecturas
     // ============================================================
 
-    /// <summary>Lista completa para la pantalla Préstamos (una sola consulta con agregados).</summary>
-    public async Task<IReadOnlyList<PrestamoResumen>> ObtenerResumenesAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Lista completa para la pantalla Préstamos (una sola consulta con agregados).
+    /// <paramref name="soloVehiculares"/>: null = todos; true = solo créditos con
+    /// vehículo (AutoControl); false = solo préstamos personales (PrestControl).
+    /// </summary>
+    public async Task<IReadOnlyList<PrestamoResumen>> ObtenerResumenesAsync(
+        bool? soloVehiculares = null, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
@@ -172,10 +178,15 @@ public class PrestamoRepository
             FROM {DbNames.Prestamo} p
             JOIN {DbNames.Cliente} c ON c.id = p.cliente_id
             LEFT JOIN {DbNames.Cuota} q ON q.prestamo_id = p.id
+            WHERE (@soloVehiculares IS NULL
+                   OR (@soloVehiculares = 1 AND p.vehiculo_id IS NOT NULL)
+                   OR (@soloVehiculares = 0 AND p.vehiculo_id IS NULL))
             GROUP BY p.id, p.codigo, p.cliente_id, cliente_nombre, p.monto_capital, p.tasa_interes,
                      p.plazo_cuotas, p.modalidad, p.metodo_amortizacion, p.fecha_inicio, p.estado
             ORDER BY p.id DESC;
             """;
+        cmd.Parameters.AddWithValue("@soloVehiculares",
+            soloVehiculares is null ? DBNull.Value : (soloVehiculares.Value ? 1 : 0));
 
         var resumenes = new List<PrestamoResumen>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -208,7 +219,7 @@ public class PrestamoRepository
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
-            SELECT id, codigo, cliente_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
+            SELECT id, codigo, cliente_id, vehiculo_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
                    modalidad, metodo_amortizacion, fecha_inicio, garantia, estado, notas,
                    created_at, updated_at
             FROM {DbNames.Prestamo}
@@ -225,6 +236,7 @@ public class PrestamoRepository
             Id = reader.GetInt64("id"),
             Codigo = reader.GetString("codigo"),
             ClienteId = reader.GetInt64("cliente_id"),
+            VehiculoId = reader.IsDBNull(reader.GetOrdinal("vehiculo_id")) ? null : reader.GetInt64("vehiculo_id"),
             MontoCapital = reader.GetDecimal("monto_capital"),
             Moneda = reader.GetString("moneda"),
             TasaInteres = reader.GetDecimal("tasa_interes"),

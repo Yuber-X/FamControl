@@ -84,6 +84,14 @@ public static class Textos
         EstadoVehiculo.Baja => "Baja",
         _ => e.ToString()
     };
+
+    public static string De(EstadoAlquiler e) => e switch
+    {
+        EstadoAlquiler.Activo => "Activo",
+        EstadoAlquiler.Finalizado => "Finalizado",
+        EstadoAlquiler.Cancelado => "Cancelado",
+        _ => e.ToString()
+    };
 }
 
 /// <summary>Opción de ComboBox con valor tipado + texto en español.</summary>
