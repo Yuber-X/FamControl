@@ -20,11 +20,11 @@ public class ReporteRepository
     /// </summary>
     public async Task<IReadOnlyList<IngresoDiario>> ObtenerIngresosDiariosAsync(
         DateTime inicioUtc, DateTime finUtc, long? usuarioId = null, long? clienteId = null,
-        CancellationToken ct = default)
+        bool? soloVehiculares = null, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
-        // El JOIN a cuota/prestamo solo hace falta para filtrar por cliente
+        // El JOIN a cuota/prestamo hace falta para filtrar por cliente y por modo
         cmd.CommandText = $"""
             SELECT DATE(DATE_SUB(g.fecha_pago, INTERVAL 4 HOUR)) AS dia,
                    SUM(g.monto_interes) AS interes,
@@ -37,6 +37,7 @@ public class ReporteRepository
               AND g.fecha_pago >= @inicio AND g.fecha_pago < @fin
               AND (@usuarioId IS NULL OR g.created_by = @usuarioId)
               AND (@clienteId IS NULL OR p.cliente_id = @clienteId)
+              AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)
             GROUP BY dia
             ORDER BY dia;
             """;
@@ -44,6 +45,7 @@ public class ReporteRepository
         cmd.Parameters.AddWithValue("@fin", finUtc);
         cmd.Parameters.AddWithValue("@usuarioId", (object?)usuarioId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@clienteId", (object?)clienteId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@soloVehiculares", (object?)soloVehiculares ?? DBNull.Value);
 
         var dias = new List<IngresoDiario>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -64,12 +66,13 @@ public class ReporteRepository
     /// </summary>
     public async Task<(int Cobradas, int Programadas)> ContarCuotasAsync(
         DateTime inicioUtc, DateTime finUtc, DateOnly desde, DateOnly hasta,
-        long? usuarioId = null, long? clienteId = null, CancellationToken ct = default)
+        long? usuarioId = null, long? clienteId = null, bool? soloVehiculares = null,
+        CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         // Cobradas respeta usuario+cliente; programadas solo cliente (una cuota
-        // programada no tiene "cobrador" hasta que se cobra).
+        // programada no tiene "cobrador" hasta que se cobra). Ambas se aíslan por modo.
         cmd.CommandText = $"""
             SELECT
               (SELECT COUNT(DISTINCT g.cuota_id)
@@ -79,13 +82,15 @@ public class ReporteRepository
                WHERE g.deleted_at IS NULL
                  AND g.fecha_pago >= @inicio AND g.fecha_pago < @fin
                  AND (@usuarioId IS NULL OR g.created_by = @usuarioId)
-                 AND (@clienteId IS NULL OR p.cliente_id = @clienteId)) AS cobradas,
+                 AND (@clienteId IS NULL OR p.cliente_id = @clienteId)
+                 AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)) AS cobradas,
               (SELECT COUNT(*)
                FROM {DbNames.Cuota} q
                JOIN {DbNames.Prestamo} p ON p.id = q.prestamo_id
                WHERE p.estado <> 'cancelado'
                  AND q.estado <> 'cancelada'
                  AND (@clienteId IS NULL OR p.cliente_id = @clienteId)
+                 AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)
                  AND q.fecha_vencimiento BETWEEN @desde AND @hasta) AS programadas;
             """;
         cmd.Parameters.AddWithValue("@inicio", inicioUtc);
@@ -94,6 +99,7 @@ public class ReporteRepository
         cmd.Parameters.AddWithValue("@hasta", hasta.ToDateTime(TimeOnly.MinValue));
         cmd.Parameters.AddWithValue("@usuarioId", (object?)usuarioId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@clienteId", (object?)clienteId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@soloVehiculares", (object?)soloVehiculares ?? DBNull.Value);
 
         using var reader = await cmd.ExecuteReaderAsync(ct);
         await reader.ReadAsync(ct);
@@ -107,7 +113,7 @@ public class ReporteRepository
     /// </summary>
     public async Task<IReadOnlyList<ReporteCliente>> ObtenerPorClienteAsync(
         DateTime inicioUtc, DateTime finUtc, long? usuarioId = null, long? clienteId = null,
-        CancellationToken ct = default)
+        bool? soloVehiculares = null, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
@@ -123,7 +129,8 @@ public class ReporteRepository
                     JOIN {DbNames.Prestamo} p2 ON p2.id = q2.prestamo_id
                     WHERE p2.cliente_id = c.id
                       AND p2.estado = 'activo'
-                      AND q2.estado <> 'cancelada') AS saldo
+                      AND q2.estado <> 'cancelada'
+                      AND (@soloVehiculares IS NULL OR (p2.vehiculo_id IS NOT NULL) = @soloVehiculares)) AS saldo
             FROM {DbNames.Pago} g
             JOIN {DbNames.Cuota} q ON q.id = g.cuota_id
             JOIN {DbNames.Prestamo} p ON p.id = q.prestamo_id
@@ -132,6 +139,7 @@ public class ReporteRepository
               AND g.fecha_pago >= @inicio AND g.fecha_pago < @fin
               AND (@usuarioId IS NULL OR g.created_by = @usuarioId)
               AND (@clienteId IS NULL OR c.id = @clienteId)
+              AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)
             GROUP BY c.id, nombre
             ORDER BY total DESC;
             """;
@@ -139,6 +147,7 @@ public class ReporteRepository
         cmd.Parameters.AddWithValue("@fin", finUtc);
         cmd.Parameters.AddWithValue("@usuarioId", (object?)usuarioId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@clienteId", (object?)clienteId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@soloVehiculares", (object?)soloVehiculares ?? DBNull.Value);
 
         var lista = new List<ReporteCliente>();
         using var reader = await cmd.ExecuteReaderAsync(ct);

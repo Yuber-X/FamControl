@@ -21,10 +21,22 @@ public class AjustesLocales
     public TamanoTexto TamanoTexto { get; set; } = TamanoTexto.Pequeno;
 
     /// <summary>
-    /// Modo noche (pedido del cliente 2026-07-16). Es preferencia POR PC, no
-    /// del negocio: cada terminal puede tener la suya.
+    /// Modo noche POR MODO (pedido de Yuber 2026-07-18): cada estancia recuerda
+    /// su propio tema. Default: **DealControl arranca oscuro**, el resto claro.
+    /// Editable en Configuración. Preferencia POR PC, no del negocio.
+    /// La clave es <c>ModoApp.ToString()</c>.
     /// </summary>
-    public bool TemaOscuro { get; set; }
+    public Dictionary<string, bool> TemaOscuroPorModo { get; set; } = new();
+
+    /// <summary>Tema del modo: usa el default por modo si el usuario no lo cambió.</summary>
+    public bool TemaOscuroDe(ModoApp modo) =>
+        TemaOscuroPorModo.TryGetValue(modo.ToString(), out var oscuro)
+            ? oscuro
+            : modo == ModoApp.DealerControl;   // DealControl arranca en modo noche
+
+    /// <summary>Fija (y recuerda) el tema del modo. Llamar a <see cref="Guardar"/> aparte.</summary>
+    public void FijarTemaOscuro(ModoApp modo, bool oscuro) =>
+        TemaOscuroPorModo[modo.ToString()] = oscuro;
 
     // Export automático a Excel (activable en Configuración)
     public bool ExportAutomaticoActivo { get; set; }

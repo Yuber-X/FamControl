@@ -47,6 +47,71 @@ public static class ImpresoraRecibos
         return true;
     }
 
+    /// <summary>
+    /// Guarda un FlowDocument (p. ej. el pagaré) como PDF MULTIPÁGINA en hoja
+    /// carta. Rasteriza cada página a 192 DPI sobre fondo blanco y la coloca en
+    /// su hoja PDF — fiel a lo que se imprime, con el logo vectorial incluido.
+    /// </summary>
+    public static void GuardarDocumentoPdf(System.Windows.Documents.FlowDocument documento,
+        string rutaDestino, string titulo)
+    {
+        const double escala = 2.0;                 // 96 → 192 DPI
+        documento.PageWidth = 816;                 // carta a 96 DPI
+        documento.PageHeight = 1056;
+        documento.PagePadding = new Thickness(64);
+        documento.ColumnWidth = double.PositiveInfinity;
+
+        var paginador = ((System.Windows.Documents.IDocumentPaginatorSource)documento).DocumentPaginator;
+        paginador.PageSize = new Size(816, 1056);
+        paginador.ComputePageCount();
+
+        using var pdf = new PdfDocument();
+        pdf.Info.Title = titulo;
+
+        var temporales = new List<string>();
+        try
+        {
+            for (var i = 0; i < paginador.PageCount; i++)
+            {
+                using var pagina = paginador.GetPage(i);
+                var w = pagina.Size.Width;
+                var h = pagina.Size.Height;
+
+                var bitmap = new RenderTargetBitmap(
+                    (int)Math.Ceiling(w * escala), (int)Math.Ceiling(h * escala),
+                    96 * escala, 96 * escala, PixelFormats.Pbgra32);
+
+                // Fondo blanco + contenido de la página (compone en dos pasadas)
+                var fondo = new DrawingVisual();
+                using (var dc = fondo.RenderOpen())
+                    dc.DrawRectangle(Brushes.White, null, new Rect(pagina.Size));
+                bitmap.Render(fondo);
+                bitmap.Render(pagina.Visual);
+
+                var rutaPng = Path.Combine(Path.GetTempPath(), $"facontrol-pagare-{Guid.NewGuid():N}.png");
+                temporales.Add(rutaPng);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using (var archivo = File.Create(rutaPng))
+                    encoder.Save(archivo);
+
+                var pagPdf = pdf.AddPage();
+                pagPdf.Width = XUnit.FromPoint(w * 72.0 / 96.0);   // DIU (96) → puntos (72)
+                pagPdf.Height = XUnit.FromPoint(h * 72.0 / 96.0);
+                using var grafico = XGraphics.FromPdfPage(pagPdf);
+                using var imagen = XImage.FromFile(rutaPng);
+                grafico.DrawImage(imagen, 0, 0, pagPdf.Width.Point, pagPdf.Height.Point);
+            }
+            pdf.Save(rutaDestino);
+        }
+        finally
+        {
+            foreach (var t in temporales)
+                if (File.Exists(t))
+                    File.Delete(t);
+        }
+    }
+
     /// <summary>Guarda el recibo como PDF de 80mm de ancho y alto proporcional.</summary>
     public static void GuardarPdf(FrameworkElement visual, string rutaDestino)
     {

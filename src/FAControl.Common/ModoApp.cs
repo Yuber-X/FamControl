@@ -43,7 +43,7 @@ public record IdentidadModo(
             // Dorado de la marca Familia Almonte (glow perfecto según Yuber)
             "#C9A15A", "#B5893F", Disponible: true),
 
-        new(ModoApp.DealerControl, "DealerControl", "Dealer",
+        new(ModoApp.DealerControl, "DealControl", "Dealer",
             "Inventario de vehículos, importación, costos y rent a car.",
             // Azul acero + glow azul vivo para que resalte como el dorado
             "#3D5A80", "#5B90D4", Disponible: true),
@@ -55,4 +55,20 @@ public record IdentidadModo(
     ];
 
     public static IdentidadModo De(ModoApp modo) => Todos.First(m => m.Modo == modo);
+}
+
+/// <summary>Utilidades del modo/ámbito compartidas por todas las capas.</summary>
+public static class ModoAppExtensiones
+{
+    /// <summary>
+    /// Valor de la columna `ambito` en la BD (enum: prestcontrol/dealercontrol/autocontrol).
+    /// Aísla los datos por estancia de trabajo (decisión Yuber 2026-07-18: 3 dominios).
+    /// </summary>
+    public static string ClaveDb(this ModoApp modo) => modo switch
+    {
+        ModoApp.PrestControl => "prestcontrol",
+        ModoApp.DealerControl => "dealercontrol",
+        ModoApp.AutoControl => "autocontrol",
+        _ => throw new ArgumentOutOfRangeException(nameof(modo), modo, "Modo desconocido")
+    };
 }

@@ -47,7 +47,8 @@ public class RecordatorioService
                 "El correo no está configurado. Completá la cuenta de Gmail en Configuración.");
 
         var hoy = FechaNegocio.Hoy;
-        var clientes = await _clientes.ObtenerRecordatoriosAsync(hoy, _ajustes.RecordatorioDiasAntes, ct);
+        var clientes = await _clientes.ObtenerRecordatoriosAsync(
+            hoy, _ajustes.RecordatorioDiasAntes, SesionActual.Modo, ct);
 
         var enviados = 0;
         var sinEmail = 0;

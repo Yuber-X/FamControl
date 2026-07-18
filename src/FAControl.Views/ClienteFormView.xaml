@@ -54,6 +54,8 @@
         <TextBlock Text="Correo electrónico" Style="{DynamicResource Input.Label}" Margin="0,14,0,6" />
         <TextBox Style="{DynamicResource Input.Texto}"
                  Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                   Text="Opcional. Sin correo NO se le pueden enviar recordatorios de pago a este cliente." />
 
         <TextBlock Text="Notas" Style="{DynamicResource Input.Label}" Margin="0,14,0,6" />
         <TextBox Style="{DynamicResource Input.Texto}" Height="72"

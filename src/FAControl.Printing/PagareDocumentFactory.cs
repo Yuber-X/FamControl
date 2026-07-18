@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using FAControl.Models;
 
 namespace FAControl.Printing;
@@ -21,6 +23,14 @@ public static class PagareDocumentFactory
     private static readonly Brush Tinta = new SolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x1A));
     private static readonly Brush TintaSuave = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x53));
     private static readonly Brush Linea = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC));
+    // Marca Familia Almonte (navy + dorado) para el encabezado del pagaré
+    private static readonly Color Navy = Color.FromRgb(0x1B, 0x26, 0x3B);
+    private static readonly Color Oro = Color.FromRgb(0xC9, 0xA1, 0x5A);
+    private static readonly Color Crema = Color.FromRgb(0xF3, 0xEE, 0xE2);
+    private static readonly Brush BrushNavy = Congelar(new SolidColorBrush(Navy));
+    private static readonly Brush BrushOro = Congelar(new SolidColorBrush(Oro));
+
+    private static Brush Congelar(SolidColorBrush b) { b.Freeze(); return b; }
 
     /// <summary>Documento carta listo para imprimir o previsualizar.</summary>
     public static FlowDocument Crear(PagareImpreso p)
@@ -38,15 +48,14 @@ public static class PagareDocumentFactory
         doc.PageWidth = 816;
         doc.PageHeight = 1056;
 
-        // --- Encabezado del negocio ---
-        doc.Blocks.Add(Parrafo(p.NombreNegocio, 16, FontWeights.Bold, espacioDespues: 2));
+        // --- Encabezado de marca: logo FA vectorial + negocio + regla dorada ---
         var contacto = new[] { p.Prestamista, p.Ciudad, p.Telefono, p.Email }
             .Where(s => !string.IsNullOrWhiteSpace(s));
         var subtitulo = string.Join("  ·  ", contacto);
         if (!string.IsNullOrWhiteSpace(p.Rnc))
             subtitulo = string.IsNullOrEmpty(subtitulo) ? $"RNC {p.Rnc}" : $"{subtitulo}  ·  RNC {p.Rnc}";
-        if (!string.IsNullOrWhiteSpace(subtitulo))
-            doc.Blocks.Add(Parrafo(subtitulo, 10, FontWeights.Normal, TintaSuave, espacioDespues: 20));
+        doc.Blocks.Add(EncabezadoMarca(p.NombreNegocio, subtitulo));
+        doc.Blocks.Add(ReglaDorada());
 
         // --- Título ---
         var titulo = Parrafo("Pagaré", 20, FontWeights.Bold, espacioDespues: 16);
@@ -94,6 +103,85 @@ public static class PagareDocumentFactory
 
         return doc;
     }
+
+    /// <summary>
+    /// Encabezado de marca: badge navy con el monograma FA vectorial (la misma
+    /// geometría del LogoFA de la app) + nombre y contacto del negocio. Se dibuja
+    /// con shapes WPF, no es una imagen pegada: nítido a cualquier zoom/impresión.
+    /// </summary>
+    private static BlockUIContainer EncabezadoMarca(string nombreNegocio, string subtitulo)
+    {
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var badge = LogoBadge();
+        Grid.SetColumn(badge, 0);
+        grid.Children.Add(badge);
+
+        var textos = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 0, 0) };
+        textos.Children.Add(new TextBlock
+        {
+            Text = nombreNegocio,
+            FontFamily = Fuente,
+            FontSize = 18,
+            FontWeight = FontWeights.Bold,
+            Foreground = BrushNavy
+        });
+        if (!string.IsNullOrWhiteSpace(subtitulo))
+            textos.Children.Add(new TextBlock
+            {
+                Text = subtitulo,
+                FontFamily = Fuente,
+                FontSize = 10.5,
+                Foreground = TintaSuave,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+        Grid.SetColumn(textos, 1);
+        grid.Children.Add(textos);
+
+        return new BlockUIContainer(grid) { Margin = new Thickness(0, 0, 0, 8) };
+    }
+
+    /// <summary>Badge navy redondeado con el monograma FA (F crema, A dorada, ventana).</summary>
+    private static Border LogoBadge()
+    {
+        var canvas = new Canvas { Width = 140, Height = 120 };
+        canvas.Children.Add(new Path { Fill = Congelar(new SolidColorBrush(Crema)),
+            Data = Geometry.Parse("M 10,8 L 62,8 L 62,24 L 28,24 L 28,52 L 56,52 L 56,68 L 28,68 L 28,112 L 10,112 Z") });
+        canvas.Children.Add(new Path { Fill = BrushOro,
+            Data = Geometry.Parse("M 88,8 L 138,112 L 116,112 L 88,50 L 60,112 L 38,112 Z") });
+        // Ventana de 4 paños (el detalle que convierte la A en casa)
+        canvas.Children.Add(RectVentana(76, 72, 24, 24, Oro));
+        canvas.Children.Add(RectVentana(86.5, 72, 3, 24, Navy));
+        canvas.Children.Add(RectVentana(76, 82.5, 24, 3, Navy));
+
+        var viewbox = new Viewbox { Stretch = Stretch.Uniform, Width = 40, Height = 40, Child = canvas };
+        return new Border
+        {
+            Background = BrushNavy,
+            CornerRadius = new CornerRadius(12),
+            Width = 60,
+            Height = 60,
+            Child = viewbox
+        };
+    }
+
+    private static Rectangle RectVentana(double left, double top, double w, double h, Color color)
+    {
+        var r = new Rectangle { Width = w, Height = h, Fill = Congelar(new SolidColorBrush(color)) };
+        Canvas.SetLeft(r, left);
+        Canvas.SetTop(r, top);
+        return r;
+    }
+
+    /// <summary>Regla dorada fina bajo el encabezado (acento de marca moderno).</summary>
+    private static BlockUIContainer ReglaDorada() =>
+        new(new Border { Height = 2.5, Background = BrushOro, Margin = new Thickness(0, 0, 0, 18) })
+        {
+            Margin = new Thickness(0)
+        };
 
     private static Table TablaCuotas(PagareImpreso p)
     {

@@ -535,6 +535,12 @@
     <Setter Property="FontSize" Value="13" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.TextoSecundario}" />
     <Setter Property="Cursor" Value="Hand" />
+    <!-- GroupName ÚNICO por ítem (= su Content): sin esto, dos ítems que apuntan
+         a la MISMA página (p. ej. "Préstamos" y su gemelo colapsado "Ventas
+         financiadas") comparten grupo y el colapsado le roba el check al visible,
+         obligando a un segundo click. Con grupos distintos, el estado lo maneja
+         SOLO el binding IsChecked (el converter de página). -->
+    <Setter Property="GroupName" Value="{Binding Content, RelativeSource={RelativeSource Self}}" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">
@@ -551,8 +557,10 @@
               <Setter TargetName="Fondo" Property="Background" Value="{DynamicResource Brush.FondoApp}" />
             </Trigger>
             <Trigger Property="IsChecked" Value="True">
-              <Setter TargetName="Fondo" Property="Background" Value="{DynamicResource Brush.PrimarioSutil}" />
-              <Setter Property="Foreground" Value="{DynamicResource Brush.Primario}" />
+              <!-- Acento del MODO activo (lo fija MostrarModo): Prest dorado,
+                   Auto verde, DealControl azul. -->
+              <Setter TargetName="Fondo" Property="Background" Value="{DynamicResource Brush.SidebarSel.Fondo}" />
+              <Setter Property="Foreground" Value="{DynamicResource Brush.SidebarSel.Texto}" />
               <Setter Property="FontWeight" Value="Medium" />
             </Trigger>
           </ControlTemplate.Triggers>

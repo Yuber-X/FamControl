@@ -5,3 +5,19 @@ obj/
 logs/
 publish/
 installer/Output/
+
+# Secretos y config local (NUNCA subir) — ajustes.json guarda el App Password
+# cifrado con DPAPI; los .dll.config del cliente llevan credenciales reales.
+ajustes.json
+*.dll.config
+secrets.json
+appsettings.Production.json
+appsettings.*.Production.json
+*.pfx
+*.snk
+.env
+
+# Herramientas / resultados de test
+.idea/
+*.suo
+TestResults/

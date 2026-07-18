@@ -145,7 +145,12 @@ public partial class MainViewModel : ObservableObject
     //   Historial / Usuarios / Configuración son transversales a los modos.
     // ------------------------------------------------------------------
     public bool PuedeVerPanel => EsPrestControl && SesionActual.TienePermiso(Permisos.Panel);
-    public bool PuedeVerClientes => EsCredito && SesionActual.TienePermiso(Permisos.Clientes);
+    /// <summary>
+    /// Clientes existe en los TRES modos, pero cada estancia ve solo LOS SUYOS
+    /// (aislamiento por ámbito, 2026-07-18). Así Dealer/Auto registran sus
+    /// propios clientes sin mezclarse con los de PrestControl.
+    /// </summary>
+    public bool PuedeVerClientes => SesionActual.TienePermiso(Permisos.Clientes);
     public bool PuedeVerPrestamos => EsPrestControl && SesionActual.TienePermiso(Permisos.Prestamos);
     public bool PuedeVerNuevoPrestamo => EsPrestControl && SesionActual.TienePermiso(Permisos.PrestamosCrear);
     /// <summary>AutoControl: lista de créditos vehiculares (misma página, filtrada).</summary>
@@ -174,6 +179,8 @@ public partial class MainViewModel : ObservableObject
         // AutoControl reusa el VM de préstamos, filtrado a créditos vehiculares.
         _prestamosVm.SoloVehiculares = EsAutoControl ? true : (EsPrestControl ? false : null);
         _nuevoVm.EsVehicular = EsAutoControl;
+        // El toggle de tema debe reflejar la estancia actual (DealControl oscuro).
+        _configuracionVm.SincronizarTema();
         OnPropertyChanged(nameof(Modo));
         OnPropertyChanged(nameof(EsPrestControl));
         OnPropertyChanged(nameof(EsDealerControl));

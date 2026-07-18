@@ -117,7 +117,9 @@ public partial class CobrosViewModel : ObservableObject
         try
         {
             Cargando = true;
-            var resumenes = await _prestamos.ObtenerResumenesAsync();
+            // Aislado por modo: PrestControl cobra préstamos personales;
+            // AutoControl cobra créditos vehiculares. Nunca se mezclan.
+            var resumenes = await _prestamos.ObtenerResumenesAsync(SesionActual.SoloVehicularesDelModo);
             PrestamosActivos.Clear();
             foreach (var resumen in resumenes.Where(r => r.Estado == EstadoPrestamo.Activo))
                 PrestamosActivos.Add(resumen);

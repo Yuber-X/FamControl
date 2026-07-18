@@ -105,6 +105,10 @@ CREATE TABLE sesion (
 -- -------------------------------------------------------------
 CREATE TABLE cliente (
   id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  -- Estancia dueña de la ficha: los datos NO se mezclan entre modos
+  -- (decisión Yuber 2026-07-18). Cédula única POR ámbito, no global.
+  ambito     ENUM('prestcontrol','dealercontrol','autocontrol')
+               NOT NULL DEFAULT 'prestcontrol',
   cedula     VARCHAR(13)  NOT NULL,               -- formato 001-1234567-8
   nombre     VARCHAR(100) NOT NULL,
   apellido   VARCHAR(100) NOT NULL,
@@ -116,7 +120,7 @@ CREATE TABLE cliente (
   updated_at DATETIME     NULL,
   deleted_at DATETIME     NULL,                   -- soft delete: leer con deleted_at IS NULL
   PRIMARY KEY (id),
-  UNIQUE KEY uq_cliente_cedula (cedula),
+  UNIQUE KEY uq_cliente_ambito_cedula (ambito, cedula),
   KEY ix_cliente_nombre (nombre, apellido)
 ) ENGINE=InnoDB;
 
@@ -378,7 +382,11 @@ INSERT INTO permiso (codigo, nombre, descripcion) VALUES
   ('usuarios',            'Admin de usuarios',         'CRUD de usuarios, roles y overrides'),
   ('configuracion',       'Configuración',             'EXCLUSIVO Admin'),
   ('vehiculos',           'Vehículos (ver)',           'Consulta del inventario de vehículos (DealerControl)'),
-  ('vehiculos_editar',    'Vehículos (crear/editar)',  'Alta, edición y baja de vehículos');
+  ('vehiculos_editar',    'Vehículos (crear/editar)',  'Alta, edición y baja de vehículos'),
+  -- Acceso por estancia/modo (aislamiento — cliente 2026-07-18)
+  ('acceso_prestcontrol',  'Acceso a PrestControl',  'Puede entrar a la estancia de préstamos personales'),
+  ('acceso_dealercontrol', 'Acceso a DealControl', 'Puede entrar a la estancia de inventario, ventas y alquiler de vehículos'),
+  ('acceso_autocontrol',   'Acceso a AutoControl',   'Puede entrar a la estancia de ventas financiadas de vehículos');
 
 -- Admin: todo
 INSERT INTO rol_permiso (rol_id, permiso_id)
@@ -391,7 +399,8 @@ SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Supervisor'
   AND p.codigo IN ('panel','clientes','clientes_editar','prestamos','prestamos_crear',
                    'prestamos_cancelar','cobros','reportes','historial',
-                   'vehiculos','vehiculos_editar');
+                   'vehiculos','vehiculos_editar',
+                   'acceso_prestcontrol','acceso_dealercontrol','acceso_autocontrol');
 
 -- Cobrador: cobra, consulta y SI crea prestamos, pero cada uno necesita
 -- la autorizacion de un admin (prestamos_autorizar). Sin prestamos_crear
@@ -399,7 +408,8 @@ WHERE r.nombre = 'Supervisor'
 INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Cobrador'
-  AND p.codigo IN ('panel','clientes','prestamos','prestamos_crear','cobros');
+  AND p.codigo IN ('panel','clientes','prestamos','prestamos_crear','cobros',
+                   'acceso_prestcontrol');
 
 -- =============================================================
 -- TRIGGERS: sincronizan usuario_permiso con el rol (patrón POS-400/POS-500).

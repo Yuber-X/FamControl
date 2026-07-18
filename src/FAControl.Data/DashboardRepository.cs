@@ -20,9 +20,15 @@ public class DashboardRepository
         DateTime inicioMesUtc,
         DateTime inicioMesSiguienteUtc,
         DateTime inicioMesAnteriorUtc,
+        bool? soloVehiculares,
         CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
+
+        // Filtro de aislamiento por modo (null = sin filtro). Se compara la
+        // expresión booleana (p.vehiculo_id IS NOT NULL) contra el parámetro.
+        void FiltroCredito(MySqlCommand cmd) =>
+            cmd.Parameters.AddWithValue("@soloVehiculares", (object?)soloVehiculares ?? DBNull.Value);
 
         // ---------- KPIs ----------
         decimal capitalColocado, morosidad, cobrosDelMes, cobrosMesAnterior;
@@ -36,32 +42,43 @@ public class DashboardRepository
                    FROM {DbNames.Cuota} q
                    JOIN {DbNames.Prestamo} p ON p.id = q.prestamo_id
                    WHERE p.estado = 'activo'
-                     AND q.estado IN ('pendiente', 'vencida', 'en_mora')) AS capital_colocado,
+                     AND q.estado IN ('pendiente', 'vencida', 'en_mora')
+                     AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)) AS capital_colocado,
                   (SELECT COALESCE(SUM(q.monto_total - q.monto_pagado), 0)
                    FROM {DbNames.Cuota} q
                    JOIN {DbNames.Prestamo} p ON p.id = q.prestamo_id
                    WHERE p.estado = 'activo'
                      AND q.estado IN ('pendiente', 'vencida', 'en_mora')
-                     AND q.fecha_vencimiento < @hoy) AS morosidad,
+                     AND q.fecha_vencimiento < @hoy
+                     AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)) AS morosidad,
                   (SELECT COALESCE(SUM(g.monto_pagado), 0)
                    FROM {DbNames.Pago} g
+                   JOIN {DbNames.Cuota} q ON q.id = g.cuota_id
+                   JOIN {DbNames.Prestamo} p ON p.id = q.prestamo_id
                    WHERE g.deleted_at IS NULL
-                     AND g.fecha_pago >= @inicioMes AND g.fecha_pago < @inicioMesSiguiente) AS cobros_mes,
+                     AND g.fecha_pago >= @inicioMes AND g.fecha_pago < @inicioMesSiguiente
+                     AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)) AS cobros_mes,
                   (SELECT COALESCE(SUM(g.monto_pagado), 0)
                    FROM {DbNames.Pago} g
+                   JOIN {DbNames.Cuota} q ON q.id = g.cuota_id
+                   JOIN {DbNames.Prestamo} p ON p.id = q.prestamo_id
                    WHERE g.deleted_at IS NULL
-                     AND g.fecha_pago >= @inicioMesAnterior AND g.fecha_pago < @inicioMes) AS cobros_mes_anterior,
+                     AND g.fecha_pago >= @inicioMesAnterior AND g.fecha_pago < @inicioMes
+                     AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)) AS cobros_mes_anterior,
                   (SELECT COUNT(DISTINCT p.cliente_id)
                    FROM {DbNames.Prestamo} p
-                   WHERE p.estado = 'activo') AS clientes_activos,
+                   WHERE p.estado = 'activo'
+                     AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)) AS clientes_activos,
                   (SELECT COUNT(*)
                    FROM {DbNames.Prestamo} p
-                   WHERE p.estado = 'activo') AS prestamos_activos;
+                   WHERE p.estado = 'activo'
+                     AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)) AS prestamos_activos;
                 """;
             cmd.Parameters.AddWithValue("@hoy", hoy.ToDateTime(TimeOnly.MinValue));
             cmd.Parameters.AddWithValue("@inicioMes", inicioMesUtc);
             cmd.Parameters.AddWithValue("@inicioMesSiguiente", inicioMesSiguienteUtc);
             cmd.Parameters.AddWithValue("@inicioMesAnterior", inicioMesAnteriorUtc);
+            FiltroCredito(cmd);
 
             using var reader = await cmd.ExecuteReaderAsync(ct);
             await reader.ReadAsync(ct);
@@ -81,13 +98,17 @@ public class DashboardRepository
                 SELECT DATE(DATE_SUB(g.fecha_pago, INTERVAL 4 HOUR)) AS dia,
                        SUM(g.monto_pagado) AS total
                 FROM {DbNames.Pago} g
+                JOIN {DbNames.Cuota} q ON q.id = g.cuota_id
+                JOIN {DbNames.Prestamo} p ON p.id = q.prestamo_id
                 WHERE g.deleted_at IS NULL
                   AND g.fecha_pago >= @inicioMes AND g.fecha_pago < @inicioMesSiguiente
+                  AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)
                 GROUP BY dia
                 ORDER BY dia;
                 """;
             cmd.Parameters.AddWithValue("@inicioMes", inicioMesUtc);
             cmd.Parameters.AddWithValue("@inicioMesSiguiente", inicioMesSiguienteUtc);
+            FiltroCredito(cmd);
 
             using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -112,10 +133,12 @@ public class DashboardRepository
                 WHERE p.estado = 'activo'
                   AND q.estado IN ('pendiente', 'vencida', 'en_mora')
                   AND q.fecha_vencimiento <= @limite
+                  AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares)
                 ORDER BY q.fecha_vencimiento, p.id
                 LIMIT 50;
                 """;
             cmd.Parameters.AddWithValue("@limite", hoy.AddDays(7).ToDateTime(TimeOnly.MinValue));
+            FiltroCredito(cmd);
 
             using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))

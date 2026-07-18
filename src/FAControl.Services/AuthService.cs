@@ -9,7 +9,9 @@ public enum ResultadoLogin
 {
     Exitoso,
     CredencialesInvalidas,
-    BloqueadoTemporalmente
+    BloqueadoTemporalmente,
+    /// <summary>Credenciales válidas, pero el usuario no tiene acceso a ESE modo.</summary>
+    SinAccesoAlModo
 }
 
 /// <summary>
@@ -75,10 +77,16 @@ public class AuthService
     }
 
     /// <summary>
-    /// Valida credenciales y, si son correctas: registra la sesión en BD,
-    /// actualiza last_login_at, inicializa SesionActual y audita el login.
+    /// Valida credenciales para ENTRAR a un modo concreto y, si todo pasa:
+    /// registra la sesión en BD, actualiza last_login_at, inicializa
+    /// SesionActual (con el modo) y audita el login.
+    ///
+    /// La puerta de acceso por modo (cliente 2026-07-18) se aplica ACÁ: aunque
+    /// la contraseña sea correcta, si el usuario no tiene acceso_&lt;modo&gt; no se
+    /// abre sesión (no cuenta como intento fallido: la clave sí era válida).
     /// </summary>
-    public async Task<ResultadoLogin> LoginAsync(string username, string password, CancellationToken ct = default)
+    public async Task<ResultadoLogin> LoginAsync(string username, string password,
+        ModoApp modo, CancellationToken ct = default)
     {
         if (_bloqueadoHastaUtc is { } bloqueo && DateTime.UtcNow < bloqueo)
             return ResultadoLogin.BloqueadoTemporalmente;
@@ -93,17 +101,25 @@ public class AuthService
         _intentosFallidos = 0;
         _bloqueadoHastaUtc = null;
 
+        // Permisos EFECTIVOS (rol + overrides): se leen acá para decidir el
+        // acceso al modo y luego viven en SesionActual toda la sesión.
+        var permisos = await _usuarios.ObtenerPermisosAsync(usuario.Id, ct);
+
+        // Puerta de acceso por modo: el Admin entra a todo; los demás solo si el
+        // Admin les habilitó acceso_<modo>. Sin acceso NO se abre sesión.
+        var esAdmin = usuario.RolNombre == Roles.Admin;
+        if (!esAdmin && !permisos.Contains(Permisos.AccesoDe(modo)))
+            return ResultadoLogin.SinAccesoAlModo;
+
         var ahoraUtc = DateTime.UtcNow;
         var sesionId = await _sesiones.RegistrarLoginAsync(usuario.Id, ahoraUtc, ipLocal: null, ct);
         await _usuarios.ActualizarUltimoLoginAsync(usuario.Id, ahoraUtc, ct);
 
-        // Permisos EFECTIVOS (rol + overrides): se leen en el login y viven en
-        // SesionActual mientras dure la sesión.
-        var permisos = await _usuarios.ObtenerPermisosAsync(usuario.Id, ct);
         SesionActual.Iniciar(usuario.Id, usuario.Username, usuario.Nombre,
             usuario.RolNombre, permisos, ahoraUtc, sesionId);
+        SesionActual.EstablecerModo(modo);
         await _auditoria.RegistrarAsync(AccionAuditoria.Login, DbNames.Usuario, usuario.Id,
-            $"Login de {usuario.Username} ({usuario.RolNombre})", ct);
+            $"Login de {usuario.Username} ({usuario.RolNombre}) en {modo}", ct);
 
         return ResultadoLogin.Exitoso;
     }

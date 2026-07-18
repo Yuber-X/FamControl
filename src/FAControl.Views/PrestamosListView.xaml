@@ -87,9 +87,21 @@
               <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTextColumn Header="Tasa" Binding="{Binding TasaTexto}" Width="110" />
+          <DataGridTextColumn Header="Tasa" Binding="{Binding TasaTexto}" Width="110">
+            <DataGridTextColumn.ElementStyle>
+              <Style TargetType="TextBlock">
+                <Setter Property="HorizontalAlignment" Value="Center" />
+              </Style>
+            </DataGridTextColumn.ElementStyle>
+          </DataGridTextColumn>
           <DataGridTextColumn Header="Modalidad" Binding="{Binding ModalidadTexto}" Width="90" />
-          <DataGridTextColumn Header="Cuotas" Binding="{Binding ProgresoTexto}" Width="70" />
+          <DataGridTextColumn Header="Cuotas" Binding="{Binding ProgresoTexto}" Width="70">
+            <DataGridTextColumn.ElementStyle>
+              <Style TargetType="TextBlock">
+                <Setter Property="HorizontalAlignment" Value="Center" />
+              </Style>
+            </DataGridTextColumn.ElementStyle>
+          </DataGridTextColumn>
           <DataGridTextColumn Header="Saldo pendiente"
                               Binding="{Binding SaldoPendiente, Converter={StaticResource Money}}"
                               Width="140">

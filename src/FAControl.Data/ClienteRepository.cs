@@ -15,16 +15,17 @@ public class ClienteRepository
 
     public ClienteRepository(ConexionFactory factory) => _factory = factory;
 
-    public async Task<long> CrearAsync(ClienteDatos datos, CancellationToken ct = default)
+    public async Task<long> CrearAsync(ClienteDatos datos, ModoApp ambito, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
-            INSERT INTO {DbNames.Cliente} (cedula, nombre, apellido, telefono, direccion, email, notas)
-            VALUES (@cedula, @nombre, @apellido, @telefono, @direccion, @email, @notas);
+            INSERT INTO {DbNames.Cliente} (ambito, cedula, nombre, apellido, telefono, direccion, email, notas)
+            VALUES (@ambito, @cedula, @nombre, @apellido, @telefono, @direccion, @email, @notas);
             SELECT LAST_INSERT_ID();
             """;
         AgregarParametrosDatos(cmd, datos);
+        cmd.Parameters.AddWithValue("@ambito", ambito.ClaveDb());
         return Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
     }
 
@@ -57,17 +58,23 @@ public class ClienteRepository
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
-    /// <summary>True si otra ficha activa ya usa esa cédula (unicidad amigable antes del UNIQUE).</summary>
-    public async Task<bool> ExisteCedulaAsync(string cedula, long? excluirId = null, CancellationToken ct = default)
+    /// <summary>
+    /// True si otra ficha activa DEL MISMO ámbito ya usa esa cédula (unicidad
+    /// amigable antes del UNIQUE(ambito,cedula)). La misma persona puede existir
+    /// en dos estancias distintas sin chocar.
+    /// </summary>
+    public async Task<bool> ExisteCedulaAsync(string cedula, ModoApp ambito,
+        long? excluirId = null, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT COUNT(*) FROM {DbNames.Cliente}
-            WHERE cedula = @cedula AND deleted_at IS NULL
+            WHERE cedula = @cedula AND ambito = @ambito AND deleted_at IS NULL
               AND (@excluirId IS NULL OR id <> @excluirId);
             """;
         cmd.Parameters.AddWithValue("@cedula", cedula);
+        cmd.Parameters.AddWithValue("@ambito", ambito.ClaveDb());
         cmd.Parameters.AddWithValue("@excluirId", (object?)excluirId ?? DBNull.Value);
         return Convert.ToInt64(await cmd.ExecuteScalarAsync(ct)) > 0;
     }
@@ -85,8 +92,8 @@ public class ClienteRepository
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct));
     }
 
-    /// <summary>Lista para la pantalla Clientes con agregados de préstamos.</summary>
-    public async Task<IReadOnlyList<ClienteResumen>> ObtenerResumenesAsync(CancellationToken ct = default)
+    /// <summary>Lista para la pantalla Clientes con agregados de préstamos (scoped al ámbito).</summary>
+    public async Task<IReadOnlyList<ClienteResumen>> ObtenerResumenesAsync(ModoApp ambito, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
@@ -99,10 +106,11 @@ public class ClienteRepository
             LEFT JOIN {DbNames.Prestamo} p ON p.cliente_id = c.id
             LEFT JOIN {DbNames.Cuota} q ON q.prestamo_id = p.id
                  AND q.estado IN ('pendiente', 'vencida', 'en_mora')
-            WHERE c.deleted_at IS NULL
+            WHERE c.deleted_at IS NULL AND c.ambito = @ambito
             GROUP BY c.id, c.cedula, c.nombre, c.apellido, c.telefono
             ORDER BY c.nombre, c.apellido;
             """;
+        cmd.Parameters.AddWithValue("@ambito", ambito.ClaveDb());
 
         var resumenes = new List<ClienteResumen>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -125,7 +133,7 @@ public class ClienteRepository
     /// notificador de vencimientos. Ordenados por antigüedad del vencimiento.
     /// </summary>
     public async Task<IReadOnlyList<ClienteVencido>> ObtenerClientesConVencidasAsync(
-        DateOnly hoy, CancellationToken ct = default)
+        DateOnly hoy, ModoApp ambito, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
@@ -141,10 +149,12 @@ public class ClienteRepository
               AND q.estado IN ('pendiente', 'vencida', 'en_mora')
               AND q.fecha_vencimiento < @hoy
               AND c.deleted_at IS NULL
+              AND c.ambito = @ambito
             GROUP BY c.id, nombre_completo
             ORDER BY primer_vencimiento;
             """;
         cmd.Parameters.AddWithValue("@hoy", hoy.ToDateTime(TimeOnly.MinValue));
+        cmd.Parameters.AddWithValue("@ambito", ambito.ClaveDb());
 
         var vencidos = new List<ClienteVencido>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -166,7 +176,7 @@ public class ClienteRepository
     /// (cliente 2026-07-19). Incluye el email del cliente y la cuota más próxima.
     /// </summary>
     public async Task<IReadOnlyList<RecordatorioCliente>> ObtenerRecordatoriosAsync(
-        DateOnly hoy, int diasAntes, CancellationToken ct = default)
+        DateOnly hoy, int diasAntes, ModoApp ambito, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
@@ -184,11 +194,13 @@ public class ClienteRepository
               AND q.estado IN ('pendiente', 'vencida', 'en_mora')
               AND q.fecha_vencimiento <= @limite
               AND c.deleted_at IS NULL
+              AND c.ambito = @ambito
             GROUP BY c.id, nombre_completo, c.email
             ORDER BY proximo_venc;
             """;
         cmd.Parameters.AddWithValue("@hoy", hoy.ToDateTime(TimeOnly.MinValue));
         cmd.Parameters.AddWithValue("@limite", hoy.AddDays(diasAntes).ToDateTime(TimeOnly.MinValue));
+        cmd.Parameters.AddWithValue("@ambito", ambito.ClaveDb());
 
         var lista = new List<RecordatorioCliente>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -257,16 +269,17 @@ public class ClienteRepository
         cmd.Parameters.AddWithValue("@notas", (object?)datos.Notas ?? DBNull.Value);
     }
 
-    public async Task<IReadOnlyList<Cliente>> ObtenerActivosAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<Cliente>> ObtenerActivosAsync(ModoApp ambito, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT id, cedula, nombre, apellido, telefono, direccion, email, notas, created_at, updated_at
             FROM {DbNames.Cliente}
-            WHERE deleted_at IS NULL
+            WHERE deleted_at IS NULL AND ambito = @ambito
             ORDER BY nombre, apellido;
             """;
+        cmd.Parameters.AddWithValue("@ambito", ambito.ClaveDb());
 
         var clientes = new List<Cliente>();
         using var reader = await cmd.ExecuteReaderAsync(ct);

@@ -50,7 +50,8 @@ public partial class ConfiguracionViewModel : ObservableObject
         _tamanoSeleccionado = Tamanos.First(t => t.Valor == ajustes.TamanoTexto);
         // Campo y no propiedad: asignar la propiedad dispararía el evento y
         // volvería a guardar el ajuste apenas se abre Configuración.
-        _temaOscuro = ajustes.TemaOscuro;
+        // El tema es POR MODO (DealControl arranca oscuro).
+        _temaOscuro = ajustes.TemaOscuroDe(SesionActual.Modo);
         _exportActivo = ajustes.ExportAutomaticoActivo;
         _exportCadaDiasTexto = ajustes.ExportAutomaticoCadaDias.ToString();
         _exportCarpeta = ajustes.ExportAutomaticoCarpeta ?? string.Empty;
@@ -101,11 +102,35 @@ public partial class ConfiguracionViewModel : ObservableObject
         _ajustes.Guardar();
     }
 
-    /// <summary>Guarda la contraseña recién escrita (la View la pasa aparte).</summary>
+    /// <summary>
+    /// Guarda la contraseña recién escrita (la View la pasa aparte). Se le quitan
+    /// los ESPACIOS: Google muestra la contraseña de aplicación como "abcd efgh
+    /// ijkl mnop" y si se pega con espacios, la autenticación falla.
+    /// </summary>
     public void GuardarPasswordCorreo(string password)
     {
-        GmailAppPassword = password;
+        GmailAppPassword = (password ?? string.Empty).Replace(" ", string.Empty);
         GuardarAjustesCorreo();
+    }
+
+    /// <summary>
+    /// Traduce el error de SMTP a algo accionable. El 99% de las fallas de Gmail
+    /// son de credenciales: contraseña NORMAL en vez de la de aplicación, cuenta
+    /// sin verificación en 2 pasos, o espacios pegados.
+    /// </summary>
+    private static string MensajeErrorCorreo(Exception ex)
+    {
+        var m = ex.Message;
+        var esAuth = m.Contains("5.7.0") || m.Contains("Authentication", StringComparison.OrdinalIgnoreCase)
+            || m.Contains("not accepted", StringComparison.OrdinalIgnoreCase)
+            || m.Contains("BadAuthentication", StringComparison.OrdinalIgnoreCase);
+        if (esAuth)
+            return "Gmail rechazó las credenciales. Revisá que: 1) uses una CONTRASEÑA DE " +
+                   "APLICACIÓN de 16 caracteres (no tu contraseña normal de Gmail ni la de " +
+                   "FAControl); 2) la cuenta remitente tenga la verificación en 2 pasos ACTIVADA; " +
+                   "3) la pegues sin espacios. Generala en myaccount.google.com → Seguridad → " +
+                   "Contraseñas de aplicaciones.";
+        return $"No se pudo enviar: {m}";
     }
 
     /// <summary>Envía un correo de prueba al dueño (o al remitente) para verificar la config.</summary>
@@ -131,7 +156,7 @@ public partial class ConfiguracionViewModel : ObservableObject
         catch (Exception ex)
         {
             Log.Error(ex, "Falló el correo de prueba");
-            MensajeCorreo = $"No se pudo enviar: {ex.Message}";
+            MensajeCorreo = MensajeErrorCorreo(ex);
         }
         finally
         {
@@ -164,7 +189,7 @@ public partial class ConfiguracionViewModel : ObservableObject
         catch (Exception ex)
         {
             Log.Error(ex, "Falló el envío manual de recordatorios");
-            MensajeCorreo = $"No se pudieron enviar los recordatorios: {ex.Message}";
+            MensajeCorreo = MensajeErrorCorreo(ex);
         }
         finally
         {
@@ -250,15 +275,23 @@ public partial class ConfiguracionViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Modo noche: se aplica en el momento y se recuerda por PC
-    /// (pedido del cliente 2026-07-16).
+    /// Modo noche: se aplica en el momento y se recuerda POR MODO y por PC
+    /// (DealControl arranca oscuro — Yuber 2026-07-18).
     /// </summary>
     partial void OnTemaOscuroChanged(bool value)
     {
-        _ajustes.TemaOscuro = value;
+        _ajustes.FijarTemaOscuro(SesionActual.Modo, value);
         _ajustes.Guardar();
         TemaCambiado?.Invoke(value);
     }
+
+    /// <summary>
+    /// Re-sincroniza el toggle con el tema del modo activo (al cambiar de
+    /// estancia). Se llama en EstablecerModo, antes de que App se suscriba a
+    /// TemaCambiado, así que no re-aplica el tema (ya lo puso App al entrar);
+    /// a lo sumo materializa el default del modo en el ajuste, sin efecto visible.
+    /// </summary>
+    public void SincronizarTema() => TemaOscuro = _ajustes.TemaOscuroDe(SesionActual.Modo);
 
     // ---------- Cambio de contraseña ----------
 

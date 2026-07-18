@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using FAControl.Common;
 using FAControl.Services;
 
 namespace FAControl.ViewModels;
@@ -30,6 +31,13 @@ public partial class LoginViewModel : ObservableObject
     /// <summary>Lo dispara el VM cuando el login fue exitoso; la View abre el shell.</summary>
     public event EventHandler? LoginExitoso;
 
+    /// <summary>
+    /// Modo/estancia que el usuario eligió en el launcher. Lo fija App antes de
+    /// mostrar el login: decide a qué estancia se está intentando entrar y, por
+    /// tanto, qué acceso se exige.
+    /// </summary>
+    public ModoApp Modo { get; set; } = ModoApp.PrestControl;
+
     public LoginViewModel(AuthService auth) => _auth = auth;
 
     /// <summary>Decide si mostrar wizard (primer arranque) o login normal.</summary>
@@ -44,7 +52,7 @@ public partial class LoginViewModel : ObservableObject
         Ocupado = true;
         try
         {
-            var resultado = await _auth.LoginAsync(Username, password);
+            var resultado = await _auth.LoginAsync(Username, password, Modo);
             switch (resultado)
             {
                 case ResultadoLogin.Exitoso:
@@ -52,6 +60,10 @@ public partial class LoginViewModel : ObservableObject
                     break;
                 case ResultadoLogin.BloqueadoTemporalmente:
                     MensajeError = "Demasiados intentos fallidos. Espera 5 minutos e intenta de nuevo.";
+                    break;
+                case ResultadoLogin.SinAccesoAlModo:
+                    MensajeError = $"Tu usuario no tiene acceso a {IdentidadModo.De(Modo).Nombre}. " +
+                                   "Pedile al administrador que te habilite el acceso a esta estancia.";
                     break;
                 default:
                     MensajeError = "Usuario o contraseña incorrectos.";

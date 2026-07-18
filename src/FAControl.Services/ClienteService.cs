@@ -23,28 +23,31 @@ public class ClienteService
 
     // ---------- Lecturas ----------
 
+    // Todas las lecturas se AÍSLAN al modo activo de la sesión (SesionActual.Modo):
+    // un cliente de PrestControl nunca aparece al operar en Dealer/Auto y viceversa.
+
     public Task<IReadOnlyList<Cliente>> ObtenerActivosAsync(CancellationToken ct = default) =>
-        _clientes.ObtenerActivosAsync(ct);
+        _clientes.ObtenerActivosAsync(SesionActual.Modo, ct);
 
     public Task<Cliente?> ObtenerPorIdAsync(long id, CancellationToken ct = default) =>
         _clientes.ObtenerPorIdAsync(id, ct);
 
     public Task<IReadOnlyList<ClienteResumen>> ObtenerResumenesAsync(CancellationToken ct = default) =>
-        _clientes.ObtenerResumenesAsync(ct);
+        _clientes.ObtenerResumenesAsync(SesionActual.Modo, ct);
 
     public Task<ClienteMetricas> ObtenerMetricasAsync(long clienteId, CancellationToken ct = default) =>
         _clientes.ObtenerMetricasAsync(clienteId, FechaNegocio.Hoy, ct);
 
     /// <summary>Clientes que se pasaron de su fecha de pago (notificador de vencimientos).</summary>
     public Task<IReadOnlyList<ClienteVencido>> ObtenerClientesConVencidasAsync(CancellationToken ct = default) =>
-        _clientes.ObtenerClientesConVencidasAsync(FechaNegocio.Hoy, ct);
+        _clientes.ObtenerClientesConVencidasAsync(FechaNegocio.Hoy, SesionActual.Modo, ct);
 
     // ---------- Mutaciones (con auditoría) ----------
 
     public async Task<long> CrearAsync(ClienteDatos datos, CancellationToken ct = default)
     {
         var normalizados = await ValidarAsync(datos, excluirId: null, ct);
-        var id = await _clientes.CrearAsync(normalizados, ct);
+        var id = await _clientes.CrearAsync(normalizados, SesionActual.Modo, ct);
         await _auditoria.RegistrarAsync(AccionAuditoria.Crear, DbNames.Cliente, id,
             $"Cliente {normalizados.Nombre} {normalizados.Apellido} ({normalizados.Cedula})", ct);
         Log.Information("Cliente {Id} creado: {Nombre} {Apellido}", id, normalizados.Nombre, normalizados.Apellido);
@@ -98,8 +101,8 @@ public class ClienteService
             throw new ArgumentException("El apellido es obligatorio.");
 
         var cedula = NormalizarCedula(datos.Cedula);
-        if (await _clientes.ExisteCedulaAsync(cedula, excluirId, ct))
-            throw new ArgumentException($"Ya existe un cliente con la cédula {cedula}.");
+        if (await _clientes.ExisteCedulaAsync(cedula, SesionActual.Modo, excluirId, ct))
+            throw new ArgumentException($"Ya existe un cliente con la cédula {cedula} en esta estancia.");
 
         return datos with
         {

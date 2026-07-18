@@ -1,6 +1,14 @@
 # TODO.md — FAControl
 
-> Actualizado: 2026-07-17 (cierre del Tier 5 — suite completa de 3 modos)
+> Actualizado: 2026-07-18 (aislamiento por estancia + acceso por modo)
+
+## ✅ Aislamiento por estancia + acceso por modo (COMPLETO — 2026-07-18)
+- [x] 3 dominios aislados de clientes (`cliente.ambito`), cédula única por ámbito; todas las lecturas de clientes scoped al modo activo
+- [x] Aislamiento PrestControl ↔ AutoControl en Cobros, Contratos, Panel y Reportes (filtro `vehiculo_id` por modo)
+- [x] Permisos de acceso por modo (`acceso_prestcontrol/dealercontrol/autocontrol`); puerta en el login; Admin siempre entra a todo
+- [x] Clientes habilitado en los 3 modos; migración 010 + espejo en 001; build limpio; 114 tests unitarios verdes
+- [ ] **Pendiente de verificación con MySQL arrancado**: aplicar `010_ambitos.sql` a `facontrol_db`, correr tests de integración (Data.Tests) y smoke (login rechazado sin acceso; clientes no se cruzan entre modos)
+- Nota: ficha de cliente en Dealer/Auto muestra la sección de préstamos vacía (es de crédito); afinar si el cliente lo pide. Export a Excel aún no filtra por modo (acción manual de Admin).
 
 ## ✅ Tier 5 — DealerControl + AutoControl (COMPLETO)
 - [x] 5.1 Dominio `vehiculo` (schema 001+008, modelo/repo/service, código V-0001, tests)

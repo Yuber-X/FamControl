@@ -12,6 +12,12 @@
   <SolidColorBrush x:Key="Brush.PrimarioSuave" Color="{StaticResource Color.Indigo100}" />
   <SolidColorBrush x:Key="Brush.PrimarioSutil" Color="{StaticResource Color.Indigo50}" />
 
+  <!-- Selección del ítem activo del sidebar. Default = índigo; MainWindow.MostrarModo
+       lo reemplaza EN CALIENTE por el acento del MODO activo (Prest dorado, Auto
+       verde, DealControl azul) para dejar claro dónde está parado el usuario. -->
+  <SolidColorBrush x:Key="Brush.SidebarSel.Texto" Color="{StaticResource Color.Indigo600}" />
+  <SolidColorBrush x:Key="Brush.SidebarSel.Fondo" Color="{StaticResource Color.Indigo50}" />
+
   <!-- Neutros -->
   <SolidColorBrush x:Key="Brush.FondoApp" Color="#FAFAF9" />
   <SolidColorBrush x:Key="Brush.FondoCard" Color="#FFFFFF" />

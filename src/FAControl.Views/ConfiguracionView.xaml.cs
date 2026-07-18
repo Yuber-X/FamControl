@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Navigation;
 using Microsoft.Win32;
 using FAControl.Common;
 using FAControl.ViewModels;
@@ -20,6 +22,13 @@ public partial class ConfiguracionView : UserControl
     // empuja al VM que la cifra con DPAPI antes de guardarla.
     private void CampoGmailPassword_PasswordChanged(object sender, RoutedEventArgs e) =>
         Vm?.GuardarPasswordCorreo(CampoGmailPassword.Password);
+
+    // Abre el enlace de "Contraseñas de aplicaciones" de Google en el navegador
+    private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+        e.Handled = true;
+    }
 
     // ---------- Tamaño de texto ----------
 

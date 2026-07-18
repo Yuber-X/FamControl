@@ -34,9 +34,17 @@ public partial class MainWindow : Window
         Title = $"{modo.Nombre} — Familia Almonte Auto Import SRL";
         NombreModo.Text = modo.Nombre;
         EtiquetaModo.Text = modo.Etiqueta;
-        var acento = new SolidColorBrush((Color)ColorConverter.ConvertFromString(modo.ColorHex));
+        var color = (Color)ColorConverter.ConvertFromString(modo.ColorHex);
+        var acento = new SolidColorBrush(color);
         MarcaModo.Background = acento;
         EtiquetaModo.Foreground = acento;
+
+        // El ítem seleccionado del sidebar toma el acento del MODO (pedido de
+        // Yuber 2026-07-18): dorado en Prest, verde en Auto, azul en DealControl.
+        // DynamicResource resuelve estas claves en Window.Resources antes que en
+        // App, así que sobreescribirlas acá repinta la selección en caliente.
+        Resources["Brush.SidebarSel.Texto"] = new SolidColorBrush(color);
+        Resources["Brush.SidebarSel.Fondo"] = new SolidColorBrush(color) { Opacity = 0.15 };
     }
 
     /// <summary>

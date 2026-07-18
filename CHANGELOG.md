@@ -2,6 +2,38 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [1.3.1] — 2026-07-18 · Correcciones de UX y pagaré
+
+### Fixed
+- **Sidebar**: "Préstamos"/"Nuevo préstamo" ya no necesitan doble click para marcarse (GroupName único por ítem: el gemelo colapsado de AutoControl ya no roba el check).
+- **Grid de préstamos**: columnas "Tasa" y "Cuotas" centradas (antes el dato iba a la izquierda con el título centrado).
+- **Correo**: se quitan los espacios del app password al pegarlo; mensaje de error accionable cuando Gmail rechaza credenciales (explica que hace falta App Password de 16 caracteres + 2FA); enlace directo a generar el App Password.
+
+### Changed
+- **Reportes**: un solo botón "Imprimir" gobernado por los combos (cliente → su reporte; solo usuario → sus cobros generales; sin filtro → global). Botones de acción alineados con los combos/datepickers.
+- **Pagaré**: zoom funcional (−/+ 50–300%), botón **Guardar PDF** (multipágina en hoja carta), y **encabezado de marca con el logo FA vectorial** (badge navy + monograma, no imagen pegada) con regla dorada.
+- **Clientes**: nota bajo el correo — opcional, pero sin él no se envían recordatorios (el correo del cliente se pone acá, no en Configuración).
+
+### Datos de prueba (Dev)
+- `scripts/db/seed_alertas_prueba.sql`: 3 clientes con cuotas por vencer, vencidas y en mora para probar el semáforo, las alertas del panel y los recordatorios (idempotente).
+
+## [1.3.0] — 2026-07-18 · Aislamiento por estancia + acceso por modo
+
+### Apariencia (paletas por modo)
+- **El ítem seleccionado del sidebar toma el color del modo activo**: dorado en PrestControl, verde en AutoControl, azul en DealControl (antes era índigo en los tres). Brushes dedicados `Brush.SidebarSel.*` que `MostrarModo` sobreescribe en caliente en `Window.Resources`; no toca botones ni el resto del acento.
+- **Modo noche por MODO**: cada estancia recuerda su propio tema y **DealControl arranca en modo noche** por defecto; el resto en claro. Editable en Configuración (persiste por modo, por PC). `AjustesLocales.TemaOscuroDe/FijarTemaOscuro`; el tema se aplica al elegir el modo en el launcher.
+- **DealerControl renombrado a "DealControl"** (nombre visible en launcher, shell y título). El identificador de código (`ModoApp.DealerControl`) y los valores de BD (`ambito='dealercontrol'`, permiso `acceso_dealercontrol`) se mantienen para no romper datos.
+
+### Added
+- **Acceso por modo (permisos)**: tres permisos nuevos `acceso_prestcontrol` / `acceso_dealercontrol` / `acceso_autocontrol`. El Admin decide desde la pantalla de Usuarios a qué estancias entra cada empleado; el Admin siempre entra a las tres. La **puerta se aplica en el login**: aunque la contraseña sea correcta, si el usuario no tiene el acceso del modo elegido no se abre sesión y ve un mensaje claro (no cuenta como intento fallido). `SesionActual.PuedeAccederModo` / `SesionActual.Modo`.
+- **Clientes en los tres modos**, cada estancia con los suyos: Dealer y Auto ahora gestionan sus propios clientes sin depender de PrestControl.
+
+### Cambios técnicos (aislamiento de datos — decisión Yuber 2026-07-18)
+- **3 dominios aislados de clientes** (`cliente.ambito` ENUM prestcontrol/dealercontrol/autocontrol). Toda lectura de clientes se scopea al modo activo (`SesionActual.Modo`): un cliente de PrestControl ya NO aparece al vender/alquilar/financiar vehículos, ni viceversa. Cédula **única por ámbito** (`UNIQUE(ambito, cedula)`), no global: la misma persona puede tener ficha independiente en dos estancias.
+- **Aislamiento PrestControl ↔ AutoControl** (ambos usan `prestamo`): Cobros, Almacén de contratos, Panel y Reportes se filtran por `vehiculo_id` según el modo (`SesionActual.SoloVehicularesDelModo`) — los créditos vehiculares no se mezclan con los préstamos personales en ninguna lista, KPI ni reporte.
+- Migración `010_ambitos.sql` (idempotente) + espejo en `001`: columna `ambito`, índice único compuesto, permisos de acceso, defaults por rol (Admin/Supervisor = 3 modos, Cobrador = solo PrestControl) y backfill de usuarios/clientes existentes a PrestControl.
+- Build Release sin warnings; **123 tests verdes** (114 unitarios + 9 integración). Migración 010 aplicada a `facontrol_db` y verificada; smoke de aislamiento OK (misma cédula en dos ámbitos permitida, duplicada en el mismo ámbito rechazada). Corregida aserción obsoleta del conteo de contadores (2 → 5, desde Tier 5).
+
 ## [1.2.0] — 2026-07-17 · Tier 5 — DealerControl y AutoControl (suite de 3 modos)
 
 ### Added

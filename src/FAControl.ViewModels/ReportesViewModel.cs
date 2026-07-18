@@ -85,22 +85,23 @@ public partial class ReportesViewModel : ObservableObject
         await GenerarAsync();
     }
 
-    /// <summary>Imprime el reporte del cliente FILTRADO (individual). Requiere un cliente elegido.</summary>
+    /// <summary>
+    /// UN solo botón de impresión, gobernado por los combos (pedido de Yuber
+    /// 2026-07-18):
+    ///   • cliente elegido            → reporte individual de ese cliente;
+    ///   • solo usuario elegido       → cobros generales de ese usuario (todos sus clientes);
+    ///   • nada elegido               → reporte global de todos los clientes.
+    /// El filtro de usuario se respeta siempre (ObtenerPorClienteAsync lo aplica).
+    /// </summary>
     [RelayCommand]
-    private async Task ImprimirClienteAsync()
+    private Task Imprimir()
     {
-        if (ClienteSeleccionado?.Valor is not { } clienteId)
-        {
-            _dialogos.Informar("Imprimir reporte",
-                "Elegí un cliente en el filtro para imprimir su reporte individual.");
-            return;
-        }
-        await ImprimirAsync($"Reporte de {ClienteSeleccionado.Texto}", clienteId);
+        if (ClienteSeleccionado?.Valor is { } clienteId)
+            return ImprimirAsync($"Reporte de {ClienteSeleccionado.Texto}", clienteId);
+        if (UsuarioSeleccionado?.Valor is not null)
+            return ImprimirAsync($"Cobros de {UsuarioSeleccionado.Texto}", clienteId: null);
+        return ImprimirAsync("Reporte de clientes", clienteId: null);
     }
-
-    /// <summary>Imprime el reporte GLOBAL: todos los clientes del período en una impresión.</summary>
-    [RelayCommand]
-    private Task ImprimirTodosAsync() => ImprimirAsync("Reporte de clientes", clienteId: null);
 
     private async Task ImprimirAsync(string titulo, long? clienteId)
     {

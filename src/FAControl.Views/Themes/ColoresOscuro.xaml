@@ -31,6 +31,11 @@
   <SolidColorBrush x:Key="Brush.PrimarioSuave" Color="{StaticResource Color.Indigo100}" />
   <SolidColorBrush x:Key="Brush.PrimarioSutil" Color="{StaticResource Color.Indigo50}" />
 
+  <!-- Selección del ítem activo del sidebar (default índigo aclarado). La reemplaza
+       en caliente MainWindow.MostrarModo con el acento del modo activo. -->
+  <SolidColorBrush x:Key="Brush.SidebarSel.Texto" Color="{StaticResource Color.Indigo600}" />
+  <SolidColorBrush x:Key="Brush.SidebarSel.Fondo" Color="{StaticResource Color.Indigo50}" />
+
   <!-- Neutros: la card es MÁS clara que el fondo (al revés que en claro),
        que es como el ojo percibe elevación en modo noche -->
   <SolidColorBrush x:Key="Brush.FondoApp" Color="#15161A" />

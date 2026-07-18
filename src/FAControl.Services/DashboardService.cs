@@ -29,6 +29,9 @@ public class DashboardService
             inicioMesLocal.AddHours(OffsetRdHoras),           // local → UTC
             inicioMesSiguienteLocal.AddHours(OffsetRdHoras),
             inicioMesAnteriorLocal.AddHours(OffsetRdHoras),
+            // El panel vive en PrestControl: aísla a préstamos personales
+            // (los créditos vehiculares de AutoControl no cuentan acá).
+            SesionActual.SoloVehicularesDelModo,
             ct);
     }
 }

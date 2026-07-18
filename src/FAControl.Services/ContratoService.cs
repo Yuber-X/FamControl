@@ -26,9 +26,13 @@ public class ContratoService
         _ajustes = ajustes;
     }
 
-    /// <summary>Todos los préstamos como filas del almacén de contratos.</summary>
+    /// <summary>
+    /// Préstamos como filas del almacén de contratos, AISLADOS por modo:
+    /// PrestControl muestra pagarés personales; AutoControl, los de créditos
+    /// vehiculares. Nunca se cruzan.
+    /// </summary>
     public Task<IReadOnlyList<PrestamoResumen>> ObtenerContratosAsync(CancellationToken ct = default) =>
-        _prestamos.ObtenerResumenesAsync(ct: ct);
+        _prestamos.ObtenerResumenesAsync(SesionActual.SoloVehicularesDelModo, ct);
 
     /// <summary>
     /// Reconstruye el pagaré de un préstamo existente (para verlo o reimprimirlo).

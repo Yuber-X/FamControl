@@ -26,9 +26,9 @@ public partial class App : Application
         ConfigurarSerilog();
         _servicios = ConfigurarServicios();
 
-        // El tema guardado se aplica ANTES de mostrar cualquier ventana: si no,
-        // el login aparecería claro y parpadearía a oscuro al abrir el shell.
-        Tema.Aplicar(_servicios.GetRequiredService<FAControl.Common.AjustesLocales>().TemaOscuro);
+        // El tema ya NO es global: depende del MODO elegido (DealControl arranca
+        // en modo noche). Se aplica en CicloDeVidaAsync apenas se elige el modo,
+        // antes del login de esa estancia, para que no parpadee.
 
         Log.Information("FAControl iniciando");
 
@@ -61,6 +61,10 @@ public partial class App : Application
             if (modo is null)
                 break;                       // cerró el launcher → se acaba la app
 
+            // El tema de la estancia elegida (DealControl arranca oscuro) se
+            // aplica ya: así el login de ese modo aparece con su tema, sin flicker.
+            Tema.Aplicar(_servicios!.GetRequiredService<AjustesLocales>().TemaOscuroDe(modo.Value));
+
             // Se queda en el login de ESTE modo hasta que entre o cancele.
             // "Cambiar usuario" vuelve acá sin pasar por el launcher.
             var volverAlLauncher = false;
@@ -92,6 +96,7 @@ public partial class App : Application
         // así que pedirlo aparte devolvería OTRA instancia y nos suscribiríamos
         // a un LoginExitoso que nunca se dispara.
         var loginVm = (LoginViewModel)login.DataContext;
+        loginVm.Modo = modo;   // decide qué acceso se exige (puerta por modo)
         login.MostrarModo(IdentidadModo.De(modo));
         MainWindow = login;
 
