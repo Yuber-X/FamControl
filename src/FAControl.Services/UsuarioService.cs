@@ -66,73 +66,86 @@ public class UsuarioService
         return await _usuarios.ObtenerPermisosAsync(usuarioId, ct);
     }
 
-    /// <summary>Permisos que da un rol por defecto (para premarcar las casillas).</summary>
-    public async Task<IReadOnlyList<string>> ObtenerPermisosDeRolAsync(int rolId, CancellationToken ct = default)
+    /// <summary>Roles POR MODO de un usuario (para precargar el formulario).</summary>
+    public async Task<RolesUsuario> ObtenerRolesDeUsuarioAsync(long usuarioId, CancellationToken ct = default)
     {
         ExigirAdmin();
-        return await _usuarios.ObtenerPermisosDeRolAsync(rolId, ct);
+        return await _usuarios.ObtenerRolesDeUsuarioAsync(usuarioId, ct);
     }
 
-    /// <summary>Crea un empleado. El trigger le siembra los permisos del rol.</summary>
+    /// <summary>
+    /// Crea un empleado y le asigna sus roles POR MODO (o Admin global).
+    /// Los permisos efectivos se recomputan como la unión de esos roles.
+    /// </summary>
     public async Task<long> CrearAsync(string username, string nombre, string? apellido,
-        int rolId, string password, CancellationToken ct = default)
+        RolesUsuario roles, string password, CancellationToken ct = default)
     {
         ExigirAdmin();
         ValidarDatos(username, nombre);
         ValidarPassword(password);
+        ValidarTieneAlgunAcceso(roles);
 
         if (await _usuarios.ObtenerPorUsernameAsync(username.Trim(), ct) is not null)
             throw new InvalidOperationException($"Ya existe un usuario con el username '{username.Trim()}'.");
 
+        var rolAdminId = await _usuarios.ObtenerRolAdminIdAsync(ct);
         var hash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: CostBcrypt);
         var id = await _usuarios.CrearAsync(username.Trim(), hash, nombre.Trim(),
-            string.IsNullOrWhiteSpace(apellido) ? null : apellido.Trim(), rolId, ct);
+            string.IsNullOrWhiteSpace(apellido) ? null : apellido.Trim(),
+            roles.EsAdmin ? rolAdminId : null, ct);
 
-        var roles = await _usuarios.ObtenerRolesAsync(ct);
-        var rol = roles.FirstOrDefault(r => r.Id == rolId)?.Nombre ?? "sin rol";
+        await _usuarios.GuardarRolesPorModoAsync(id, roles, rolAdminId, ct);
+
         await _auditoria.RegistrarAsync(AccionAuditoria.Crear, DbNames.Usuario, id,
-            $"Usuario {username.Trim()} creado con rol {rol}", ct);
-        Log.Information("Usuario {Username} creado con rol {Rol} por {Admin}",
-            username.Trim(), rol, SesionActual.Username);
+            $"Usuario {username.Trim()} creado ({DescribirRoles(roles)})", ct);
+        Log.Information("Usuario {Username} creado por {Admin}", username.Trim(), SesionActual.Username);
         return id;
     }
 
-    /// <summary>Actualiza datos y rol. Cambiar el rol RESIEMBRA los permisos (vía trigger).</summary>
-    public async Task ActualizarAsync(long id, string nombre, string? apellido, int rolId,
-        bool activo, CancellationToken ct = default)
+    /// <summary>Actualiza datos y roles por modo. Recomputa la unión de permisos.</summary>
+    public async Task ActualizarAsync(long id, string nombre, string? apellido,
+        RolesUsuario roles, bool activo, CancellationToken ct = default)
     {
         ExigirAdmin();
         if (string.IsNullOrWhiteSpace(nombre))
             throw new ArgumentException("El nombre es obligatorio.");
+        ValidarTieneAlgunAcceso(roles);
 
         var antes = await _usuarios.ObtenerPorIdAsync(id, ct)
             ?? throw new InvalidOperationException("El usuario no existe.");
+        var eraAdmin = antes.RolNombre == Roles.Admin;
 
-        var roles = await _usuarios.ObtenerRolesAsync(ct);
-        var rolNuevo = roles.FirstOrDefault(r => r.Id == rolId)
-            ?? throw new InvalidOperationException("El rol indicado no existe.");
-
-        // Un Admin no puede autodesactivarse ni degradarse: se quedaría fuera
-        // de su propia aplicación en caliente.
+        // Un Admin no puede autodesactivarse ni quitarse la administración.
         if (id == SesionActual.Id && !activo)
             throw new InvalidOperationException("No podés desactivar tu propia cuenta.");
-        if (id == SesionActual.Id && antes.RolNombre == Roles.Admin && rolNuevo.Nombre != Roles.Admin)
+        if (id == SesionActual.Id && eraAdmin && !roles.EsAdmin)
             throw new InvalidOperationException("No podés quitarte a vos mismo el rol de Admin.");
 
         // El negocio nunca puede quedarse sin un Admin activo.
-        var perderiaAdmin = antes.RolNombre == Roles.Admin && antes.Activo
-                            && (rolNuevo.Nombre != Roles.Admin || !activo);
+        var perderiaAdmin = eraAdmin && antes.Activo && (!roles.EsAdmin || !activo);
         if (perderiaAdmin && await _usuarios.ContarAdminsActivosAsync(ct) <= 1)
             throw new InvalidOperationException(
                 "Es el único Admin activo. Asigná otro Admin antes de cambiar este.");
 
+        // Datos básicos (el rol_id lo fija GuardarRolesPorModo); activo va acá.
         await _usuarios.ActualizarAsync(id, nombre.Trim(),
-            string.IsNullOrWhiteSpace(apellido) ? null : apellido.Trim(), rolId, activo, ct);
+            string.IsNullOrWhiteSpace(apellido) ? null : apellido.Trim(), antes.RolId, activo, ct);
+        var rolAdminId = await _usuarios.ObtenerRolAdminIdAsync(ct);
+        await _usuarios.GuardarRolesPorModoAsync(id, roles, rolAdminId, ct);
 
         await _auditoria.RegistrarAsync(AccionAuditoria.Modificar, DbNames.Usuario, id,
-            $"Usuario {antes.Username}: rol {antes.RolNombre} → {rolNuevo.Nombre}, " +
-            $"activo {antes.Activo} → {activo}", ct);
+            $"Usuario {antes.Username}: {DescribirRoles(roles)}, activo {antes.Activo} → {activo}", ct);
     }
+
+    private static void ValidarTieneAlgunAcceso(RolesUsuario r)
+    {
+        if (!r.EsAdmin && r.RolPrestId is null && r.RolDealerId is null && r.RolAutoId is null)
+            throw new ArgumentException("Asigná al menos un rol (en algún modo) o marcá administrador.");
+    }
+
+    private static string DescribirRoles(RolesUsuario r) => r.EsAdmin
+        ? "Administrador"
+        : $"Prest={r.RolPrestId?.ToString() ?? "—"}, Dealer={r.RolDealerId?.ToString() ?? "—"}, Auto={r.RolAutoId?.ToString() ?? "—"}";
 
     /// <summary>
     /// El Admin restablece la contraseña de un empleado SIN conocer la anterior
@@ -156,28 +169,6 @@ public class UsuarioService
             $"Contraseña de {usuario.Username} restablecida por {SesionActual.Username}", ct);
         Log.Information("Contraseña de {Username} restablecida por {Admin}",
             usuario.Username, SesionActual.Username);
-    }
-
-    /// <summary>Overrides: ajusta los permisos de un usuario sin cambiarle el rol.</summary>
-    public async Task GuardarPermisosAsync(long usuarioId, IEnumerable<string> codigos,
-        CancellationToken ct = default)
-    {
-        ExigirAdmin();
-        var usuario = await _usuarios.ObtenerPorIdAsync(usuarioId, ct)
-            ?? throw new InvalidOperationException("El usuario no existe.");
-
-        var lista = codigos.Distinct().ToList();
-
-        // Un Admin no puede quitarse a si mismo la administracion de usuarios:
-        // se quedaria sin poder volver a entrar a esta pantalla.
-        if (usuarioId == SesionActual.Id &&
-            (!lista.Contains(Permisos.Usuarios) || !lista.Contains(Permisos.Configuracion)))
-            throw new InvalidOperationException(
-                "No podés quitarte a vos mismo los permisos de Usuarios o Configuración.");
-
-        await _usuarios.ReemplazarPermisosAsync(usuarioId, lista, ct);
-        await _auditoria.RegistrarAsync(AccionAuditoria.Modificar, DbNames.Usuario, usuarioId,
-            $"Permisos de {usuario.Username}: {string.Join(", ", lista.OrderBy(c => c))}", ct);
     }
 
     private static void ValidarDatos(string username, string nombre)

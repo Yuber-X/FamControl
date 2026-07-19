@@ -138,13 +138,13 @@ public class AlquilerService
 
     private static void ExigirLectura()
     {
-        if (!SesionActual.TienePermiso(Permisos.Vehiculos))
+        if (!SesionActual.TienePermiso(Permisos.Alquileres))
             throw new UnauthorizedAccessException("No tenés permiso para ver los alquileres.");
     }
 
     private static void ExigirEscritura()
     {
-        if (!SesionActual.TienePermiso(Permisos.VehiculosEditar))
+        if (!SesionActual.TienePermiso(Permisos.Alquileres))
             throw new UnauthorizedAccessException("No tenés permiso para gestionar alquileres.");
     }
 }

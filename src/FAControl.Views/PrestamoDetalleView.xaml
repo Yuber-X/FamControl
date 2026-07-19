@@ -11,44 +11,56 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <!-- Header: volver + código/cliente + acciones -->
-    <DockPanel Grid.Row="0" Margin="0,0,0,16">
-      <Button DockPanel.Dock="Left" Content="← Préstamos"
-              Style="{DynamicResource Boton.Terciario}"
-              VerticalAlignment="Center"
-              Command="{Binding VolverCommand}" />
-      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-        <!-- Imprimir: disponible SIEMPRE, tambien en prestamos pagados o
+    <!-- Header en DOS filas (pedido de Yuber 2026-07-18): arriba volver +
+         código/cliente/estado; los botones de acción DEBAJO. -->
+    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+      <DockPanel>
+        <Button DockPanel.Dock="Left" Content="← Préstamos"
+                Style="{DynamicResource Boton.Terciario}"
+                VerticalAlignment="Center"
+                Command="{Binding VolverCommand}" />
+        <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding Codigo}" Style="{DynamicResource Texto.Titulo2}"
+                       FontFamily="{DynamicResource Fuente.Mono}" VerticalAlignment="Center" />
+          </Viewbox>
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding ClienteNombre}" Style="{DynamicResource Texto.Titulo2}" VerticalAlignment="Center" />
+          </Viewbox>
+          <Border Style="{DynamicResource Pill.EstadoPrestamo}" VerticalAlignment="Center">
+            <TextBlock Text="{Binding EstadoTexto}" Style="{DynamicResource Pill.EstadoPrestamo.Texto}" />
+          </Border>
+        </StackPanel>
+      </DockPanel>
+
+      <!-- Acciones, debajo -->
+      <WrapPanel Orientation="Horizontal" Margin="0,14,0,0">
+        <!-- Imprimir: disponible SIEMPRE, también en préstamos pagados o
              cancelados (el cliente puede necesitar el historial impreso) -->
         <Button Content="Imprimir" Style="{DynamicResource Boton.Secundario}"
                 Command="{Binding ImprimirCommand}"
-                Margin="0,0,8,0" />
+                Margin="0,0,8,8" />
         <!-- Intimación de pago: requerimiento formal para cuotas vencidas
              (ver docs/INTIMACION-Y-MANDAMIENTO.md) -->
         <Button Content="Intimación de pago" Style="{DynamicResource Boton.Secundario}"
                 Command="{Binding ImprimirIntimacionCommand}"
-                Margin="0,0,8,0" />
+                Margin="0,0,8,8" />
+        <!-- Recordatorio individual al correo del cliente de este préstamo -->
+        <Button Content="Enviar recordatorio" Style="{DynamicResource Boton.Secundario}"
+                Command="{Binding EnviarRecordatorioCommand}"
+                ToolTip="Envía un recordatorio de pago al correo de este cliente"
+                Visibility="{Binding EsActivo, Converter={StaticResource BoolAVisibilidad}}"
+                Margin="0,0,8,8" />
         <Button Content="Cancelar préstamo" Style="{DynamicResource Boton.Destructivo}"
                 Command="{Binding CancelarPrestamoCommand}"
                 Visibility="{Binding EsActivo, Converter={StaticResource BoolAVisibilidad}}"
-                Margin="0,0,8,0" />
+                Margin="0,0,8,8" />
         <Button Content="Registrar pago" Style="{DynamicResource Boton.Primario}"
                 Command="{Binding CobrarCommand}"
-                Visibility="{Binding EsActivo, Converter={StaticResource BoolAVisibilidad}}" />
-      </StackPanel>
-      <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
-        <Viewbox Style="{DynamicResource Metrica.Valor}">
-          <TextBlock Text="{Binding Codigo}" Style="{DynamicResource Texto.Titulo2}"
-                     FontFamily="{DynamicResource Fuente.Mono}" VerticalAlignment="Center" />
-        </Viewbox>
-        <Viewbox Style="{DynamicResource Metrica.Valor}">
-          <TextBlock Text="{Binding ClienteNombre}" Style="{DynamicResource Texto.Titulo2}" VerticalAlignment="Center" />
-        </Viewbox>
-        <Border Style="{DynamicResource Pill.EstadoPrestamo}" VerticalAlignment="Center">
-          <TextBlock Text="{Binding EstadoTexto}" Style="{DynamicResource Pill.EstadoPrestamo.Texto}" />
-        </Border>
-      </StackPanel>
-    </DockPanel>
+                Visibility="{Binding EsActivo, Converter={StaticResource BoolAVisibilidad}}"
+                Margin="0,0,0,8" />
+      </WrapPanel>
+    </StackPanel>
 
     <!-- Métricas -->
     <UniformGrid Grid.Row="1" Rows="1" Columns="4" Margin="0,0,0,12">

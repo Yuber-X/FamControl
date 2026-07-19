@@ -86,6 +86,10 @@ public static class Roles
     public const string Admin = "Admin";
     public const string Supervisor = "Supervisor";
     public const string Cobrador = "Cobrador";
+    // Roles de los modos de vehículos (011). 'Vendedor'/'Encargado' se repiten
+    // entre DealControl y AutoControl (únicos por nombre+modo en la BD).
+    public const string Encargado = "Encargado";
+    public const string Vendedor = "Vendedor";
 }
 
 /// <summary>
@@ -109,6 +113,12 @@ public static class Permisos
     // DealerControl (Tier 5)
     public const string Vehiculos = "vehiculos";
     public const string VehiculosEditar = "vehiculos_editar";
+    // DealControl — permisos finos por operación (roles por modo, 011)
+    public const string Inventario = "inventario";
+    public const string InventarioEditar = "inventario_editar";
+    public const string Ventas = "ventas";
+    public const string Alquileres = "alquileres";
+    public const string Gastos = "gastos";
 
     // Acceso por modo/estancia (aislamiento — cliente 2026-07-18).
     // El Admin entra a todos sin necesitarlos; estos gobiernan a los demás.
@@ -131,6 +141,7 @@ public static class Permisos
         Panel, Clientes, ClientesEditar, Prestamos, PrestamosCrear, PrestamosAutorizar,
         PrestamosCancelar, Cobros, Reportes, Historial, Usuarios, Configuracion,
         Vehiculos, VehiculosEditar,
+        Inventario, InventarioEditar, Ventas, Alquileres, Gastos,
         AccesoPrestControl, AccesoDealerControl, AccesoAutoControl
     ];
 }

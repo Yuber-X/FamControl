@@ -119,7 +119,7 @@ public class UsuarioRepository
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
-        cmd.CommandText = $"SELECT id, nombre, descripcion FROM {DbNames.Rol} ORDER BY id;";
+        cmd.CommandText = $"SELECT id, nombre, modo, descripcion FROM {DbNames.Rol} ORDER BY id;";
 
         var lista = new List<Rol>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -128,9 +128,151 @@ public class UsuarioRepository
             {
                 Id = reader.GetInt32("id"),
                 Nombre = reader.GetString("nombre"),
+                Modo = reader.IsDBNull(reader.GetOrdinal("modo")) ? null : reader.GetString("modo"),
                 Descripcion = reader.IsDBNull(reader.GetOrdinal("descripcion")) ? null : reader.GetString("descripcion")
             });
         return lista;
+    }
+
+    /// <summary>Roles POR MODO de un usuario (para el formulario de Usuarios).</summary>
+    public async Task<RolesUsuario> ObtenerRolesDeUsuarioAsync(long usuarioId, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        int? prest = null, dealer = null, auto = null;
+        using (var cmd = conexion.CreateCommand())
+        {
+            cmd.CommandText = $"SELECT modo, rol_id FROM {DbNames.UsuarioModoRol} WHERE usuario_id = @id;";
+            cmd.Parameters.AddWithValue("@id", usuarioId);
+            using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                var rolId = reader.GetInt32("rol_id");
+                switch (reader.GetString("modo"))
+                {
+                    case "prestcontrol": prest = rolId; break;
+                    case "dealercontrol": dealer = rolId; break;
+                    case "autocontrol": auto = rolId; break;
+                }
+            }
+        }
+        bool esAdmin;
+        using (var cmd = conexion.CreateCommand())
+        {
+            cmd.CommandText = $"""
+                SELECT COUNT(*) FROM {DbNames.Usuario} u JOIN {DbNames.Rol} r ON r.id = u.rol_id
+                WHERE u.id = @id AND r.nombre = @admin;
+                """;
+            cmd.Parameters.AddWithValue("@id", usuarioId);
+            cmd.Parameters.AddWithValue("@admin", Roles.Admin);
+            esAdmin = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct)) > 0;
+        }
+        return new RolesUsuario(esAdmin, prest, dealer, auto);
+    }
+
+    /// <summary>Nombre del rol del usuario en un modo (para mostrarlo en la sesión). Null si no tiene.</summary>
+    public async Task<string?> ObtenerRolDeModoAsync(long usuarioId, string modo, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT r.nombre FROM {DbNames.UsuarioModoRol} umr
+            JOIN {DbNames.Rol} r ON r.id = umr.rol_id
+            WHERE umr.usuario_id = @id AND umr.modo = @modo;
+            """;
+        cmd.Parameters.AddWithValue("@id", usuarioId);
+        cmd.Parameters.AddWithValue("@modo", modo);
+        return (await cmd.ExecuteScalarAsync(ct)) as string;
+    }
+
+    /// <summary>Id del rol Admin (global). Para marcar/quitar la administración.</summary>
+    public async Task<int?> ObtenerRolAdminIdAsync(CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"SELECT id FROM {DbNames.Rol} WHERE nombre = @admin AND modo IS NULL LIMIT 1;";
+        cmd.Parameters.AddWithValue("@admin", Roles.Admin);
+        var r = await cmd.ExecuteScalarAsync(ct);
+        return r is null or DBNull ? null : Convert.ToInt32(r);
+    }
+
+    /// <summary>
+    /// Guarda los roles por modo de un usuario de forma ATÓMICA y recomputa su
+    /// usuario_permiso (la UNIÓN de los roles elegidos, o TODO si es Admin).
+    /// El login sigue leyendo usuario_permiso sin cambios.
+    /// </summary>
+    public async Task GuardarRolesPorModoAsync(long usuarioId, RolesUsuario roles,
+        int? rolAdminId, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var tx = await conexion.BeginTransactionAsync(ct);
+        try
+        {
+            // 1. rol_id global: Admin o NULL. (El trigger tocará usuario_permiso;
+            //    lo recomputamos en el paso 3, así que su efecto se sobrescribe.)
+            using (var cmd = conexion.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = $"UPDATE {DbNames.Usuario} SET rol_id = @rol, updated_at = UTC_TIMESTAMP() WHERE id = @id;";
+                cmd.Parameters.AddWithValue("@rol", roles.EsAdmin ? (object?)rolAdminId ?? DBNull.Value : DBNull.Value);
+                cmd.Parameters.AddWithValue("@id", usuarioId);
+                await cmd.ExecuteNonQueryAsync(ct);
+            }
+
+            // 2. usuario_modo_rol: reemplazar por los roles elegidos (no-admin)
+            using (var cmd = conexion.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = $"DELETE FROM {DbNames.UsuarioModoRol} WHERE usuario_id = @id;";
+                cmd.Parameters.AddWithValue("@id", usuarioId);
+                await cmd.ExecuteNonQueryAsync(ct);
+            }
+            if (!roles.EsAdmin)
+            {
+                foreach (var (modo, rolId) in new[]
+                    { ("prestcontrol", roles.RolPrestId), ("dealercontrol", roles.RolDealerId), ("autocontrol", roles.RolAutoId) })
+                {
+                    if (rolId is not { } rid) continue;
+                    using var cmd = conexion.CreateCommand();
+                    cmd.Transaction = tx;
+                    cmd.CommandText = $"INSERT INTO {DbNames.UsuarioModoRol} (usuario_id, modo, rol_id) VALUES (@id, @modo, @rol);";
+                    cmd.Parameters.AddWithValue("@id", usuarioId);
+                    cmd.Parameters.AddWithValue("@modo", modo);
+                    cmd.Parameters.AddWithValue("@rol", rid);
+                    await cmd.ExecuteNonQueryAsync(ct);
+                }
+            }
+
+            // 3. Recomputar usuario_permiso: TODO si Admin, si no la UNIÓN de los roles.
+            using (var cmd = conexion.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = $"DELETE FROM {DbNames.UsuarioPermiso} WHERE usuario_id = @id;";
+                cmd.Parameters.AddWithValue("@id", usuarioId);
+                await cmd.ExecuteNonQueryAsync(ct);
+            }
+            using (var cmd = conexion.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = roles.EsAdmin
+                    ? $"INSERT IGNORE INTO {DbNames.UsuarioPermiso} (usuario_id, permiso_id) SELECT @id, p.id FROM {DbNames.Permiso} p;"
+                    : $"""
+                        INSERT IGNORE INTO {DbNames.UsuarioPermiso} (usuario_id, permiso_id)
+                        SELECT @id, rp.permiso_id
+                        FROM {DbNames.UsuarioModoRol} umr
+                        JOIN {DbNames.RolPermiso} rp ON rp.rol_id = umr.rol_id
+                        WHERE umr.usuario_id = @id;
+                        """;
+                cmd.Parameters.AddWithValue("@id", usuarioId);
+                await cmd.ExecuteNonQueryAsync(ct);
+            }
+
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
     }
 
     public async Task<IReadOnlyList<Permiso>> ObtenerCatalogoPermisosAsync(CancellationToken ct = default)

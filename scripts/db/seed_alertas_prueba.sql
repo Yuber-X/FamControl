@@ -13,7 +13,7 @@ DELETE FROM cliente WHERE cedula IN ('402-0000001-1','402-0000002-2','402-000000
 
 -- ================= Cliente A: EN MORA + vencido =================
 INSERT INTO cliente (ambito, cedula, nombre, apellido, telefono, email)
-  VALUES ('prestcontrol','402-0000001-1','Carlos','Moroso','809-555-0101','diegamer159@gmail.com');
+  VALUES ('prestcontrol','402-0000001-1','Carlos','Moroso','809-555-0101','carlos.moroso@example.com');
 SET @cliA := LAST_INSERT_ID();
 INSERT INTO prestamo (codigo, cliente_id, monto_capital, tasa_interes, plazo_cuotas, modalidad,
                       metodo_amortizacion, fecha_inicio, estado, notas)
@@ -28,7 +28,7 @@ INSERT INTO cuota (prestamo_id, numero_cuota, fecha_vencimiento, capital, intere
 
 -- ================= Cliente B: POR VENCER (≤7 días) =================
 INSERT INTO cliente (ambito, cedula, nombre, apellido, telefono, email)
-  VALUES ('prestcontrol','402-0000002-2','Rosa','PorVencer','809-555-0202','yubersantanalizardo@gmail.com');
+  VALUES ('prestcontrol','402-0000002-2','Rosa','PorVencer','809-555-0202','rosa.porvencer@example.com');
 SET @cliB := LAST_INSERT_ID();
 INSERT INTO prestamo (codigo, cliente_id, monto_capital, tasa_interes, plazo_cuotas, modalidad,
                       metodo_amortizacion, fecha_inicio, estado, notas)

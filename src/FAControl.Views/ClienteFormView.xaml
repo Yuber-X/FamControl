@@ -36,14 +36,16 @@
           </Grid.ColumnDefinitions>
           <StackPanel Grid.Column="0">
             <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
-            <TextBox Style="{DynamicResource Input.Texto}"
+            <TextBox x:Name="CampoCedula" Style="{DynamicResource Input.Texto}"
                      Text="{Binding Cedula, UpdateSourceTrigger=PropertyChanged}"
+                     TextChanged="CampoCedula_TextChanged"
                      ToolTip="001-1234567-8 (o pasaporte para extranjeros)" />
           </StackPanel>
           <StackPanel Grid.Column="2">
             <TextBlock Text="Teléfono" Style="{DynamicResource Input.Label}" />
-            <TextBox Style="{DynamicResource Input.Texto}"
-                     Text="{Binding Telefono, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBox x:Name="CampoTelefono" Style="{DynamicResource Input.Texto}"
+                     Text="{Binding Telefono, UpdateSourceTrigger=PropertyChanged}"
+                     TextChanged="CampoTelefono_TextChanged" />
           </StackPanel>
         </Grid>
 

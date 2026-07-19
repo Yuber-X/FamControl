@@ -1,6 +1,13 @@
 # TODO.md — FAControl
 
-> Actualizado: 2026-07-18 (aislamiento por estancia + acceso por modo)
+> Actualizado: 2026-07-19 (roles por modo)
+
+## ✅ Roles por modo (COMPLETO — 2026-07-19)
+- [x] Esquema: `usuario_modo_rol`, `rol.modo`, clave única `(nombre, modo)`, roles Encargado/Vendedor y permisos propios de Dealer/Auto (`inventario`, `inventario_editar`, `ventas`, `alquileres`, `gastos`) — migración 011 + espejo en 001
+- [x] Auth: el login muestra el rol del modo en el que entró (no un rol global); `usuario_permiso` sigue siendo la unión efectiva
+- [x] Usuarios UI: check "Administrador" + un ComboBox de rol por cada modo ("Sin acceso" = no entra); `GuardarRolesPorModoAsync` recalcula la unión atómicamente
+- [x] Wiring: sidebar y services de Dealer/Auto usan los permisos nuevos (`Inventario/InventarioEditar/Ventas/Alquileres/Gastos`)
+- [x] Migración 011 aplicada a `facontrol_db`; build sin warnings; 123 tests verdes; smoke SQL + harness del camino de escritura OK
 
 ## ✅ Aislamiento por estancia + acceso por modo (COMPLETO — 2026-07-18)
 - [x] 3 dominios aislados de clientes (`cliente.ambito`), cédula única por ámbito; todas las lecturas de clientes scoped al modo activo

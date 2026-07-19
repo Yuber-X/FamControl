@@ -1,0 +1,53 @@
+<Window x:Class="FAControl.Views.HistorialFichaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Detalle del registro"
+        Width="560" SizeToContent="Height" MaxHeight="640"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{DynamicResource Brush.FondoApp}">
+
+  <Border Margin="20" Style="{DynamicResource Card}" Padding="24">
+    <StackPanel>
+      <TextBlock Text="Detalle del registro" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,16" />
+
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="130" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="FECHA Y HORA" Style="{DynamicResource Texto.MicroLabel}" Margin="0,0,0,10" />
+        <TextBlock Grid.Row="0" Grid.Column="1" x:Name="ValorFecha" Style="{DynamicResource Texto.CuerpoEnfatizado}" Margin="0,0,0,10" />
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="USUARIO" Style="{DynamicResource Texto.MicroLabel}" Margin="0,0,0,10" />
+        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="ValorUsuario" Style="{DynamicResource Texto.CuerpoEnfatizado}" Margin="0,0,0,10" />
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="ACCIÓN" Style="{DynamicResource Texto.MicroLabel}" Margin="0,0,0,10" />
+        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ValorAccion" Style="{DynamicResource Texto.CuerpoEnfatizado}" Margin="0,0,0,10" />
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="ENTIDAD" Style="{DynamicResource Texto.MicroLabel}" Margin="0,0,0,10" />
+        <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ValorEntidad" Style="{DynamicResource Texto.CuerpoEnfatizado}" Margin="0,0,0,10" />
+      </Grid>
+
+      <TextBlock Text="DESCRIPCIÓN" Style="{DynamicResource Texto.MicroLabel}" Margin="0,6,0,6" />
+      <!-- TextBox de solo lectura: permite seleccionar/copiar y hace scroll con
+           descripciones largas (antes de agrandaba el grid y no se veía completa). -->
+      <Border BorderBrush="{DynamicResource Brush.BordeSutil}" BorderThickness="1" CornerRadius="6">
+        <TextBox x:Name="ValorDescripcion" IsReadOnly="True" BorderThickness="0"
+                 Background="Transparent" Foreground="{DynamicResource Brush.TextoPrincipal}"
+                 TextWrapping="Wrap" AcceptsReturn="True" Padding="12,10"
+                 MaxHeight="280" VerticalScrollBarVisibility="Auto" />
+      </Border>
+
+      <Button Content="Cerrar" Style="{DynamicResource Boton.Primario}" MinWidth="120"
+              HorizontalAlignment="Right" Margin="0,18,0,0" Click="BotonCerrar_Click" />
+    </StackPanel>
+  </Border>
+</Window>

@@ -161,11 +161,11 @@ public partial class MainViewModel : ObservableObject
     /// <summary>El contrato es el pagaré del préstamo: reusa el permiso de préstamos.</summary>
     public bool PuedeVerContratos => EsCredito && SesionActual.TienePermiso(Permisos.Prestamos);
     public bool PuedeVerReportes => EsCredito && SesionActual.TienePermiso(Permisos.Reportes);
-    /// <summary>Inventario, ventas al contado, alquileres y gastos: exclusivos de DealerControl.</summary>
-    public bool PuedeVerVehiculos => EsDealerControl && SesionActual.TienePermiso(Permisos.Vehiculos);
-    public bool PuedeVerVentas => EsDealerControl && SesionActual.TienePermiso(Permisos.Vehiculos);
-    public bool PuedeVerAlquileres => EsDealerControl && SesionActual.TienePermiso(Permisos.Vehiculos);
-    public bool PuedeVerGastos => EsDealerControl && SesionActual.TienePermiso(Permisos.Vehiculos);
+    /// <summary>Inventario, ventas, alquileres y gastos: exclusivos de DealControl, con permisos FINOS (roles por modo).</summary>
+    public bool PuedeVerVehiculos => EsDealerControl && SesionActual.TienePermiso(Permisos.Inventario);
+    public bool PuedeVerVentas => EsDealerControl && SesionActual.TienePermiso(Permisos.Ventas);
+    public bool PuedeVerAlquileres => EsDealerControl && SesionActual.TienePermiso(Permisos.Alquileres);
+    public bool PuedeVerGastos => EsDealerControl && SesionActual.TienePermiso(Permisos.Gastos);
     public bool PuedeVerHistorial => SesionActual.TienePermiso(Permisos.Historial);
     public bool PuedeVerUsuarios => SesionActual.TienePermiso(Permisos.Usuarios);
     /// <summary>Configuración es EXCLUSIVA de Admin (regla del cliente).</summary>

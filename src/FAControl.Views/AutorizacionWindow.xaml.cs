@@ -20,6 +20,7 @@ public partial class AutorizacionWindow : Window
     public AutorizacionWindow(string motivo, Func<string, string, Task<string?>> validar)
     {
         InitializeComponent();
+        ChromeVentana.OcultarBotones(this);
         _validar = validar;
         TextoMotivo.Text = motivo;
         Loaded += (_, _) => CajaUsuario.Focus();

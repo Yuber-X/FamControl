@@ -1,4 +1,5 @@
 using FAControl.Common;
+using FAControl.Models;
 using FAControl.Services;
 using FluentAssertions;
 using Xunit;
@@ -29,7 +30,8 @@ public class UsuarioServiceTests : IDisposable
     {
         IniciarComo(rol);
 
-        var accion = () => _servicio.CrearAsync("nuevo", "Nuevo", null, 1, "password123");
+        var accion = () => _servicio.CrearAsync("nuevo", "Nuevo", null,
+            new RolesUsuario(true, null, null, null), "password123");
 
         await accion.Should().ThrowAsync<UnauthorizedAccessException>()
             .WithMessage("*administrador*");
@@ -58,11 +60,11 @@ public class UsuarioServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GuardarPermisosAsync_sin_ser_admin_es_rechazado()
+    public async Task ObtenerRolesDeUsuario_sin_ser_admin_es_rechazado()
     {
         IniciarComo(Roles.Cobrador);
 
-        var accion = () => _servicio.GuardarPermisosAsync(2, [Permisos.Panel]);
+        var accion = () => _servicio.ObtenerRolesDeUsuarioAsync(2);
 
         await accion.Should().ThrowAsync<UnauthorizedAccessException>();
     }
@@ -97,7 +99,8 @@ public class UsuarioServiceTests : IDisposable
     {
         IniciarComo(Roles.Admin);
 
-        var accion = () => _servicio.CrearAsync("nuevo", "Nuevo", null, 1, "corta");
+        var accion = () => _servicio.CrearAsync("nuevo", "Nuevo", null,
+            new RolesUsuario(true, null, null, null), "corta");
 
         await accion.Should().ThrowAsync<ArgumentException>()
             .WithMessage($"*{UsuarioService.MinLargoPassword}*");

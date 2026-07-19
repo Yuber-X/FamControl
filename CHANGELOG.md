@@ -2,6 +2,52 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [1.3.5] — 2026-07-19 · Roles por modo (permisos diferenciados por estancia)
+
+### Added
+- **Roles por modo**: al dar acceso a un empleado, el Admin ya no marca permisos sueltos — elige **un rol por cada estancia** (PrestControl / DealControl / AutoControl) o lo hace **Administrador** (acceso total a los tres). Cada rol trae sus propios permisos. "Sin acceso" en un modo = ese empleado no entra ahí.
+- **Roles propios de Dealer/Auto**, distintos a PrestControl y con **permisos con nombres propios**: `inventario`, `inventario_editar`, `ventas`, `alquileres`, `gastos`. Roles nuevos **Encargado** (gestión completa: puede editar inventario y registrar gastos) y **Vendedor** (opera ventas/alquileres/inventario, sin editar inventario ni gastos) para `dealercontrol` y `autocontrol`.
+- **Equivalencia de nivel entre modos**: si Jessi es Cobradora en PrestControl y se le da acceso a DealControl como Vendedora, entra a Dealer con los permisos de Vendedora — el rol y su nivel se respetan por estancia, no se arrastra el de PrestControl.
+- El **rol mostrado en la barra** ahora es el del modo en el que se entró (Cobrador en Prest, Encargado en Dealer, etc.), no un rol global.
+
+### Cambios técnicos
+- Tabla `usuario_modo_rol (usuario_id, modo, rol_id)` guarda la elección por estancia; `usuario_permiso` sigue siendo la **unión efectiva** (el login no cambia de semántica). `GuardarRolesPorModoAsync` recalcula la unión de forma atómica en la misma transacción.
+- `rol.modo` etiqueta cada rol a su estancia; clave única `(nombre, modo)` para permitir "Encargado" en Dealer y en Auto sin chocar. Admin = `usuario.rol_id` = rol Admin global (todos los permisos).
+- Migración `011_roles_por_modo.sql` (idempotente) + espejo en `001`: columna `modo`, roles y permisos nuevos, `rol_permiso` de cada rol, y migración de usuarios existentes a `usuario_modo_rol` recalculando su unión.
+- Build Release sin warnings; **123 tests verdes**. Migración 011 aplicada a `facontrol_db` y verificada; smoke por SQL + harness del camino de escritura OK (unión correcta, Admin = 22/22 permisos, rol por modo bien mostrado).
+
+## [1.3.4] — 2026-07-18 · Pulido final de grids
+
+### Fixed
+- **Préstamos**: columna "Cliente" con ancho fijo → el grid se DESPLAZA horizontalmente (y vertical) mostrando todos los datos completos en vez de comprimir/cortar.
+- **Detalle de préstamo**: los botones de acción se movieron a una fila DEBAJO del "← Préstamos" + código/cliente/estado (en todos los tamaños).
+- **Reportes**: área de gráfico + desglose con **scroll vertical** (bajar a ver "Ganancia por semana"); "Desglose por semana" con columna fija → **scroll horizontal**.
+
+## [1.3.3] — 2026-07-18 · Ajustes de UX, recordatorios manuales y chrome
+
+### Fixed
+- **Scroll global solo en Grande**: en Pequeño/Mediano vuelve el comportamiento original (sin scroll, se sentía como zoom); el scroll solo aparece en Grande, que es cuando el contenido excede la pantalla.
+- **Cobros**: dígitos de "Deuda pendiente", "Próxima cuota" y "Liquidar hoy por" reducidos (eran algo grandes en Pequeño).
+
+### Added
+- **Guardar PDF** en la vista previa de la intimación de pago y del estado de préstamo (y reportes), con zoom.
+- **Recordatorios manuales**: botón "Enviar recordatorios" en Préstamos (masivo a todos los clientes con cuota por vencer/vencida de la estancia) y "Enviar recordatorio" en el detalle del préstamo (individual, al correo de ese cliente).
+- **Historial → Ver ficha**: botón por fila que abre el detalle con la DESCRIPCIÓN completa (en el grid nunca entra entera) y los demás campos.
+- **Sin botones de Windows** (minimizar/maximizar/cerrar) en todas las ventanas MENOS el login: evita que el cliente cierre con la X por error. Se usa "Cerrar sesión" del sidebar.
+
+## [1.3.2] — 2026-07-18 · Responsive (texto Grande), formato de campos y correo
+
+### Fixed
+- **Responsive (texto Grande)**: el shell ahora envuelve el contenido en un ScrollViewer, así el contenido magnificado se puede DESPLAZAR en vez de recortarse en pantallas chicas (laptops 1366). Ajustes de ancho en columnas (Modalidad, Próx. venc.) y `MinWidth` en columnas de dinero (Cobros). Reportes: `MinHeight` en el gráfico/desglose para que no colapse a solo títulos.
+- **Ficha de cliente**: columnas Tasa y Cuotas centradas; "Próx. venc." más ancha.
+
+### Added
+- **Cédula y teléfono con auto-formato** en Nuevo/Editar cliente: los guiones se insertan solos al escribir (cédula 000-0000000-0, teléfono 000-000-0000). La cédula respeta pasaportes (si hay letras, no se toca).
+- **Correo**: indicador "✓ Contraseña guardada" (la PasswordBox se ve vacía al volver pero la clave sigue guardada); guía con los pasos exactos para generar el App Password (Nombre → Crear → 16 letras). Diagnóstico confirmado: la app funciona; solo faltaba generar el App Password (2FA requerido; se confirmó con las 3 cuentas de prueba).
+
+### Datos de prueba
+- `seed_alertas_prueba.sql`: correos personales reemplazados por `@example.com`.
+
 ## [1.3.1] — 2026-07-18 · Correcciones de UX y pagaré
 
 ### Fixed

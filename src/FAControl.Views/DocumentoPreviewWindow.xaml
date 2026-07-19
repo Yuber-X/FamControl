@@ -14,14 +14,27 @@
 
     <Border Grid.Row="0" Background="{DynamicResource Brush.FondoApp}" CornerRadius="8"
             BorderBrush="{DynamicResource Brush.BordeEstandar}" BorderThickness="1">
-      <FlowDocumentPageViewer x:Name="Visor" Background="Transparent" />
+      <FlowDocumentPageViewer x:Name="Visor" Background="Transparent"
+                              Zoom="100" MinZoom="50" MaxZoom="300" />
     </Border>
 
-    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-      <Button Content="Imprimir" Style="{DynamicResource Boton.Primario}" MinWidth="140"
-              Click="BotonImprimir_Click" />
-      <Button Content="Cerrar" Style="{DynamicResource Boton.Secundario}" MinWidth="120"
-              Margin="8,0,0,0" Click="BotonCerrar_Click" />
-    </StackPanel>
+    <DockPanel Grid.Row="1" Margin="0,16,0,0">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Button Content="&#xE71F;" FontFamily="Segoe MDL2 Assets" Width="34" Height="34"
+                Style="{DynamicResource Boton.Terciario}" ToolTip="Alejar" Click="BotonAlejar_Click" />
+        <TextBlock x:Name="EtiquetaZoom" Text="100%" VerticalAlignment="Center"
+                   MinWidth="52" TextAlignment="Center" Style="{DynamicResource Texto.Cuerpo}" />
+        <Button Content="&#xE8A3;" FontFamily="Segoe MDL2 Assets" Width="34" Height="34"
+                Style="{DynamicResource Boton.Terciario}" ToolTip="Acercar" Click="BotonAcercar_Click" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button Content="Guardar PDF" Style="{DynamicResource Boton.Secundario}" MinWidth="120"
+                Click="BotonGuardarPdf_Click" />
+        <Button Content="Imprimir" Style="{DynamicResource Boton.Primario}" MinWidth="140"
+                Margin="8,0,0,0" Click="BotonImprimir_Click" />
+        <Button Content="Cerrar" Style="{DynamicResource Boton.Secundario}" MinWidth="100"
+                Margin="8,0,0,0" Click="BotonCerrar_Click" />
+      </StackPanel>
+    </DockPanel>
   </Grid>
 </Window>

@@ -150,15 +150,27 @@
                 <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
               </DataGridTextColumn.ElementStyle>
             </DataGridTextColumn>
-            <DataGridTextColumn Header="Tasa" Binding="{Binding TasaTexto}" Width="110" />
-            <DataGridTextColumn Header="Cuotas" Binding="{Binding ProgresoTexto}" Width="80" />
+            <DataGridTextColumn Header="Tasa" Binding="{Binding TasaTexto}" Width="110">
+              <DataGridTextColumn.ElementStyle>
+                <Style TargetType="TextBlock">
+                  <Setter Property="HorizontalAlignment" Value="Center" />
+                </Style>
+              </DataGridTextColumn.ElementStyle>
+            </DataGridTextColumn>
+            <DataGridTextColumn Header="Cuotas" Binding="{Binding ProgresoTexto}" Width="80">
+              <DataGridTextColumn.ElementStyle>
+                <Style TargetType="TextBlock">
+                  <Setter Property="HorizontalAlignment" Value="Center" />
+                </Style>
+              </DataGridTextColumn.ElementStyle>
+            </DataGridTextColumn>
             <DataGridTextColumn Header="Saldo pendiente"
                                 Binding="{Binding SaldoPendiente, Converter={StaticResource Money}}" Width="140">
               <DataGridTextColumn.ElementStyle>
                 <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
               </DataGridTextColumn.ElementStyle>
             </DataGridTextColumn>
-            <DataGridTextColumn Header="Próx. venc." Binding="{Binding ProximoVencimientoTexto}" Width="100" />
+            <DataGridTextColumn Header="Próx. venc." Binding="{Binding ProximoVencimientoTexto}" Width="120" />
             <DataGridTemplateColumn Header="Estado" Width="*" MinWidth="120"
                                     HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
               <DataGridTemplateColumn.CellTemplate>

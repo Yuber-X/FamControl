@@ -13,15 +13,18 @@ public partial class PrestamosViewModel : ObservableObject
 {
     private readonly PrestamoService _servicio;
     private readonly IDialogService _dialogos;
+    private readonly RecordatorioService _recordatorios;
     private IReadOnlyList<PrestamoResumen> _todos = [];
 
     public event Action<long>? DetalleSolicitado;
     public event Action? NuevoSolicitado;
 
-    public PrestamosViewModel(PrestamoService servicio, IDialogService dialogos)
+    public PrestamosViewModel(PrestamoService servicio, IDialogService dialogos,
+        RecordatorioService recordatorios)
     {
         _servicio = servicio;
         _dialogos = dialogos;
+        _recordatorios = recordatorios;
 
         FiltrosEstado =
         [
@@ -63,6 +66,39 @@ public partial class PrestamosViewModel : ObservableObject
 
     partial void OnTextoBusquedaChanged(string value) => AplicarFiltro();
     partial void OnFiltroEstadoChanged(Opcion<EstadoPrestamo?> value) => AplicarFiltro();
+
+    /// <summary>
+    /// Reenvía los recordatorios por correo a TODOS los clientes con cuotas por
+    /// vencer o vencidas de esta estancia (mismo envío masivo de Configuración).
+    /// </summary>
+    [RelayCommand]
+    private async Task EnviarRecordatoriosAsync()
+    {
+        try
+        {
+            Cargando = true;
+            var r = await _recordatorios.EnviarAsync();
+            var msg = $"{r.CorreosACliente} recordatorio(s) enviado(s)" +
+                      (r.SinEmail > 0 ? $" · {r.SinEmail} sin correo" : "") +
+                      (r.ResumenAlDueno ? " · resumen al dueño" : "") + ".";
+            if (r.Detalle.StartsWith("Con errores"))
+                msg += "\n\n" + r.Detalle;
+            _dialogos.Informar("Recordatorios", msg);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _dialogos.Informar("Recordatorios", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error enviando recordatorios desde Préstamos");
+            _dialogos.MostrarError("Recordatorios", ex.Message);
+        }
+        finally
+        {
+            Cargando = false;
+        }
+    }
 
     public async Task CargarAsync()
     {

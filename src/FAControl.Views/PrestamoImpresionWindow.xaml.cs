@@ -17,6 +17,7 @@ public partial class PrestamoImpresionWindow : Window
     public PrestamoImpresionWindow(PrestamoImpreso prestamo)
     {
         InitializeComponent();
+        ChromeVentana.OcultarBotones(this);
         _prestamo = prestamo;
         ContenedorPrestamo.Content = PrestamoVisualFactory.Crear(prestamo);
     }

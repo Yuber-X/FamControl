@@ -82,6 +82,16 @@
                 </Style>
               </DataGridTextColumn.ElementStyle>
             </DataGridTextColumn>
+            <!-- Ver ficha: abre el detalle con la descripción COMPLETA (en el grid
+                 nunca entra entera) — pedido de Yuber 2026-07-18 -->
+            <DataGridTemplateColumn Width="110" MinWidth="110">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Button Content="Ver ficha" Style="{DynamicResource Boton.Terciario}"
+                          Click="VerFicha_Click" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
           </DataGrid.Columns>
         </DataGrid>
       </Border>

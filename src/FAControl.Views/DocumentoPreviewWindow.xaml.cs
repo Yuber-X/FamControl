@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Documents;
+using Microsoft.Win32;
 using FAControl.Printing;
 using Serilog;
 
@@ -19,6 +20,7 @@ public partial class DocumentoPreviewWindow : Window
     public DocumentoPreviewWindow(string titulo, string descripcion, Func<FlowDocument> fabrica)
     {
         InitializeComponent();
+        ChromeVentana.OcultarBotones(this);
         Title = titulo;
         _descripcion = descripcion;
         _fabrica = fabrica;
@@ -36,6 +38,43 @@ public partial class DocumentoPreviewWindow : Window
             Log.Error(ex, "Error imprimiendo el documento {Desc}", _descripcion);
             MessageBox.Show(this, $"No se pudo imprimir.\n\n{ex.Message}",
                 "Imprimir", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    // ---------- Zoom ----------
+    private void BotonAcercar_Click(object sender, RoutedEventArgs e) => AjustarZoom(+20);
+    private void BotonAlejar_Click(object sender, RoutedEventArgs e) => AjustarZoom(-20);
+
+    private void AjustarZoom(double delta)
+    {
+        var nuevo = Math.Clamp(Visor.Zoom + delta, 50, 300);
+        Visor.Zoom = nuevo;
+        EtiquetaZoom.Text = $"{nuevo:0}%";
+    }
+
+    private void BotonGuardarPdf_Click(object sender, RoutedEventArgs e)
+    {
+        var nombre = string.Concat(_descripcion.Split(System.IO.Path.GetInvalidFileNameChars()));
+        var dialogo = new SaveFileDialog
+        {
+            Title = "Guardar como PDF",
+            Filter = "PDF (*.pdf)|*.pdf",
+            FileName = $"{nombre}.pdf"
+        };
+        if (dialogo.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            ImpresoraRecibos.GuardarDocumentoPdf(_fabrica(), dialogo.FileName, _descripcion);
+            MessageBox.Show(this, $"Guardado en:\n{dialogo.FileName}",
+                "Guardar PDF", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error guardando el documento {Desc} en PDF", _descripcion);
+            MessageBox.Show(this, $"No se pudo guardar el PDF.\n\n{ex.Message}",
+                "Guardar PDF", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

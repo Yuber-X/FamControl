@@ -53,6 +53,7 @@ public partial class LauncherWindow : Window
     public LauncherWindow()
     {
         InitializeComponent();
+        ChromeVentana.OcultarBotones(this);
         ListaModos.ItemsSource = IdentidadModo.Todos.Select(m => new ModoTarjeta(m)).ToList();
         ContenedorLogo.Content = new LogoFA { Width = 92, Height = 92 };
     }

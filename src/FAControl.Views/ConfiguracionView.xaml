@@ -90,10 +90,10 @@
                      Text="Envía un recordatorio de pago a cada cliente con cuota por vencer o vencida, y un resumen al dueño. El correo de cada cliente se pone en su ficha (pantalla Clientes)." />
           <!-- Guía del App Password: la causa #1 de fallos es usar la contraseña normal -->
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12">
-            <Run Text="La 'Contraseña de aplicación' NO es tu contraseña normal de Gmail ni la de FAControl: es un código de 16 letras que genera Google. La cuenta remitente debe tener la verificación en 2 pasos activada. Generala en " />
+            <Run Text="La 'Contraseña de aplicación' NO es tu contraseña de Gmail, ni tu PIN, ni la de FAControl: es un código de 16 letras que genera Google (la cuenta remitente debe tener la verificación en 2 pasos activada). Pasos: 1) abrí " />
             <Hyperlink NavigateUri="https://myaccount.google.com/apppasswords"
                        RequestNavigate="Hyperlink_RequestNavigate">myaccount.google.com/apppasswords</Hyperlink>
-            <Run Text=" y pegala sin espacios." />
+            <Run Text="; 2) escribí un nombre (ej: FAControl) y tocá 'Crear'; 3) copiá las 16 letras que aparecen y pegalas acá (los espacios se quitan solos)." />
           </TextBlock>
 
           <CheckBox Content="Activar recordatorios por correo" FontSize="13"
@@ -111,6 +111,10 @@
                 <PasswordBox x:Name="CampoGmailPassword" Width="200" Height="34"
                              Style="{DynamicResource Input.Password}"
                              PasswordChanged="CampoGmailPassword_PasswordChanged" />
+                <TextBlock Text="✓ Contraseña guardada — dejá el campo vacío para conservarla."
+                           Style="{DynamicResource Texto.Caption}" Margin="0,4,0,0"
+                           Foreground="{DynamicResource Brush.DeltaPositivo}"
+                           Visibility="{Binding HayAppPasswordGuardada, Converter={StaticResource BoolAVisibilidad}}" />
               </StackPanel>
             </WrapPanel>
             <WrapPanel Margin="0,4,0,0">

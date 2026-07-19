@@ -50,11 +50,16 @@
       </Border>
     </UniformGrid>
 
-    <!-- Toolbar: búsqueda + filtro de estado + Nuevo préstamo -->
+    <!-- Toolbar: búsqueda + filtro de estado + recordatorios + Nuevo préstamo -->
     <DockPanel Grid.Row="1" Margin="0,0,0,16">
       <Button DockPanel.Dock="Right" Content="+ Nuevo préstamo"
               Style="{DynamicResource Boton.Primario}"
               Command="{Binding NuevoCommand}" />
+      <Button DockPanel.Dock="Right" Content="Enviar recordatorios"
+              Style="{DynamicResource Boton.Secundario}" Margin="0,0,8,0"
+              ToolTip="Envía por correo un recordatorio a cada cliente con cuota por vencer o vencida"
+              Command="{Binding EnviarRecordatoriosCommand}"
+              IsEnabled="{Binding Cargando, Converter={StaticResource InversorBool}}" />
       <StackPanel Orientation="Horizontal">
         <TextBox Width="320"
                  Style="{DynamicResource Input.Texto}"
@@ -79,7 +84,10 @@
               </Style>
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*" MinWidth="160" />
+          <!-- Ancho FIJO (no estrella): así, cuando no cabe, el grid se DESPLAZA
+               horizontalmente en vez de comprimir la columna y cortar nombres. -->
+          <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="220"
+                              HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Capital"
                               Binding="{Binding MontoCapital, Converter={StaticResource Money}}"
                               Width="130">
@@ -94,7 +102,7 @@
               </Style>
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTextColumn Header="Modalidad" Binding="{Binding ModalidadTexto}" Width="90" />
+          <DataGridTextColumn Header="Modalidad" Binding="{Binding ModalidadTexto}" Width="105" />
           <DataGridTextColumn Header="Cuotas" Binding="{Binding ProgresoTexto}" Width="70">
             <DataGridTextColumn.ElementStyle>
               <Style TargetType="TextBlock">
@@ -109,7 +117,7 @@
               <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTextColumn Header="Próx. venc." Binding="{Binding ProximoVencimientoTexto}" Width="100" />
+          <DataGridTextColumn Header="Próx. venc." Binding="{Binding ProximoVencimientoTexto}" Width="120" />
           <DataGridTemplateColumn Header="Estado" Width="100"
                                   HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
             <DataGridTemplateColumn.CellTemplate>

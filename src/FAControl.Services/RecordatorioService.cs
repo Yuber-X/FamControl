@@ -100,6 +100,33 @@ public class RecordatorioService
         return new ResultadoRecordatorios(clientes.Count, enviados, sinEmail, resumenEnviado, detalle);
     }
 
+    /// <summary>
+    /// Envía el recordatorio a UN cliente puntual (botón en el detalle del
+    /// préstamo). Devuelve un mensaje para mostrarle al usuario. No lanza por
+    /// falta de datos: informa amablemente (sin correo, sin cuotas por vencer…).
+    /// </summary>
+    public async Task<string> EnviarAClienteAsync(long clienteId, CancellationToken ct = default)
+    {
+        if (!_email.EstaConfigurado)
+            throw new InvalidOperationException(
+                "El correo no está configurado. Completá la cuenta de Gmail en Configuración.");
+
+        var hoy = FechaNegocio.Hoy;
+        var clientes = await _clientes.ObtenerRecordatoriosAsync(
+            hoy, _ajustes.RecordatorioDiasAntes, SesionActual.Modo, ct);
+        var cliente = clientes.FirstOrDefault(c => c.ClienteId == clienteId);
+
+        if (cliente is null)
+            return "Este cliente no tiene cuotas por vencer ni vencidas en la ventana configurada.";
+        if (string.IsNullOrWhiteSpace(cliente.Email))
+            return $"{cliente.NombreCompleto} no tiene correo registrado. Agregalo en su ficha.";
+
+        await _email.EnviarAsync(cliente.Email!, AsuntoCliente(cliente), CuerpoCliente(cliente, hoy), ct);
+        _ajustes.UltimoRecordatorioUtc = DateTime.UtcNow;
+        _ajustes.Guardar();
+        return $"Recordatorio enviado a {cliente.Email}.";
+    }
+
     /// <summary>Envío automático al arrancar (una vez por día), si está activo.</summary>
     public async Task EjecutarAutomaticoSiTocaAsync()
     {

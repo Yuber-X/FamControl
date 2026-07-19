@@ -93,13 +93,13 @@ public class VentaVehiculoService
 
     private static void ExigirLectura()
     {
-        if (!SesionActual.TienePermiso(Permisos.Vehiculos))
+        if (!SesionActual.TienePermiso(Permisos.Ventas))
             throw new UnauthorizedAccessException("No tenés permiso para ver las ventas de vehículos.");
     }
 
     private static void ExigirEscritura()
     {
-        if (!SesionActual.TienePermiso(Permisos.VehiculosEditar))
+        if (!SesionActual.TienePermiso(Permisos.Ventas))
             throw new UnauthorizedAccessException("No tenés permiso para registrar ventas de vehículos.");
     }
 }

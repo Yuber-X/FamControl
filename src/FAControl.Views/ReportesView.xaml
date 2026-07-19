@@ -6,7 +6,6 @@
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
-      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
@@ -63,8 +62,14 @@
       </DockPanel>
     </Border>
 
+    <!-- Área analítica desplazable: scroll VERTICAL para bajar y ver bien el
+         gráfico y el desglose cuando el alto no alcanza (pedido de Yuber). -->
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+    <StackPanel>
+
     <!-- KPIs del período -->
-    <UniformGrid Grid.Row="1" Rows="1" Columns="4" Margin="0,0,0,12"
+    <UniformGrid Rows="1" Columns="4" Margin="0,0,0,12"
                  Visibility="{Binding TieneReporte, Converter={StaticResource BoolAVisibilidad}}">
       <!-- Ganancia: card destacada indigo (mockup) -->
       <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0"
@@ -112,8 +117,9 @@
       </Border>
     </UniformGrid>
 
-    <!-- Gráfico semanal + desglose -->
-    <Grid Grid.Row="2"
+    <!-- Gráfico semanal + desglose. MinHeight para que no colapse a solo los
+         títulos; el scroll vertical de arriba permite bajar a verlo. -->
+    <Grid MinHeight="360"
           Visibility="{Binding TieneReporte, Converter={StaticResource BoolAVisibilidad}}">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="55*" />
@@ -156,7 +162,9 @@
           <DataGrid Grid.Row="1" Style="{DynamicResource Tabla}" RowHeight="38"
                     ItemsSource="{Binding Semanas}">
             <DataGrid.Columns>
-              <DataGridTextColumn Header="Semana" Binding="{Binding Etiqueta}" Width="*" MinWidth="160"
+              <!-- Ancho fijo: el grid se DESPLAZA horizontalmente en vez de
+                   comprimir la etiqueta de la semana (pedido de Yuber). -->
+              <DataGridTextColumn Header="Semana" Binding="{Binding Etiqueta}" Width="180"
                                   HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
               <DataGridTextColumn Header="Capital"
                                   Binding="{Binding Capital, Converter={StaticResource Money}}" Width="130">
@@ -194,5 +202,8 @@
         </Grid>
       </Border>
     </Grid>
+
+    </StackPanel>
+    </ScrollViewer>
   </Grid>
 </UserControl>

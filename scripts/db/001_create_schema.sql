@@ -20,9 +20,11 @@ USE facontrol_db;
 CREATE TABLE rol (
   id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
   nombre      VARCHAR(50)  NOT NULL,
+  -- Modo al que pertenece el rol (roles por modo, 011); NULL = global (Admin)
+  modo        ENUM('prestcontrol','dealercontrol','autocontrol') NULL,
   descripcion VARCHAR(200) NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_rol_nombre (nombre)
+  UNIQUE KEY uq_rol_nombre_modo (nombre, modo)
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
@@ -83,6 +85,22 @@ CREATE TABLE usuario_permiso (
     REFERENCES usuario (id) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_usuperm_permiso FOREIGN KEY (permiso_id)
     REFERENCES permiso (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- usuario_modo_rol: rol del usuario en CADA modo (roles por modo, 011).
+-- Acceso a un modo = fila presente. El Admin (usuario.rol_id = Admin) es global
+-- y no necesita filas. usuario_permiso sigue siendo la unión efectiva.
+-- -------------------------------------------------------------
+CREATE TABLE usuario_modo_rol (
+  usuario_id BIGINT UNSIGNED NOT NULL,
+  modo       ENUM('prestcontrol','dealercontrol','autocontrol') NOT NULL,
+  rol_id     INT UNSIGNED NOT NULL,
+  PRIMARY KEY (usuario_id, modo),
+  CONSTRAINT fk_umr_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuario (id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_umr_rol FOREIGN KEY (rol_id)
+    REFERENCES rol (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
@@ -363,10 +381,15 @@ CREATE TABLE vehiculo_gasto (
 -- Va acá y no en el seed porque NO son datos de prueba: sin esto la
 -- aplicación no puede autenticar a nadie.
 -- =============================================================
-INSERT INTO rol (nombre, descripcion) VALUES
-  ('Admin',      'Control total: usuarios, configuración y autorización de préstamos'),
-  ('Supervisor', 'Opera y supervisa la cartera, sin administrar usuarios ni configuración'),
-  ('Cobrador',   'Cobra en la calle: registra pagos y consulta su cartera');
+-- Roles POR MODO (011): Admin es global (modo NULL); los demás pertenecen a un modo.
+INSERT INTO rol (nombre, modo, descripcion) VALUES
+  ('Admin',      NULL,           'Control total de los tres modos'),
+  ('Supervisor', 'prestcontrol', 'Opera y supervisa la cartera de préstamos'),
+  ('Cobrador',   'prestcontrol', 'Cobra en la calle: registra pagos y consulta su cartera'),
+  ('Encargado',  'dealercontrol','Gestiona el dealer: inventario, ventas, alquileres y gastos'),
+  ('Vendedor',   'dealercontrol','Vende y alquila; consulta el inventario'),
+  ('Encargado',  'autocontrol',  'Gestiona las ventas financiadas: crédito, cobros y contratos'),
+  ('Vendedor',   'autocontrol',  'Crea ventas financiadas y cobra');
 
 INSERT INTO permiso (codigo, nombre, descripcion) VALUES
   ('panel',               'Panel',                     'KPIs de la cartera'),
@@ -381,8 +404,14 @@ INSERT INTO permiso (codigo, nombre, descripcion) VALUES
   ('historial',           'Historial',                 'Auditoría de operaciones'),
   ('usuarios',            'Admin de usuarios',         'CRUD de usuarios, roles y overrides'),
   ('configuracion',       'Configuración',             'EXCLUSIVO Admin'),
-  ('vehiculos',           'Vehículos (ver)',           'Consulta del inventario de vehículos (DealerControl)'),
+  ('vehiculos',           'Vehículos (ver)',           'Consulta del inventario de vehículos (DealControl)'),
   ('vehiculos_editar',    'Vehículos (crear/editar)',  'Alta, edición y baja de vehículos'),
+  -- DealControl — permisos finos por operación (roles por modo, 011)
+  ('inventario',          'Inventario (ver)',          'Consulta del inventario de vehículos'),
+  ('inventario_editar',   'Inventario (crear/editar)', 'Alta, edición y baja de vehículos'),
+  ('ventas',              'Ventas al contado',         'Registrar ventas al contado de vehículos'),
+  ('alquileres',          'Alquileres (rent a car)',   'Registrar y devolver alquileres'),
+  ('gastos',              'Importación / gastos',      'Gestionar los gastos de importación'),
   -- Acceso por estancia/modo (aislamiento — cliente 2026-07-18)
   ('acceso_prestcontrol',  'Acceso a PrestControl',  'Puede entrar a la estancia de préstamos personales'),
   ('acceso_dealercontrol', 'Acceso a DealControl', 'Puede entrar a la estancia de inventario, ventas y alquiler de vehículos'),
@@ -393,23 +422,44 @@ INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Admin';
 
--- Supervisor: toda la operación, sin usuarios/configuración ni autorizar
+-- Supervisor (PrestControl): toda la operación de préstamos, sin admin
 INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
-WHERE r.nombre = 'Supervisor'
+WHERE r.nombre = 'Supervisor' AND r.modo = 'prestcontrol'
   AND p.codigo IN ('panel','clientes','clientes_editar','prestamos','prestamos_crear',
-                   'prestamos_cancelar','cobros','reportes','historial',
-                   'vehiculos','vehiculos_editar',
-                   'acceso_prestcontrol','acceso_dealercontrol','acceso_autocontrol');
+                   'prestamos_cancelar','cobros','reportes','historial','acceso_prestcontrol');
 
--- Cobrador: cobra, consulta y SI crea prestamos, pero cada uno necesita
--- la autorizacion de un admin (prestamos_autorizar). Sin prestamos_crear
--- no podria ni abrir la pantalla y el flujo de autorizacion nunca correria.
+-- Cobrador (PrestControl): cobra, consulta y crea préstamos (con autorización de Admin)
 INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
-WHERE r.nombre = 'Cobrador'
-  AND p.codigo IN ('panel','clientes','prestamos','prestamos_crear','cobros',
-                   'acceso_prestcontrol');
+WHERE r.nombre = 'Cobrador' AND r.modo = 'prestcontrol'
+  AND p.codigo IN ('panel','clientes','prestamos','prestamos_crear','cobros','acceso_prestcontrol');
+
+-- Encargado (DealControl): manda todo el dealer
+INSERT INTO rol_permiso (rol_id, permiso_id)
+SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+WHERE r.nombre = 'Encargado' AND r.modo = 'dealercontrol'
+  AND p.codigo IN ('inventario','inventario_editar','ventas','alquileres','gastos',
+                   'clientes','clientes_editar','reportes','historial','acceso_dealercontrol');
+
+-- Vendedor (DealControl): vende y alquila; consulta el inventario
+INSERT INTO rol_permiso (rol_id, permiso_id)
+SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+WHERE r.nombre = 'Vendedor' AND r.modo = 'dealercontrol'
+  AND p.codigo IN ('inventario','ventas','alquileres','clientes','acceso_dealercontrol');
+
+-- Encargado (AutoControl): manda las ventas financiadas
+INSERT INTO rol_permiso (rol_id, permiso_id)
+SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+WHERE r.nombre = 'Encargado' AND r.modo = 'autocontrol'
+  AND p.codigo IN ('prestamos','prestamos_crear','prestamos_cancelar','cobros',
+                   'clientes','clientes_editar','reportes','historial','acceso_autocontrol');
+
+-- Vendedor (AutoControl): crea ventas financiadas y cobra
+INSERT INTO rol_permiso (rol_id, permiso_id)
+SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+WHERE r.nombre = 'Vendedor' AND r.modo = 'autocontrol'
+  AND p.codigo IN ('prestamos','prestamos_crear','cobros','clientes','acceso_autocontrol');
 
 -- =============================================================
 -- TRIGGERS: sincronizan usuario_permiso con el rol (patrón POS-400/POS-500).

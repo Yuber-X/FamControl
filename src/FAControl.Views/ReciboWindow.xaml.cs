@@ -18,6 +18,7 @@ public partial class ReciboWindow : Window
     public ReciboWindow(ReciboPago recibo)
     {
         InitializeComponent();
+        ChromeVentana.OcultarBotones(this);
         _recibo = recibo;
         _visual = ReciboVisualFactory.Crear(recibo);
         ContenedorRecibo.Content = _visual;

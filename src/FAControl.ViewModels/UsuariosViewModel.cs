@@ -14,7 +14,8 @@ public record UsuarioFila(Usuario Usuario)
     public long Id => Usuario.Id;
     public string Username => Usuario.Username;
     public string NombreCompleto => Usuario.NombreCompleto;
-    public string RolTexto => string.IsNullOrEmpty(Usuario.RolNombre) ? "(sin rol)" : Usuario.RolNombre;
+    public string RolTexto => Usuario.RolNombre == Roles.Admin ? "Administrador"
+        : string.IsNullOrEmpty(Usuario.RolNombre) ? "Por modo" : Usuario.RolNombre;
     public string EstadoTexto => Usuario.Activo ? "Activo" : "Inactivo";
     public string UltimoAccesoTexto => Usuario.LastLoginAtUtc is { } fecha
         ? FechaNegocio.AUtcLocal(fecha).ToString(Textos.FormatoFechaHora, Textos.CulturaRd)
@@ -23,30 +24,11 @@ public record UsuarioFila(Usuario Usuario)
     public bool EsElActual => Usuario.Id == SesionActual.Id;
 }
 
-/// <summary>Casilla de un permiso en el formulario (marcable por el Admin).</summary>
-public partial class PermisoCasilla : ObservableObject
-{
-    public required string Codigo { get; init; }
-    public required string Nombre { get; init; }
-    public string? Descripcion { get; init; }
-
-    [ObservableProperty] private bool _asignado;
-    /// <summary>True si el rol lo otorga por defecto (se muestra como pista).</summary>
-    [ObservableProperty] private bool _vieneDelRol;
-
-    public string PistaTexto => VieneDelRol ? "Por defecto en este rol" : "Permiso adicional";
-
-    partial void OnVieneDelRolChanged(bool value) => OnPropertyChanged(nameof(PistaTexto));
-}
-
 /// <summary>
-/// Admin de Usuarios — SOLO Admin (regla del cliente 2026-07-16): crear
-/// empleados, restablecer sus contraseñas sin saber la anterior y ajustar
-/// sus permisos desde la misma pantalla.
-///
-/// Los permisos por defecto los da el ROL (triggers de la BD); las casillas
-/// permiten afinar quién puede crear préstamos o editar clientes.
-/// La autorización real vive en UsuarioService: esta clase es solo la UI.
+/// Admin de Usuarios — SOLO Admin. Modelo de ROLES POR MODO (Yuber 2026-07-18):
+/// se marca "administrador" (acceso global) o se elige UN rol por cada modo
+/// (PrestControl / DealControl / AutoControl), con opción "Sin acceso". Cada rol
+/// trae sus propios permisos; los efectivos son la unión (lo maneja el Service).
 /// </summary>
 public partial class UsuariosViewModel : ObservableObject
 {
@@ -54,14 +36,7 @@ public partial class UsuariosViewModel : ObservableObject
     private readonly IDialogService _dialogos;
 
     private long? _editandoId;          // null = alta nueva
-    private IReadOnlyList<Permiso> _catalogo = [];
 
-    /// <summary>
-    /// La View debe vaciar el PasswordBox. Hace falta un evento porque el
-    /// control no se puede bindear: si el VM limpia PasswordNueva pero el
-    /// campo sigue mostrando puntos, el Admin cree que escribió una
-    /// contraseña que en realidad ya no existe.
-    /// </summary>
     public event Action? PasswordDebeLimpiarse;
 
     public UsuariosViewModel(UsuarioService usuarios, IDialogService dialogos)
@@ -71,25 +46,31 @@ public partial class UsuariosViewModel : ObservableObject
     }
 
     public ObservableCollection<UsuarioFila> Filas { get; } = [];
-    public ObservableCollection<Opcion<int>> Roles { get; } = [];
-    public ObservableCollection<PermisoCasilla> Permisos { get; } = [];
+    public ObservableCollection<Opcion<int?>> RolesPrest { get; } = [];
+    public ObservableCollection<Opcion<int?>> RolesDealer { get; } = [];
+    public ObservableCollection<Opcion<int?>> RolesAuto { get; } = [];
 
     [ObservableProperty] private bool _formularioVisible;
     [ObservableProperty] private string _tituloFormulario = "Nuevo usuario";
     [ObservableProperty] private string _username = string.Empty;
     [ObservableProperty] private string _nombre = string.Empty;
     [ObservableProperty] private string _apellido = string.Empty;
-    [ObservableProperty] private Opcion<int>? _rolSeleccionado;
     [ObservableProperty] private bool _activo = true;
     [ObservableProperty] private bool _esNuevo = true;
     [ObservableProperty] private string _mensajeError = string.Empty;
     [ObservableProperty] private string _mensajeExito = string.Empty;
     [ObservableProperty] private bool _ocupado;
 
-    /// <summary>
-    /// La contraseña la escribe la View: PasswordBox no se puede bindear
-    /// (WPF no expone Password como DependencyProperty, a propósito).
-    /// </summary>
+    /// <summary>Administrador global: entra a todo. Al marcarlo, los roles por modo se ignoran.</summary>
+    [ObservableProperty] private bool _esAdministrador;
+    [ObservableProperty] private Opcion<int?>? _rolPrestSeleccionado;
+    [ObservableProperty] private Opcion<int?>? _rolDealerSeleccionado;
+    [ObservableProperty] private Opcion<int?>? _rolAutoSeleccionado;
+
+    /// <summary>True cuando NO es admin: habilita los selectores de rol por modo.</summary>
+    public bool RolesPorModoHabilitados => !EsAdministrador;
+    partial void OnEsAdministradorChanged(bool value) => OnPropertyChanged(nameof(RolesPorModoHabilitados));
+
     public string PasswordNueva { get; set; } = string.Empty;
 
     public string TextoAyudaPassword => EsNuevo
@@ -97,7 +78,6 @@ public partial class UsuariosViewModel : ObservableObject
         : "Dejalo en blanco para no cambiar la contraseña actual.";
 
     partial void OnEsNuevoChanged(bool value) => OnPropertyChanged(nameof(TextoAyudaPassword));
-    partial void OnRolSeleccionadoChanged(Opcion<int>? value) => _ = MarcarPermisosDelRolAsync(value);
 
     public async Task CargarAsync()
     {
@@ -105,12 +85,8 @@ public partial class UsuariosViewModel : ObservableObject
         {
             Ocupado = true;
 
-            if (Roles.Count == 0)
-            {
-                foreach (var rol in await _usuarios.ObtenerRolesAsync())
-                    Roles.Add(new Opcion<int>(rol.Id, rol.Nombre));
-                _catalogo = await _usuarios.ObtenerCatalogoPermisosAsync();
-            }
+            if (RolesPrest.Count == 0)
+                await CargarCatalogoRolesAsync();
 
             var usuarios = await _usuarios.ObtenerTodosAsync();
             Filas.Clear();
@@ -122,8 +98,6 @@ public partial class UsuariosViewModel : ObservableObject
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Un no-Admin no deberia llegar acá (el sidebar lo oculta), pero
-            // si llega, se le dice claro en vez de reventar.
             MensajeError = ex.Message;
             Filas.Clear();
         }
@@ -138,9 +112,23 @@ public partial class UsuariosViewModel : ObservableObject
         }
     }
 
-    // ------------------------------------------------------------------
-    // Formulario
-    // ------------------------------------------------------------------
+    /// <summary>Arma los tres combos con los roles de cada modo + "Sin acceso".</summary>
+    private async Task CargarCatalogoRolesAsync()
+    {
+        var roles = await _usuarios.ObtenerRolesAsync();
+        LlenarCombo(RolesPrest, roles, "prestcontrol");
+        LlenarCombo(RolesDealer, roles, "dealercontrol");
+        LlenarCombo(RolesAuto, roles, "autocontrol");
+    }
+
+    private static void LlenarCombo(ObservableCollection<Opcion<int?>> combo,
+        IReadOnlyList<Rol> roles, string modo)
+    {
+        combo.Clear();
+        combo.Add(new Opcion<int?>(null, "Sin acceso"));
+        foreach (var rol in roles.Where(r => r.Modo == modo))
+            combo.Add(new Opcion<int?>(rol.Id, rol.Nombre));
+    }
 
     [RelayCommand]
     private void Nuevo()
@@ -153,10 +141,10 @@ public partial class UsuariosViewModel : ObservableObject
         PasswordDebeLimpiarse?.Invoke();
         Activo = true;
         MensajeError = MensajeExito = string.Empty;
-        // Por defecto Cobrador: el rol menos peligroso si alguien no lo cambia.
-        // Nombre completo porque la propiedad Roles tapa a Common.Roles.
-        RolSeleccionado = Roles.FirstOrDefault(r => r.Texto == Common.Roles.Cobrador)
-                          ?? Roles.FirstOrDefault();
+        EsAdministrador = false;
+        RolPrestSeleccionado = RolesPrest.FirstOrDefault();
+        RolDealerSeleccionado = RolesDealer.FirstOrDefault();
+        RolAutoSeleccionado = RolesAuto.FirstOrDefault();
         FormularioVisible = true;
     }
 
@@ -165,7 +153,6 @@ public partial class UsuariosViewModel : ObservableObject
     {
         if (fila is null)
             return;
-
         try
         {
             _editandoId = fila.Id;
@@ -176,27 +163,14 @@ public partial class UsuariosViewModel : ObservableObject
             Apellido = fila.Usuario.Apellido ?? string.Empty;
             Activo = fila.Usuario.Activo;
             PasswordNueva = string.Empty;
-        PasswordDebeLimpiarse?.Invoke();
+            PasswordDebeLimpiarse?.Invoke();
             MensajeError = MensajeExito = string.Empty;
 
-            RolSeleccionado = Roles.FirstOrDefault(r => r.Valor == fila.Usuario.RolId);
-
-            // Permisos EFECTIVOS del usuario (rol + overrides), no los del rol
-            var actuales = await _usuarios.ObtenerPermisosAsync(fila.Id);
-            var delRol = fila.Usuario.RolId is { } rolId
-                ? await _usuarios.ObtenerPermisosDeRolAsync(rolId)
-                : [];
-
-            Permisos.Clear();
-            foreach (var permiso in _catalogo)
-                Permisos.Add(new PermisoCasilla
-                {
-                    Codigo = permiso.Codigo,
-                    Nombre = permiso.Nombre,
-                    Descripcion = permiso.Descripcion,
-                    Asignado = actuales.Contains(permiso.Codigo),
-                    VieneDelRol = delRol.Contains(permiso.Codigo)
-                });
+            var roles = await _usuarios.ObtenerRolesDeUsuarioAsync(fila.Id);
+            EsAdministrador = roles.EsAdmin;
+            RolPrestSeleccionado = OpcionPara(RolesPrest, roles.RolPrestId);
+            RolDealerSeleccionado = OpcionPara(RolesDealer, roles.RolDealerId);
+            RolAutoSeleccionado = OpcionPara(RolesAuto, roles.RolAutoId);
 
             FormularioVisible = true;
         }
@@ -207,95 +181,46 @@ public partial class UsuariosViewModel : ObservableObject
         }
     }
 
-    /// <summary>Al elegir rol, se premarcan sus permisos por defecto.</summary>
-    private async Task MarcarPermisosDelRolAsync(Opcion<int>? rol)
-    {
-        if (rol is null)
-            return;
-
-        try
-        {
-            var delRol = await _usuarios.ObtenerPermisosDeRolAsync(rol.Valor);
-
-            if (Permisos.Count == 0)
-                foreach (var permiso in _catalogo)
-                    Permisos.Add(new PermisoCasilla
-                    {
-                        Codigo = permiso.Codigo,
-                        Nombre = permiso.Nombre,
-                        Descripcion = permiso.Descripcion
-                    });
-
-            foreach (var casilla in Permisos)
-            {
-                casilla.VieneDelRol = delRol.Contains(casilla.Codigo);
-                // En alta nueva se parte SIEMPRE de los del rol; en edición se
-                // respetan los overrides que el Admin ya tenía puestos.
-                if (EsNuevo)
-                    casilla.Asignado = casilla.VieneDelRol;
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error cargando los permisos del rol {Rol}", rol.Texto);
-        }
-    }
+    private static Opcion<int?> OpcionPara(ObservableCollection<Opcion<int?>> combo, int? rolId) =>
+        combo.FirstOrDefault(o => o.Valor == rolId) ?? combo[0];
 
     [RelayCommand]
     private async Task GuardarAsync()
     {
         MensajeError = MensajeExito = string.Empty;
-
-        if (RolSeleccionado is null)
-        {
-            MensajeError = "Elegí un rol para el usuario.";
-            return;
-        }
+        var roles = new RolesUsuario(
+            EsAdministrador,
+            RolPrestSeleccionado?.Valor,
+            RolDealerSeleccionado?.Valor,
+            RolAutoSeleccionado?.Valor);
 
         try
         {
             Ocupado = true;
-            long id;
             var eraNuevo = _editandoId is null;
 
             if (eraNuevo)
             {
-                id = await _usuarios.CrearAsync(Username, Nombre, Apellido,
-                    RolSeleccionado.Valor, PasswordNueva);
+                await _usuarios.CrearAsync(Username, Nombre, Apellido, roles, PasswordNueva);
             }
             else
             {
-                id = _editandoId!.Value;
-                await _usuarios.ActualizarAsync(id, Nombre, Apellido, RolSeleccionado.Valor, Activo);
-
-                // La contraseña solo se toca si el Admin escribió una nueva
+                var id = _editandoId!.Value;
+                await _usuarios.ActualizarAsync(id, Nombre, Apellido, roles, Activo);
                 if (!string.IsNullOrEmpty(PasswordNueva))
                     await _usuarios.RestablecerPasswordAsync(id, PasswordNueva);
             }
 
-            // Permisos finales: el trigger ya sembró los del rol; esto aplica
-            // los ajustes del Admin encima.
-            await _usuarios.GuardarPermisosAsync(id, Permisos.Where(p => p.Asignado).Select(p => p.Codigo));
-
             PasswordNueva = string.Empty;
-        PasswordDebeLimpiarse?.Invoke();
+            PasswordDebeLimpiarse?.Invoke();
             await CargarAsync();
             MensajeExito = eraNuevo
                 ? "Usuario creado. Ya puede iniciar sesión."
                 : "Usuario actualizado.";
         }
-        catch (ArgumentException ex)
-        {
-            MensajeError = ex.Message;
-        }
-        catch (InvalidOperationException ex)
-        {
-            MensajeError = ex.Message;
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            MensajeError = ex.Message;
-        }
+        catch (ArgumentException ex) { MensajeError = ex.Message; }
+        catch (InvalidOperationException ex) { MensajeError = ex.Message; }
+        catch (UnauthorizedAccessException ex) { MensajeError = ex.Message; }
         catch (Exception ex)
         {
             Log.Error(ex, "Error guardando el usuario");
@@ -314,21 +239,5 @@ public partial class UsuariosViewModel : ObservableObject
         PasswordNueva = string.Empty;
         PasswordDebeLimpiarse?.Invoke();
         MensajeError = MensajeExito = string.Empty;
-    }
-
-    /// <summary>Deshace los overrides: vuelve a los permisos que da el rol.</summary>
-    [RelayCommand]
-    private async Task RestablecerPermisosAsync()
-    {
-        if (RolSeleccionado is null)
-            return;
-
-        var delRol = await _usuarios.ObtenerPermisosDeRolAsync(RolSeleccionado.Valor);
-        foreach (var casilla in Permisos)
-        {
-            casilla.VieneDelRol = delRol.Contains(casilla.Codigo);
-            casilla.Asignado = casilla.VieneDelRol;
-        }
-        MensajeExito = $"Permisos restablecidos a los de {RolSeleccionado.Texto}. Acordate de guardar.";
     }
 }

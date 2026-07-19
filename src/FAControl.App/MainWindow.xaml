@@ -9,6 +9,12 @@
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Brush.FondoApp}">
 
+  <!-- Lienzo: SOLO en tamaño Grande el contenido puede exceder la pantalla; ahí
+       AplicarEscala() habilita el scroll y le fija tamaño a Raiz. En Pequeño/
+       Mediano las barras quedan deshabilitadas y Raiz llena el lienzo (idéntico
+       al comportamiento original, sin scroll). -->
+  <ScrollViewer x:Name="Lienzo"
+                HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
   <!-- Raiz: recibe el LayoutTransform del tamaño de texto (Configuración) -->
   <Grid x:Name="Raiz">
     <Grid.ColumnDefinitions>
@@ -225,4 +231,5 @@
       <ContentControl Grid.Row="1" Content="{Binding PaginaActualVm}" Focusable="False" />
     </Grid>
   </Grid>
+  </ScrollViewer>
 </Window>

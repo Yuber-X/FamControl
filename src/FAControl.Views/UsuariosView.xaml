@@ -92,13 +92,32 @@
             </StackPanel>
           </Grid>
 
-          <TextBlock Text="Rol" Style="{DynamicResource Input.Label}" Margin="0,10,0,0" />
-          <ComboBox Height="40" FontSize="13"
-                    ItemsSource="{Binding Roles}"
-                    SelectedItem="{Binding RolSeleccionado}"
-                    DisplayMemberPath="Texto" />
+          <!-- ROLES POR MODO: admin global, o un rol por cada estancia -->
+          <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,16,0,12" />
+          <CheckBox Content="Administrador (acceso total a los tres modos)" FontSize="13"
+                    IsChecked="{Binding EsAdministrador}" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,4,0,8"
+                     Text="Si no es administrador, elegí un rol por modo. 'Sin acceso' = no entra a ese modo. Cada rol trae sus propios permisos." />
 
-          <TextBlock Text="Contraseña" Style="{DynamicResource Input.Label}" Margin="0,10,0,0" />
+          <StackPanel IsEnabled="{Binding RolesPorModoHabilitados}">
+            <TextBlock Text="PrestControl (préstamos)" Style="{DynamicResource Input.Label}" />
+            <ComboBox Height="38" FontSize="13" ItemsSource="{Binding RolesPrest}"
+                      SelectedItem="{Binding RolPrestSeleccionado}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Texto}" /></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="DealControl (dealer)" Style="{DynamicResource Input.Label}" Margin="0,8,0,0" />
+            <ComboBox Height="38" FontSize="13" ItemsSource="{Binding RolesDealer}"
+                      SelectedItem="{Binding RolDealerSeleccionado}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Texto}" /></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="AutoControl (ventas financiadas)" Style="{DynamicResource Input.Label}" Margin="0,8,0,0" />
+            <ComboBox Height="38" FontSize="13" ItemsSource="{Binding RolesAuto}"
+                      SelectedItem="{Binding RolAutoSeleccionado}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Texto}" /></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+
+          <TextBlock Text="Contraseña" Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
           <!-- PasswordBox no se puede bindear (WPF no expone Password como
                DependencyProperty, a propósito): lo pasa el code-behind -->
           <PasswordBox x:Name="CampoPassword" Style="{DynamicResource Input.Password}"
@@ -123,34 +142,6 @@
               </Style>
             </CheckBox.Style>
           </CheckBox>
-
-          <!-- Permisos -->
-          <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,16,0,12" />
-          <DockPanel Margin="0,0,0,8">
-            <Button DockPanel.Dock="Right" Content="Restablecer al rol"
-                    Style="{DynamicResource Boton.Terciario}"
-                    Command="{Binding RestablecerPermisosCommand}"
-                    ToolTip="Vuelve a los permisos que da el rol elegido" />
-            <TextBlock Text="Permisos" Style="{DynamicResource Texto.CuerpoEnfatizado}"
-                       VerticalAlignment="Center" />
-          </DockPanel>
-          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
-                     Text="El rol marca los permisos por defecto. Podés ajustarlos uno por uno para este usuario." />
-
-          <ItemsControl ItemsSource="{Binding Permisos}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <Border Padding="0,5">
-                  <CheckBox IsChecked="{Binding Asignado}">
-                    <StackPanel>
-                      <TextBlock Text="{Binding Nombre}" Style="{DynamicResource Texto.Cuerpo}" />
-                      <TextBlock Text="{Binding PistaTexto}" Style="{DynamicResource Texto.Caption}" />
-                    </StackPanel>
-                  </CheckBox>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
 
           <!-- Mensajes: vacíos no molestan (mismo patrón que ClienteFormView) -->
           <TextBlock Text="{Binding MensajeError}" TextWrapping="Wrap" Margin="0,12,0,0"

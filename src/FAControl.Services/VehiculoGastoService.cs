@@ -103,13 +103,13 @@ public class VehiculoGastoService
 
     private static void ExigirLectura()
     {
-        if (!SesionActual.TienePermiso(Permisos.Vehiculos))
+        if (!SesionActual.TienePermiso(Permisos.Gastos))
             throw new UnauthorizedAccessException("No tenés permiso para ver los gastos de vehículos.");
     }
 
     private static void ExigirEscritura()
     {
-        if (!SesionActual.TienePermiso(Permisos.VehiculosEditar))
+        if (!SesionActual.TienePermiso(Permisos.Gastos))
             throw new UnauthorizedAccessException("No tenés permiso para gestionar gastos de vehículos.");
     }
 }

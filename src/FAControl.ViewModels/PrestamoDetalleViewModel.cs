@@ -15,7 +15,9 @@ public partial class PrestamoDetalleViewModel : ObservableObject
     private readonly ClienteService _clientes;
     private readonly IDialogService _dialogos;
     private readonly AjustesLocales _ajustes;
+    private readonly RecordatorioService _recordatorios;
     private long _prestamoId;
+    private long _clienteId;
 
     public event Action<long>? CobrarSolicitado;
     public event Action? VolverSolicitado;
@@ -25,12 +27,13 @@ public partial class PrestamoDetalleViewModel : ObservableObject
     public event Action<IntimacionImpresa>? IntimacionSolicitada;
 
     public PrestamoDetalleViewModel(PrestamoService prestamos, ClienteService clientes,
-        IDialogService dialogos, AjustesLocales ajustes)
+        IDialogService dialogos, AjustesLocales ajustes, RecordatorioService recordatorios)
     {
         _prestamos = prestamos;
         _clientes = clientes;
         _dialogos = dialogos;
         _ajustes = ajustes;
+        _recordatorios = recordatorios;
     }
 
     public ObservableCollection<CuotaFila> Cuotas { get; } = [];
@@ -60,6 +63,7 @@ public partial class PrestamoDetalleViewModel : ObservableObject
             _prestamoId = prestamoId;
             var prestamo = await _prestamos.ObtenerPorIdAsync(prestamoId)
                 ?? throw new InvalidOperationException($"No existe el préstamo con id {prestamoId}.");
+            _clienteId = prestamo.ClienteId;
             var cliente = await _clientes.ObtenerPorIdAsync(prestamo.ClienteId);
             var cuotas = await _prestamos.ObtenerCuotasAsync(prestamoId);
 
@@ -96,6 +100,26 @@ public partial class PrestamoDetalleViewModel : ObservableObject
 
     [RelayCommand]
     private void Cobrar() => CobrarSolicitado?.Invoke(_prestamoId);
+
+    /// <summary>Envía un recordatorio por correo al cliente de ESTE préstamo.</summary>
+    [RelayCommand]
+    private async Task EnviarRecordatorioAsync()
+    {
+        try
+        {
+            var mensaje = await _recordatorios.EnviarAClienteAsync(_clienteId);
+            _dialogos.Informar("Recordatorio", mensaje);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _dialogos.Informar("Recordatorio", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error enviando recordatorio individual del préstamo {Id}", _prestamoId);
+            _dialogos.MostrarError("Recordatorio", ex.Message);
+        }
+    }
 
     /// <summary>
     /// Imprime el estado del préstamo con su tabla de amortización

@@ -30,6 +30,7 @@ public partial class AvisoVencidosWindow : Window
     public AvisoVencidosWindow(IReadOnlyList<ClienteVencido> vencidos)
     {
         InitializeComponent();
+        ChromeVentana.OcultarBotones(this);
         _filas = vencidos.Select(v => new Fila { Datos = v }).ToList();
         Lista.ItemsSource = _filas;
         TextoResumen.Text = vencidos.Count == 1

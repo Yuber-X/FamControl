@@ -106,17 +106,24 @@ public class AuthService
         var permisos = await _usuarios.ObtenerPermisosAsync(usuario.Id, ct);
 
         // Puerta de acceso por modo: el Admin entra a todo; los demás solo si el
-        // Admin les habilitó acceso_<modo>. Sin acceso NO se abre sesión.
+        // Admin les habilitó acceso_<modo> (parte del rol de ese modo). Sin acceso
+        // NO se abre sesión.
         var esAdmin = usuario.RolNombre == Roles.Admin;
         if (!esAdmin && !permisos.Contains(Permisos.AccesoDe(modo)))
             return ResultadoLogin.SinAccesoAlModo;
+
+        // El rol MOSTRADO es el del modo activo (roles por modo): Admin es global;
+        // los demás muestran su rol de esta estancia (Cobrador, Vendedor…).
+        var rolMostrar = esAdmin
+            ? Roles.Admin
+            : await _usuarios.ObtenerRolDeModoAsync(usuario.Id, modo.ClaveDb(), ct) ?? usuario.RolNombre;
 
         var ahoraUtc = DateTime.UtcNow;
         var sesionId = await _sesiones.RegistrarLoginAsync(usuario.Id, ahoraUtc, ipLocal: null, ct);
         await _usuarios.ActualizarUltimoLoginAsync(usuario.Id, ahoraUtc, ct);
 
         SesionActual.Iniciar(usuario.Id, usuario.Username, usuario.Nombre,
-            usuario.RolNombre, permisos, ahoraUtc, sesionId);
+            rolMostrar, permisos, ahoraUtc, sesionId);
         SesionActual.EstablecerModo(modo);
         await _auditoria.RegistrarAsync(AccionAuditoria.Login, DbNames.Usuario, usuario.Id,
             $"Login de {usuario.Username} ({usuario.RolNombre}) en {modo}", ct);

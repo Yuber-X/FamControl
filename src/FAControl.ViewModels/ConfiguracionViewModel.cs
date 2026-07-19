@@ -52,6 +52,9 @@ public partial class ConfiguracionViewModel : ObservableObject
         // volvería a guardar el ajuste apenas se abre Configuración.
         // El tema es POR MODO (DealControl arranca oscuro).
         _temaOscuro = ajustes.TemaOscuroDe(SesionActual.Modo);
+        // La PasswordBox se ve vacía al volver (no se puede rellenar por seguridad):
+        // este flag le avisa al usuario que YA hay una guardada.
+        _hayAppPasswordGuardada = !string.IsNullOrWhiteSpace(ajustes.GmailAppPasswordCifrada);
         _exportActivo = ajustes.ExportAutomaticoActivo;
         _exportCadaDiasTexto = ajustes.ExportAutomaticoCadaDias.ToString();
         _exportCarpeta = ajustes.ExportAutomaticoCarpeta ?? string.Empty;
@@ -79,6 +82,8 @@ public partial class ConfiguracionViewModel : ObservableObject
     [ObservableProperty] private string _correoDueno;
     [ObservableProperty] private string _recordatorioDiasTexto;
     [ObservableProperty] private string _mensajeCorreo = string.Empty;
+    /// <summary>True si ya hay un App Password guardado (la View lo indica).</summary>
+    [ObservableProperty] private bool _hayAppPasswordGuardada;
     /// <summary>La contraseña de app llega de la View (PasswordBox no se bindea).</summary>
     public string GmailAppPassword { get; set; } = string.Empty;
 
@@ -111,6 +116,7 @@ public partial class ConfiguracionViewModel : ObservableObject
     {
         GmailAppPassword = (password ?? string.Empty).Replace(" ", string.Empty);
         GuardarAjustesCorreo();
+        HayAppPasswordGuardada = !string.IsNullOrWhiteSpace(_ajustes.GmailAppPasswordCifrada);
     }
 
     /// <summary>

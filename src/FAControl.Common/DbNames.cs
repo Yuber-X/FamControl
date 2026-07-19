@@ -13,6 +13,7 @@ public static class DbNames
     public const string Permiso = "permiso";
     public const string RolPermiso = "rol_permiso";
     public const string UsuarioPermiso = "usuario_permiso";
+    public const string UsuarioModoRol = "usuario_modo_rol";   // roles por modo (011)
     public const string Cliente = "cliente";
     public const string Prestamo = "prestamo";
     public const string Cuota = "cuota";

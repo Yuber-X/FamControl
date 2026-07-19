@@ -51,17 +51,17 @@
             <StackPanel Margin="0,0,28,0">
               <TextBlock Text="DEUDA PENDIENTE" Style="{DynamicResource Texto.MicroLabel}" />
               <TextBlock Text="{Binding DeudaTotal, Converter={StaticResource Money}}"
-                         Style="{DynamicResource Texto.Titulo3}" />
+                         Style="{DynamicResource Texto.CuerpoEnfatizado}" FontSize="16" />
             </StackPanel>
             <StackPanel Margin="0,0,28,0">
               <TextBlock Text="PRÓXIMA CUOTA" Style="{DynamicResource Texto.MicroLabel}" />
               <TextBlock Text="{Binding SaldoProximaCuota, Converter={StaticResource Money}}"
-                         Style="{DynamicResource Texto.Titulo3}" />
+                         Style="{DynamicResource Texto.CuerpoEnfatizado}" FontSize="16" />
             </StackPanel>
             <StackPanel>
               <TextBlock Text="LIQUIDAR HOY POR" Style="{DynamicResource Texto.MicroLabel}" />
               <TextBlock Text="{Binding MontoLiquidacion, Converter={StaticResource Money}}"
-                         Style="{DynamicResource Texto.Titulo3}" />
+                         Style="{DynamicResource Texto.CuerpoEnfatizado}" FontSize="16" />
             </StackPanel>
           </WrapPanel>
 
@@ -71,19 +71,19 @@
               <DataGridTextColumn Header="N°" Binding="{Binding Numero}" Width="44" MinWidth="44" />
               <DataGridTextColumn Header="Vence" Binding="{Binding FechaTexto}" Width="100" MinWidth="100" />
               <DataGridTextColumn Header="Cuota"
-                                  Binding="{Binding MontoTotal, Converter={StaticResource Money}}" Width="*" MinWidth="130">
+                                  Binding="{Binding MontoTotal, Converter={StaticResource Money}}" Width="*" MinWidth="150">
                 <DataGridTextColumn.ElementStyle>
                   <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
                 </DataGridTextColumn.ElementStyle>
               </DataGridTextColumn>
               <DataGridTextColumn Header="Abonado"
-                                  Binding="{Binding MontoPagado, Converter={StaticResource Money}}" Width="*" MinWidth="130">
+                                  Binding="{Binding MontoPagado, Converter={StaticResource Money}}" Width="*" MinWidth="150">
                 <DataGridTextColumn.ElementStyle>
                   <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
                 </DataGridTextColumn.ElementStyle>
               </DataGridTextColumn>
               <DataGridTextColumn Header="Pendiente"
-                                  Binding="{Binding SaldoPendiente, Converter={StaticResource Money}}" Width="*" MinWidth="130">
+                                  Binding="{Binding SaldoPendiente, Converter={StaticResource Money}}" Width="*" MinWidth="150">
                 <DataGridTextColumn.ElementStyle>
                   <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.MontoTotal}" />
                 </DataGridTextColumn.ElementStyle>

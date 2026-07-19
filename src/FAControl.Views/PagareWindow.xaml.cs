@@ -18,6 +18,7 @@ public partial class PagareWindow : Window
     public PagareWindow(PagareImpreso pagare)
     {
         InitializeComponent();
+        ChromeVentana.OcultarBotones(this);
         _pagare = pagare;
         // Un documento nuevo para el visor: el mismo objeto no se puede
         // compartir entre el visor y la impresión (un FlowDocument tiene un

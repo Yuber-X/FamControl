@@ -25,8 +25,16 @@ public class Rol
 {
     public int Id { get; set; }
     public string Nombre { get; set; } = string.Empty;
+    /// <summary>Modo al que pertenece el rol ("prestcontrol"/"dealercontrol"/"autocontrol"); null = global (Admin).</summary>
+    public string? Modo { get; set; }
     public string? Descripcion { get; set; }
 }
+
+/// <summary>
+/// Roles de un usuario POR MODO (roles por modo, 011). EsAdmin = global.
+/// RolPrestId/RolDealerId/RolAutoId = rol elegido en cada modo (null = sin acceso).
+/// </summary>
+public record RolesUsuario(bool EsAdmin, int? RolPrestId, int? RolDealerId, int? RolAutoId);
 
 /// <summary>Permiso del catálogo. `Codigo` es lo que consulta SesionActual.TienePermiso.</summary>
 public class Permiso
