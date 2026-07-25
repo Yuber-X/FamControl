@@ -57,6 +57,7 @@ public class ContratoService
             DeudorCedula: string.IsNullOrWhiteSpace(cliente?.Cedula) ? "—" : cliente.Cedula,
             CodigoPrestamo: prestamo.Codigo,
             MontoPrestado: prestamo.MontoCapital,
+            TasaTexto: PagareImpreso.FormatearTasa(prestamo.TasaInteres, prestamo.Modalidad),
             TotalAPagar: cuotas.Sum(c => c.MontoTotal),
             Cuotas: [.. cuotas.OrderBy(c => c.NumeroCuota).Select(c => new PagareCuota(
                 c.NumeroCuota,

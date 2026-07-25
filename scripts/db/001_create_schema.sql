@@ -189,6 +189,7 @@ CREATE TABLE vehiculo (
 CREATE TABLE prestamo (
   id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   codigo              VARCHAR(10)   NOT NULL,     -- P-0001
+  ncf                 VARCHAR(19)   NULL,         -- comprobante fiscal (012): registrado o asignado de ncf_secuencia
   cliente_id          BIGINT UNSIGNED NOT NULL,
   vehiculo_id         BIGINT UNSIGNED NULL,       -- AutoControl: vehículo en garantía (NULL = préstamo personal)
   monto_capital       DECIMAL(15,2) NOT NULL,
@@ -205,6 +206,7 @@ CREATE TABLE prestamo (
   updated_at          DATETIME      NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_prestamo_codigo (codigo),
+  UNIQUE KEY uq_prestamo_ncf (ncf),
   KEY ix_prestamo_cliente (cliente_id),
   KEY ix_prestamo_vehiculo (vehiculo_id),
   KEY ix_prestamo_estado (estado),
@@ -306,6 +308,25 @@ INSERT INTO contador (nombre, valor) VALUES
   ('vehiculo', 0),
   ('venta', 0),
   ('alquiler', 0);
+
+-- -------------------------------------------------------------
+-- Secuencia de comprobantes fiscales (012): prefijo autorizado por la DGII
+-- (B02 tradicional / E32 e-CF), próxima secuencia, fin de rango y vencimiento.
+-- La reserva es atómica (FOR UPDATE); un NCF consumido nunca se reusa.
+-- -------------------------------------------------------------
+CREATE TABLE ncf_secuencia (
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  prefijo     VARCHAR(5)  NOT NULL,
+  largo       TINYINT UNSIGNED NOT NULL DEFAULT 8,
+  proxima     BIGINT UNSIGNED NOT NULL DEFAULT 1,
+  fin_rango   BIGINT UNSIGNED NULL,
+  vencimiento DATE NULL,
+  activo      TINYINT(1) NOT NULL DEFAULT 1,
+  created_at  DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  updated_at  DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_ncf_secuencia_prefijo (prefijo)
+) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
 -- venta_vehiculo: venta al contado del dealer (DealerControl — Tier 5).

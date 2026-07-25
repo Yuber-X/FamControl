@@ -28,9 +28,11 @@ public class PagoService
     private readonly ClienteRepository _clientes;
     private readonly ContadorRepository _contador;
     private readonly AuditoriaService _auditoria;
+    private readonly AjustesLocales _ajustes;
 
     public PagoService(ConexionFactory factory, PrestamoRepository prestamos, PagoRepository pagos,
-        ClienteRepository clientes, ContadorRepository contador, AuditoriaService auditoria)
+        ClienteRepository clientes, ContadorRepository contador, AuditoriaService auditoria,
+        AjustesLocales ajustes)
     {
         _factory = factory;
         _prestamos = prestamos;
@@ -38,6 +40,7 @@ public class PagoService
         _clientes = clientes;
         _contador = contador;
         _auditoria = auditoria;
+        _ajustes = ajustes;
     }
 
     // ============================================================
@@ -308,7 +311,11 @@ public class PagoService
                 Math.Max(0m, saldoAntes - totalPagado - interesExonerado),
                 interesExonerado,
                 solicitud.Notas,
-                SesionActual.Nombre);
+                SesionActual.Nombre,
+                NegocioNombre: _ajustes.NombreNegocio,
+                NegocioRnc: _ajustes.RncNegocio,
+                NegocioTelefono: _ajustes.TelefonoNegocio,
+                Ncf: prestamo.Ncf);
 
             Log.Information("Cobro {Recibo} registrado: {Monto:N2} DOP al préstamo {Codigo} ({Cuotas} cuotas)",
                 reciboPrincipal, totalPagado, prestamo.Codigo, lineas.Count);

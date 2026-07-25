@@ -48,7 +48,13 @@ public record ReciboPago(
     decimal SaldoRestantePrestamo,
     decimal InteresExonerado,
     string? Notas,
-    string CobradoPor);
+    string CobradoPor,
+    // Marca en el recibo (pedido del cliente 2026-07-25): nombre, RNC y
+    // teléfono del negocio + número de comprobante fiscal cuando exista.
+    string NegocioNombre = "",
+    string NegocioRnc = "",
+    string NegocioTelefono = "",
+    string? Ncf = null);
 
 /// <summary>Resultado de una operación de cobro completa.</summary>
 public record ResultadoPago(

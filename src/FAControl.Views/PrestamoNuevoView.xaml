@@ -143,6 +143,16 @@
                    VerticalContentAlignment="Top" Padding="10,8"
                    Text="{Binding Notas, UpdateSourceTrigger=PropertyChanged}" />
 
+          <!-- Comprobante fiscal (pedido 2026-07-25) -->
+          <TextBlock Text="Comprobante fiscal — NCF (opcional)" Style="{DynamicResource Input.Label}"
+                     Margin="0,14,0,6" />
+          <TextBox Style="{DynamicResource Input.Texto}"
+                   IsEnabled="{Binding NcfDeSecuencia, Converter={StaticResource InversorBool}}"
+                   Text="{Binding NcfTexto, UpdateSourceTrigger=PropertyChanged}" />
+          <CheckBox Content="Tomar el siguiente de la secuencia configurada (Configuración → Comprobante fiscal)"
+                    FontSize="12" Margin="0,6,0,0"
+                    IsChecked="{Binding NcfDeSecuencia}" />
+
           <TextBlock Text="{Binding MensajeValidacion}"
                      Foreground="{DynamicResource Brush.Destructivo}"
                      Style="{DynamicResource Texto.Caption}"

@@ -37,9 +37,10 @@ public class FlujoPrestamoPagoTests : IAsyncLifetime
             new SesionRepository(_factory), new UsuarioRepository(_factory));
 
         _prestamos = new PrestamoService(_factory, prestamoRepo, contadorRepo,
-            new AmortizacionService(), auditoria, new VehiculoRepository(_factory));
+            new AmortizacionService(), auditoria, new VehiculoRepository(_factory),
+            new NcfRepository(_factory));
         _pagos = new PagoService(_factory, prestamoRepo, pagoRepo, clienteRepo,
-            contadorRepo, auditoria);
+            contadorRepo, auditoria, new FAControl.Common.AjustesLocales());
         _clientes = new ClienteService(clienteRepo, auditoria);
 
         // Usuario + cliente de prueba, y sesión activa (la auditoría la exige)

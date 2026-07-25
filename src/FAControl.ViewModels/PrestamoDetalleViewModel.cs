@@ -16,6 +16,7 @@ public partial class PrestamoDetalleViewModel : ObservableObject
     private readonly IDialogService _dialogos;
     private readonly AjustesLocales _ajustes;
     private readonly RecordatorioService _recordatorios;
+    private readonly NcfService _ncf;
     private long _prestamoId;
     private long _clienteId;
 
@@ -27,13 +28,15 @@ public partial class PrestamoDetalleViewModel : ObservableObject
     public event Action<IntimacionImpresa>? IntimacionSolicitada;
 
     public PrestamoDetalleViewModel(PrestamoService prestamos, ClienteService clientes,
-        IDialogService dialogos, AjustesLocales ajustes, RecordatorioService recordatorios)
+        IDialogService dialogos, AjustesLocales ajustes, RecordatorioService recordatorios,
+        NcfService ncf)
     {
         _prestamos = prestamos;
         _clientes = clientes;
         _dialogos = dialogos;
         _ajustes = ajustes;
         _recordatorios = recordatorios;
+        _ncf = ncf;
     }
 
     public ObservableCollection<CuotaFila> Cuotas { get; } = [];
@@ -55,6 +58,10 @@ public partial class PrestamoDetalleViewModel : ObservableObject
     [ObservableProperty] private decimal _totalPagado;
     [ObservableProperty] private decimal _saldoPendiente;
     [ObservableProperty] private string _progresoTexto = string.Empty;
+    // Comprobante fiscal (pedido 2026-07-25)
+    [ObservableProperty] private string _ncfTexto = "—";
+    [ObservableProperty] private bool _tieneNcf;
+    [ObservableProperty] private string _ncfManual = string.Empty;
 
     public async Task CargarAsync(long prestamoId)
     {
@@ -80,6 +87,9 @@ public partial class PrestamoDetalleViewModel : ObservableObject
             FechaInicioTexto = prestamo.FechaInicio.ToString(Textos.FormatoFecha, Textos.CulturaRd);
             GarantiaTexto = string.IsNullOrWhiteSpace(prestamo.Garantia) ? "—" : prestamo.Garantia;
             NotasTexto = string.IsNullOrWhiteSpace(prestamo.Notas) ? "—" : prestamo.Notas;
+            TieneNcf = !string.IsNullOrWhiteSpace(prestamo.Ncf);
+            NcfTexto = TieneNcf ? prestamo.Ncf! : "—";
+            NcfManual = string.Empty;
 
             var hoy = FechaNegocio.Hoy;
             Cuotas.Clear();
@@ -100,6 +110,41 @@ public partial class PrestamoDetalleViewModel : ObservableObject
 
     [RelayCommand]
     private void Cobrar() => CobrarSolicitado?.Invoke(_prestamoId);
+
+    /// <summary>
+    /// Asigna el comprobante fiscal a un préstamo que no tiene: con texto en
+    /// <see cref="NcfManual"/> lo registra (Facturador Gratuito DGII); vacío,
+    /// toma el siguiente de la secuencia configurada. Irreversible.
+    /// </summary>
+    [RelayCommand]
+    private async Task AsignarNcfAsync()
+    {
+        var manual = string.IsNullOrWhiteSpace(NcfManual) ? null : NcfManual.Trim();
+        var detalle = manual is null
+            ? "Se tomará el SIGUIENTE número de la secuencia configurada."
+            : $"Se registrará el comprobante {manual.ToUpperInvariant()}.";
+        if (!_dialogos.Confirmar("Comprobante fiscal",
+            $"{detalle}\n\nUn comprobante asignado no se puede cambiar. ¿Continuar?"))
+            return;
+
+        try
+        {
+            var ncf = await _ncf.AsignarAsync(_prestamoId, manual);
+            TieneNcf = true;
+            NcfTexto = ncf;
+            NcfManual = string.Empty;
+            _dialogos.Informar("Comprobante fiscal", $"Comprobante {ncf} asignado al préstamo {Codigo}.");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)
+        {
+            _dialogos.MostrarError("Comprobante fiscal", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error asignando NCF al préstamo {Id}", _prestamoId);
+            _dialogos.MostrarError("Comprobante fiscal", $"No se pudo asignar el comprobante.\n\n{ex.Message}");
+        }
+    }
 
     /// <summary>Envía un recordatorio por correo al cliente de ESTE préstamo.</summary>
     [RelayCommand]
@@ -140,7 +185,10 @@ public partial class PrestamoDetalleViewModel : ObservableObject
             SaldoPendiente, EstadoTexto, ProgresoTexto, SesionActual.Nombre,
             [.. Cuotas.Select(c => new CuotaImpresa(
                 c.Numero, c.FechaTexto, c.Capital, c.Interes,
-                c.MontoTotal, c.SaldoDespues, c.SemaforoTexto))]));
+                c.MontoTotal, c.SaldoDespues, c.SemaforoTexto))],
+            NegocioNombre: _ajustes.NombreNegocio,
+            NegocioRnc: _ajustes.RncNegocio,
+            NegocioTelefono: _ajustes.TelefonoNegocio));
     }
 
     /// <summary>

@@ -26,14 +26,15 @@ public class PrestamoRepository
         cmd.Transaction = transaccion;
         cmd.CommandText = $"""
             INSERT INTO {DbNames.Prestamo}
-              (codigo, cliente_id, vehiculo_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
+              (codigo, ncf, cliente_id, vehiculo_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
                modalidad, metodo_amortizacion, fecha_inicio, garantia, estado, notas)
             VALUES
-              (@codigo, @clienteId, @vehiculoId, @montoCapital, @moneda, @tasaInteres, @plazoCuotas,
+              (@codigo, @ncf, @clienteId, @vehiculoId, @montoCapital, @moneda, @tasaInteres, @plazoCuotas,
                @modalidad, @metodo, @fechaInicio, @garantia, @estado, @notas);
             SELECT LAST_INSERT_ID();
             """;
         cmd.Parameters.AddWithValue("@codigo", prestamo.Codigo);
+        cmd.Parameters.AddWithValue("@ncf", (object?)prestamo.Ncf ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@clienteId", prestamo.ClienteId);
         cmd.Parameters.AddWithValue("@vehiculoId", (object?)prestamo.VehiculoId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@montoCapital", prestamo.MontoCapital);
@@ -219,7 +220,7 @@ public class PrestamoRepository
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
-            SELECT id, codigo, cliente_id, vehiculo_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
+            SELECT id, codigo, ncf, cliente_id, vehiculo_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
                    modalidad, metodo_amortizacion, fecha_inicio, garantia, estado, notas,
                    created_at, updated_at
             FROM {DbNames.Prestamo}
@@ -235,6 +236,7 @@ public class PrestamoRepository
         {
             Id = reader.GetInt64("id"),
             Codigo = reader.GetString("codigo"),
+            Ncf = reader.IsDBNull(reader.GetOrdinal("ncf")) ? null : reader.GetString("ncf"),
             ClienteId = reader.GetInt64("cliente_id"),
             VehiculoId = reader.IsDBNull(reader.GetOrdinal("vehiculo_id")) ? null : reader.GetInt64("vehiculo_id"),
             MontoCapital = reader.GetDecimal("monto_capital"),
@@ -252,6 +254,26 @@ public class PrestamoRepository
                 ? null
                 : DateTime.SpecifyKind(reader.GetDateTime("updated_at"), DateTimeKind.Utc)
         };
+    }
+
+    /// <summary>
+    /// Fija el NCF de un préstamo existente (dentro de la transacción de la
+    /// operación que lo asigna, para que la reserva de la secuencia y el
+    /// préstamo queden consistentes).
+    /// </summary>
+    public async Task ActualizarNcfAsync(long prestamoId, string ncf, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            UPDATE {DbNames.Prestamo}
+            SET ncf = @ncf, updated_at = UTC_TIMESTAMP()
+            WHERE id = @id;
+            """;
+        cmd.Parameters.AddWithValue("@ncf", ncf);
+        cmd.Parameters.AddWithValue("@id", prestamoId);
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 
     public async Task<IReadOnlyList<Cuota>> ObtenerCuotasAsync(long prestamoId, CancellationToken ct = default)

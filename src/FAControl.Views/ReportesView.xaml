@@ -117,6 +117,31 @@
       </Border>
     </UniformGrid>
 
+    <!-- Colocación y proyección (pedido 2026-07-25) -->
+    <UniformGrid Rows="1" Columns="2" Margin="0,0,0,12"
+                 Visibility="{Binding TieneReporte, Converter={StaticResource BoolAVisibilidad}}">
+      <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
+        <StackPanel>
+          <TextBlock Text="TOTAL PRESTADO" Style="{DynamicResource Texto.MicroLabel}" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding TotalPrestado, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.Display}" />
+          </Viewbox>
+          <TextBlock Text="{Binding PrestamosCreadosTexto}" Style="{DynamicResource Texto.Caption}" />
+        </StackPanel>
+      </Border>
+      <Border Style="{DynamicResource Card.Metrica}">
+        <StackPanel>
+          <TextBlock Text="PROYECCIÓN A GANAR" Style="{DynamicResource Texto.MicroLabel}" />
+          <Viewbox Style="{DynamicResource Metrica.Valor}">
+            <TextBlock Text="{Binding ProyeccionGanancia, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.Display}" />
+          </Viewbox>
+          <TextBlock Text="Interés por cobrar de los préstamos activos" Style="{DynamicResource Texto.Caption}" />
+        </StackPanel>
+      </Border>
+    </UniformGrid>
+
     <!-- Gráfico semanal + desglose. MinHeight para que no colapse a solo los
          títulos; el scroll vertical de arriba permite bajar a verlo. -->
     <Grid MinHeight="360"

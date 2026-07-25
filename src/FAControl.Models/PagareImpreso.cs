@@ -25,5 +25,17 @@ public record PagareImpreso(
     // Deuda
     string CodigoPrestamo,
     decimal MontoPrestado,
+    /// <summary>Tasa ya formateada para el texto, ej. "10% mensual" (pedido 2026-07-25).</summary>
+    string TasaTexto,
     decimal TotalAPagar,
-    IReadOnlyList<PagareCuota> Cuotas);
+    IReadOnlyList<PagareCuota> Cuotas)
+{
+    /// <summary>
+    /// La tasa guardada es mensual para todas las modalidades, EXCEPTO pago
+    /// único donde se aplica una sola vez (no por período).
+    /// </summary>
+    public static string FormatearTasa(decimal tasaMensual, Modalidad modalidad) =>
+        modalidad == Modalidad.PagoUnico
+            ? $"{tasaMensual:0.##}% (pago único)"
+            : $"{tasaMensual:0.##}% mensual";
+}

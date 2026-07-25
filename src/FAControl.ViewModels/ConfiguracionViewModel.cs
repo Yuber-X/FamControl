@@ -21,6 +21,7 @@ public partial class ConfiguracionViewModel : ObservableObject
     private readonly IAvisoVencidos _avisoVencidos;
     private readonly RecordatorioService _recordatorios;
     private readonly EmailService _email;
+    private readonly NcfService _ncf;
 
     /// <summary>El shell escala la UI cuando cambia el tamaño de texto.</summary>
     public event Action<double>? EscalaCambiada;
@@ -30,7 +31,8 @@ public partial class ConfiguracionViewModel : ObservableObject
 
     public ConfiguracionViewModel(AuthService auth, RespaldoService respaldo,
         ExportacionService exportacion, AjustesLocales ajustes, IDialogService dialogos,
-        IAvisoVencidos avisoVencidos, RecordatorioService recordatorios, EmailService email)
+        IAvisoVencidos avisoVencidos, RecordatorioService recordatorios, EmailService email,
+        NcfService ncf)
     {
         _auth = auth;
         _respaldo = respaldo;
@@ -40,6 +42,7 @@ public partial class ConfiguracionViewModel : ObservableObject
         _avisoVencidos = avisoVencidos;
         _recordatorios = recordatorios;
         _email = email;
+        _ncf = ncf;
 
         Tamanos =
         [
@@ -68,10 +71,166 @@ public partial class ConfiguracionViewModel : ObservableObject
         _gmailRemitente = ajustes.GmailRemitente;
         _correoDueno = ajustes.CorreoDueno;
         _recordatorioDiasTexto = ajustes.RecordatorioDiasAntes.ToString();
+        _negocioNombre = ajustes.NombreNegocio;
+        _negocioPrestamista = ajustes.Prestamista;
+        _negocioCiudad = ajustes.CiudadNegocio;
+        _negocioTelefono = ajustes.TelefonoNegocio;
+        _negocioEmail = ajustes.EmailNegocio;
+        _negocioRnc = ajustes.RncNegocio;
         ActualizarUltimaExportacion();
         ActualizarUltimoRespaldo();
         ActualizarUltimoRecordatorio();
         ActualizarSilenciados();
+    }
+
+    // ---------- Comprobante fiscal / secuencia NCF (cliente 2026-07-25) ----------
+    // La empresa está legalizada ante la DGII. Acá se configura la secuencia
+    // autorizada (prefijo B02/E32, próxima, fin de rango, vencimiento). Los
+    // préstamos toman el siguiente número de forma atómica, o registran el
+    // e-NCF generado en el Facturador Gratuito de la DGII.
+
+    [ObservableProperty] private bool _ncfActivo;
+    [ObservableProperty] private string _ncfPrefijo = "B02";
+    [ObservableProperty] private string _ncfLargoTexto = "8";
+    [ObservableProperty] private string _ncfProximaTexto = "1";
+    [ObservableProperty] private string _ncfFinTexto = string.Empty;
+    [ObservableProperty] private DateTime? _ncfVencimiento;
+    [ObservableProperty] private string _ncfEstadoTexto = string.Empty;
+    /// <summary>Solo el Admin ve/edita la secuencia.</summary>
+    public bool PuedeConfigurarNcf => SesionActual.EsAdmin;
+
+    /// <summary>La View lo llama al cargarse (la secuencia vive en la BD, no en ajustes.json).</summary>
+    public async Task CargarNcfAsync()
+    {
+        try
+        {
+            var secuencia = await _ncf.ObtenerSecuenciaAsync();
+            if (secuencia is null)
+            {
+                NcfActivo = false;
+                NcfEstadoTexto = "Sin secuencia configurada. Los préstamos igual pueden registrar " +
+                                 "un e-NCF generado en el Facturador Gratuito de la DGII.";
+                return;
+            }
+            NcfActivo = secuencia.Activo;
+            NcfPrefijo = secuencia.Prefijo;
+            NcfLargoTexto = secuencia.Largo.ToString();
+            NcfProximaTexto = secuencia.Proxima.ToString();
+            NcfFinTexto = secuencia.FinRango?.ToString() ?? string.Empty;
+            NcfVencimiento = secuencia.Vencimiento?.ToDateTime(TimeOnly.MinValue);
+            ActualizarEstadoNcf(secuencia);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error cargando la secuencia NCF");
+            NcfEstadoTexto = "No se pudo cargar la configuración de comprobantes.";
+        }
+    }
+
+    private void ActualizarEstadoNcf(FAControl.Models.NcfSecuencia secuencia)
+    {
+        if (!secuencia.Activo)
+        {
+            NcfEstadoTexto = "Secuencia desactivada.";
+            return;
+        }
+        var hoy = FechaNegocio.Hoy;
+        var proximo = secuencia.Formatear(secuencia.Proxima);
+        if (secuencia.EstaVencida(hoy))
+            NcfEstadoTexto = $"⚠ La secuencia venció el {secuencia.Vencimiento:dd/MM/yyyy}. Solicitá una nueva a la DGII.";
+        else if (secuencia.EstaAgotada)
+            NcfEstadoTexto = "⚠ La secuencia se agotó (fin del rango). Solicitá una nueva a la DGII.";
+        else
+        {
+            NcfEstadoTexto = $"Próximo comprobante: {proximo}";
+            if (secuencia.Restantes is { } restantes)
+                NcfEstadoTexto += restantes <= 20
+                    ? $" — ⚠ quedan solo {restantes}"
+                    : $" — quedan {restantes}";
+            if (secuencia.Vencimiento is { } v)
+                NcfEstadoTexto += $" · vence {v:dd/MM/yyyy}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task GuardarNcfAsync()
+    {
+        try
+        {
+            if (!int.TryParse(NcfLargoTexto, out var largo))
+            {
+                _dialogos.MostrarError("Comprobante fiscal", "El largo de la secuencia debe ser un número (8 tradicional, 10 e-CF).");
+                return;
+            }
+            if (!long.TryParse(NcfProximaTexto, out var proxima))
+            {
+                _dialogos.MostrarError("Comprobante fiscal", "La próxima secuencia debe ser un número.");
+                return;
+            }
+            long? fin = null;
+            if (!string.IsNullOrWhiteSpace(NcfFinTexto))
+            {
+                if (!long.TryParse(NcfFinTexto, out var f))
+                {
+                    _dialogos.MostrarError("Comprobante fiscal", "El fin del rango debe ser un número (o vacío).");
+                    return;
+                }
+                fin = f;
+            }
+
+            var secuencia = new FAControl.Models.NcfSecuencia
+            {
+                Prefijo = NcfPrefijo,
+                Largo = largo,
+                Proxima = proxima,
+                FinRango = fin,
+                Vencimiento = NcfVencimiento is { } v ? DateOnly.FromDateTime(v) : null,
+                Activo = NcfActivo
+            };
+            await _ncf.GuardarSecuenciaAsync(secuencia);
+            ActualizarEstadoNcf(secuencia);
+            _dialogos.Informar("Comprobante fiscal", "Configuración de la secuencia guardada.");
+        }
+        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
+        {
+            _dialogos.MostrarError("Comprobante fiscal", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error guardando la secuencia NCF");
+            _dialogos.MostrarError("Comprobante fiscal", $"No se pudo guardar.\n\n{ex.Message}");
+        }
+    }
+
+    // ---------- Datos del negocio (cliente 2026-07-25) ----------
+    // Aparecen en el pagaré, el recibo/factura y la intimación. El RNC y el
+    // teléfono son los que exige la factura con comprobante fiscal.
+
+    [ObservableProperty] private string _negocioNombre;
+    [ObservableProperty] private string _negocioPrestamista;
+    [ObservableProperty] private string _negocioCiudad;
+    [ObservableProperty] private string _negocioTelefono;
+    [ObservableProperty] private string _negocioEmail;
+    [ObservableProperty] private string _negocioRnc;
+
+    partial void OnNegocioNombreChanged(string value) => GuardarAjustesNegocio();
+    partial void OnNegocioPrestamistaChanged(string value) => GuardarAjustesNegocio();
+    partial void OnNegocioCiudadChanged(string value) => GuardarAjustesNegocio();
+    partial void OnNegocioTelefonoChanged(string value) => GuardarAjustesNegocio();
+    partial void OnNegocioEmailChanged(string value) => GuardarAjustesNegocio();
+    partial void OnNegocioRncChanged(string value) => GuardarAjustesNegocio();
+
+    private void GuardarAjustesNegocio()
+    {
+        // El nombre nunca queda vacío: es el acreedor del pagaré y el título del recibo
+        if (!string.IsNullOrWhiteSpace(NegocioNombre))
+            _ajustes.NombreNegocio = NegocioNombre.Trim();
+        _ajustes.Prestamista = NegocioPrestamista?.Trim() ?? string.Empty;
+        _ajustes.CiudadNegocio = NegocioCiudad?.Trim() ?? string.Empty;
+        _ajustes.TelefonoNegocio = NegocioTelefono?.Trim() ?? string.Empty;
+        _ajustes.EmailNegocio = NegocioEmail?.Trim() ?? string.Empty;
+        _ajustes.RncNegocio = NegocioRnc?.Trim() ?? string.Empty;
+        _ajustes.Guardar();
     }
 
     // ---------- Recordatorios por correo (cliente 2026-07-19) ----------

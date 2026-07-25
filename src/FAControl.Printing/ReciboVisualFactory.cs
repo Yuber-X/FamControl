@@ -24,12 +24,26 @@ public static class ReciboVisualFactory
     {
         var panel = new StackPanel { Margin = new Thickness(12) };
 
-        // Encabezado
-        panel.Children.Add(Linea("FAControl", 16, FontWeights.Bold, TextAlignment.Center));
+        // Encabezado con la marca (pedido 2026-07-25): logo FA + nombre de la
+        // empresa + RNC + teléfono. Con fallback si aún no se configuraron.
+        var logo = LogoFa.Badge(46);
+        logo.HorizontalAlignment = HorizontalAlignment.Center;
+        logo.Margin = new Thickness(0, 0, 0, 4);
+        panel.Children.Add(logo);
+
+        var nombreNegocio = string.IsNullOrWhiteSpace(recibo.NegocioNombre) ? "FAControl" : recibo.NegocioNombre;
+        panel.Children.Add(Linea(nombreNegocio, 14, FontWeights.Bold, TextAlignment.Center));
+        if (!string.IsNullOrWhiteSpace(recibo.NegocioRnc))
+            panel.Children.Add(Linea($"RNC: {recibo.NegocioRnc}", 10, alineacion: TextAlignment.Center));
+        if (!string.IsNullOrWhiteSpace(recibo.NegocioTelefono))
+            panel.Children.Add(Linea($"Tel.: {recibo.NegocioTelefono}", 10, alineacion: TextAlignment.Center));
+
         panel.Children.Add(Linea("RECIBO DE PAGO", 12, FontWeights.Bold, TextAlignment.Center));
         panel.Children.Add(Separador());
 
         panel.Children.Add(Fila("Recibo:", recibo.NumeroReciboPrincipal));
+        if (!string.IsNullOrWhiteSpace(recibo.Ncf))
+            panel.Children.Add(Fila("Comprobante (NCF):", recibo.Ncf));
         panel.Children.Add(Fila("Fecha:", FechaNegocio.AUtcLocal(recibo.FechaPagoUtc).ToString(@"dd'/'MM'/'yyyy hh':'mm tt", CulturaRd)));
         panel.Children.Add(Fila("Cliente:", recibo.ClienteNombre));
         panel.Children.Add(Fila("Préstamo:", recibo.PrestamoCodigo));

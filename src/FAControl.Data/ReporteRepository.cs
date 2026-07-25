@@ -107,6 +107,74 @@ public class ReporteRepository
     }
 
     /// <summary>
+    /// Colocación del período (pedido 2026-07-25): capital prestado en préstamos
+    /// CREADOS dentro del rango (excluye cancelados). El préstamo no registra
+    /// quién lo creó, así que el filtro de usuario no aplica aquí.
+    /// </summary>
+    public async Task<(decimal TotalPrestado, int Prestamos)> ObtenerColocacionAsync(
+        DateTime inicioUtc, DateTime finUtc, long? clienteId = null,
+        bool? soloVehiculares = null, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT COALESCE(SUM(p.monto_capital), 0) AS prestado,
+                   COUNT(*) AS cantidad
+            FROM {DbNames.Prestamo} p
+            WHERE p.estado <> 'cancelado'
+              AND p.created_at >= @inicio AND p.created_at < @fin
+              AND (@clienteId IS NULL OR p.cliente_id = @clienteId)
+              AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares);
+            """;
+        cmd.Parameters.AddWithValue("@inicio", inicioUtc);
+        cmd.Parameters.AddWithValue("@fin", finUtc);
+        cmd.Parameters.AddWithValue("@clienteId", (object?)clienteId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@soloVehiculares", (object?)soloVehiculares ?? DBNull.Value);
+
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        await reader.ReadAsync(ct);
+        return (reader.GetDecimal("prestado"), Convert.ToInt32(reader["cantidad"]));
+    }
+
+    /// <summary>
+    /// Proyección a ganar (pedido 2026-07-25): interés que FALTA por cobrar en
+    /// los préstamos activos (interés programado menos interés ya cobrado).
+    /// No depende del rango de fechas: es una foto de hoy.
+    /// </summary>
+    public async Task<decimal> ObtenerProyeccionInteresAsync(
+        long? clienteId = null, bool? soloVehiculares = null, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT COALESCE(SUM(q.interes), 0)
+                 - COALESCE((SELECT SUM(g.monto_interes)
+                             FROM {DbNames.Pago} g
+                             JOIN {DbNames.Cuota} q2 ON q2.id = g.cuota_id
+                             JOIN {DbNames.Prestamo} p2 ON p2.id = q2.prestamo_id
+                             WHERE g.deleted_at IS NULL
+                               AND p2.estado = 'activo'
+                               AND q2.estado <> 'cancelada'
+                               AND (@clienteId IS NULL OR p2.cliente_id = @clienteId)
+                               AND (@soloVehiculares IS NULL OR (p2.vehiculo_id IS NOT NULL) = @soloVehiculares)), 0)
+                   AS proyeccion
+            FROM {DbNames.Cuota} q
+            JOIN {DbNames.Prestamo} p ON p.id = q.prestamo_id
+            WHERE p.estado = 'activo'
+              AND q.estado <> 'cancelada'
+              AND (@clienteId IS NULL OR p.cliente_id = @clienteId)
+              AND (@soloVehiculares IS NULL OR (p.vehiculo_id IS NOT NULL) = @soloVehiculares);
+            """;
+        cmd.Parameters.AddWithValue("@clienteId", (object?)clienteId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@soloVehiculares", (object?)soloVehiculares ?? DBNull.Value);
+
+        var resultado = await cmd.ExecuteScalarAsync(ct);
+        var proyeccion = resultado is decimal d ? d : Convert.ToDecimal(resultado);
+        // Un abono puede exceder el interés programado por redondeos: no mostrar negativo
+        return Math.Max(0m, proyeccion);
+    }
+
+    /// <summary>
     /// Totales por cliente en el período (cliente 2026-07-19): cobros, capital,
     /// interés y cuotas de cada cliente, más su saldo pendiente actual.
     /// Filtro opcional por usuario que cobró. Ordenado por total cobrado.

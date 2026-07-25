@@ -20,7 +20,14 @@ public record ReporteIngresos(
     int CuotasCobradas,
     int CuotasProgramadas,
     IReadOnlyList<IngresoDiario> PorDia,
-    IReadOnlyList<IngresoSemanal> PorSemana);
+    IReadOnlyList<IngresoSemanal> PorSemana,
+    // Pedido 2026-07-25: colocación del período y proyección de ganancia
+    /// <summary>Capital prestado en préstamos creados dentro del período.</summary>
+    decimal TotalPrestado = 0m,
+    /// <summary>Cantidad de préstamos creados dentro del período.</summary>
+    int PrestamosCreados = 0,
+    /// <summary>Interés que falta por cobrar en los préstamos activos (foto de hoy).</summary>
+    decimal ProyeccionGanancia = 0m);
 
 /// <summary>Filtros del visor de auditoría (Historial). Nulos = sin filtrar.</summary>
 public record FiltroAuditoria(

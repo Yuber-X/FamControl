@@ -25,4 +25,6 @@ public static class DbNames
     public const string VentaVehiculo = "venta_vehiculo";
     public const string Alquiler = "alquiler";
     public const string VehiculoGasto = "vehiculo_gasto";
+    // Comprobante fiscal (012)
+    public const string NcfSecuencia = "ncf_secuencia";
 }

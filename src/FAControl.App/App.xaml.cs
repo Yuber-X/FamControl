@@ -274,6 +274,7 @@ public partial class App : Application
         servicios.AddSingleton<VentaVehiculoRepository>();
         servicios.AddSingleton<AlquilerRepository>();
         servicios.AddSingleton<VehiculoGastoRepository>();
+        servicios.AddSingleton<NcfRepository>();
 
         // Services
         servicios.AddSingleton<AuditoriaService>();
@@ -296,6 +297,7 @@ public partial class App : Application
         servicios.AddSingleton<VentaVehiculoService>();
         servicios.AddSingleton<AlquilerService>();
         servicios.AddSingleton<VehiculoGastoService>();
+        servicios.AddSingleton<NcfService>();
         servicios.AddSingleton(sp =>
             new RespaldoService(sp.GetRequiredService<ConexionFactory>().CadenaConexion));
         servicios.AddSingleton(FAControl.Common.AjustesLocales.Cargar());

@@ -18,10 +18,11 @@ public class PrestamoService
     private readonly AmortizacionService _amortizacion;
     private readonly AuditoriaService _auditoria;
     private readonly VehiculoRepository _vehiculos;
+    private readonly NcfRepository _ncf;
 
     public PrestamoService(ConexionFactory factory, PrestamoRepository prestamos,
         ContadorRepository contador, AmortizacionService amortizacion, AuditoriaService auditoria,
-        VehiculoRepository vehiculos)
+        VehiculoRepository vehiculos, NcfRepository ncf)
     {
         _factory = factory;
         _prestamos = prestamos;
@@ -29,6 +30,7 @@ public class PrestamoService
         _amortizacion = amortizacion;
         _auditoria = auditoria;
         _vehiculos = vehiculos;
+        _ncf = ncf;
     }
 
     /// <summary>
@@ -86,9 +88,17 @@ public class PrestamoService
             var numero = await _contador.SiguienteAsync(ContadorRepository.Prestamo, conexion, transaccion, ct);
             var codigo = $"P-{numero:D4}";
 
+            // Comprobante fiscal (pedido 2026-07-25): pegado a mano (Facturador
+            // Gratuito DGII) o reservado de la secuencia local, DENTRO de la
+            // misma transacción — un rollback no consume el número.
+            var ncf = solicitud.AsignarNcfAuto
+                ? await _ncf.ReservarSiguienteAsync(conexion, transaccion, FechaNegocio.Hoy, ct)
+                : string.IsNullOrWhiteSpace(solicitud.Ncf) ? null : solicitud.Ncf.Trim().ToUpperInvariant();
+
             var prestamo = new Prestamo
             {
                 Codigo = codigo,
+                Ncf = ncf,
                 ClienteId = solicitud.ClienteId,
                 VehiculoId = solicitud.VehiculoId,
                 MontoCapital = solicitud.MontoCapital,
@@ -117,10 +127,11 @@ public class PrestamoService
                 ? "autorizado por él mismo"
                 : $"autorizado por {aprobador.Username}";
             var detalleVehiculo = vehiculo is null ? "" : $" — financia el vehículo {vehiculo.Codigo}";
+            var detalleNcf = ncf is null ? "" : $" — comprobante fiscal {ncf}";
             await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Crear, DbNames.Prestamo, id,
                 $"Préstamo {codigo}: capital {solicitud.MontoCapital:N2} DOP, " +
                 $"{solicitud.PlazoCuotas} cuotas {solicitud.Modalidad}, " +
-                $"tasa {solicitud.TasaInteresMensual}% mensual — {quienAutorizo}{detalleVehiculo}",
+                $"tasa {solicitud.TasaInteresMensual}% mensual — {quienAutorizo}{detalleVehiculo}{detalleNcf}",
                 conexion, transaccion, ct);
 
             await transaccion.CommitAsync(ct);

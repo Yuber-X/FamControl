@@ -78,6 +78,8 @@ public class Prestamo
 {
     public long Id { get; set; }
     public string Codigo { get; set; } = string.Empty;      // P-0001
+    /// <summary>Comprobante fiscal del préstamo (012): registrado o asignado de la secuencia. NULL = sin comprobante.</summary>
+    public string? Ncf { get; set; }
     public long ClienteId { get; set; }
     /// <summary>AutoControl: vehículo en garantía. NULL = préstamo personal (PrestControl).</summary>
     public long? VehiculoId { get; set; }

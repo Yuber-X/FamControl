@@ -36,6 +36,32 @@ public static class PrestamoVisualFactory
         var contenido = new StackPanel { Margin = new Thickness(MargenHoja, 40, MargenHoja, 40) };
         raiz.Children.Add(contenido);
 
+        // --- Marca del negocio (pedido 2026-07-25): logo FA + nombre + RNC + teléfono ---
+        if (!string.IsNullOrWhiteSpace(p.NegocioNombre))
+        {
+            var marca = new Grid { Margin = new Thickness(0, 0, 0, 14) };
+            marca.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            marca.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var badge = LogoFa.Badge(52);
+            Grid.SetColumn(badge, 0);
+            marca.Children.Add(badge);
+
+            var textos = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0) };
+            textos.Children.Add(Texto(p.NegocioNombre, 16, FontWeights.Bold));
+            var contacto = new[]
+            {
+                string.IsNullOrWhiteSpace(p.NegocioRnc) ? null : $"RNC {p.NegocioRnc}",
+                string.IsNullOrWhiteSpace(p.NegocioTelefono) ? null : $"Tel. {p.NegocioTelefono}"
+            }.Where(s => s is not null);
+            var lineaContacto = string.Join("  ·  ", contacto);
+            if (lineaContacto.Length > 0)
+                textos.Children.Add(Texto(lineaContacto, 10, FontWeights.Normal, TintaSuave));
+            Grid.SetColumn(textos, 1);
+            marca.Children.Add(textos);
+            contenido.Children.Add(marca);
+        }
+
         // --- Encabezado ---
         contenido.Children.Add(Texto("ESTADO DE PRÉSTAMO", 20, FontWeights.Bold));
         contenido.Children.Add(Texto($"Préstamo {p.Codigo} · {p.EstadoTexto}", 12, FontWeights.Normal, TintaSuave));

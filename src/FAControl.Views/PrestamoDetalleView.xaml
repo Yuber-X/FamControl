@@ -134,6 +134,29 @@
           <TextBlock Text="{Binding NotasTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}"
                      TextWrapping="Wrap" MaxWidth="360" />
         </StackPanel>
+        <!-- Comprobante fiscal (pedido 2026-07-25) -->
+        <StackPanel Margin="32,0,0,0">
+          <TextBlock Text="COMPROBANTE FISCAL (NCF)" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding NcfTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                     Visibility="{Binding TieneNcf, Converter={StaticResource BoolAVisibilidad}}" />
+          <StackPanel Orientation="Horizontal">
+            <StackPanel.Style>
+              <Style TargetType="StackPanel">
+                <Setter Property="Visibility" Value="Visible" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding TieneNcf}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </StackPanel.Style>
+            <TextBox Width="170" Height="30" Style="{DynamicResource Input.Texto}"
+                     ToolTip="Pegá el e-NCF del Facturador Gratuito DGII, o dejalo vacío para tomar el siguiente de la secuencia"
+                     Text="{Binding NcfManual, UpdateSourceTrigger=PropertyChanged}" />
+            <Button Content="Asignar" Style="{DynamicResource Boton.Terciario}" Margin="6,0,0,0"
+                    Command="{Binding AsignarNcfCommand}" />
+          </StackPanel>
+        </StackPanel>
       </WrapPanel>
     </Border>
 

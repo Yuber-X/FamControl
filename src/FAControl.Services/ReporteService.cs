@@ -64,6 +64,10 @@ public class ReporteService
             inicioUtc, finUtc, usuarioId, clienteId, soloVehiculares, ct);
         var (cobradas, programadas) = await _repositorio.ContarCuotasAsync(
             inicioUtc, finUtc, desde, hasta, usuarioId, clienteId, soloVehiculares, ct);
+        var (totalPrestado, prestamosCreados) = await _repositorio.ObtenerColocacionAsync(
+            inicioUtc, finUtc, clienteId, soloVehiculares, ct);
+        var proyeccion = await _repositorio.ObtenerProyeccionInteresAsync(
+            clienteId, soloVehiculares, ct);
 
         return new ReporteIngresos(
             desde, hasta,
@@ -72,7 +76,10 @@ public class ReporteService
             porDia.Sum(d => d.Total),
             cobradas, programadas,
             porDia,
-            AgruparPorSemana(porDia, desde, hasta));
+            AgruparPorSemana(porDia, desde, hasta),
+            TotalPrestado: totalPrestado,
+            PrestamosCreados: prestamosCreados,
+            ProyeccionGanancia: proyeccion);
     }
 
     /// <summary>Buckets de 7 días desde la fecha inicial (Sem. 1, Sem. 2, ...).</summary>

@@ -93,6 +93,10 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     [ObservableProperty] private DateTime _fechaPrimerPago;
     [ObservableProperty] private string _garantia = string.Empty;
     [ObservableProperty] private string _notas = string.Empty;
+    // Comprobante fiscal (pedido 2026-07-25): pegado del Facturador Gratuito
+    // DGII, o tomado de la secuencia local configurada en Configuración.
+    [ObservableProperty] private string _ncfTexto = string.Empty;
+    [ObservableProperty] private bool _ncfDeSecuencia;
 
     // ---------- Modo "para bobos" (cliente 2026-07-17) ----------
     // En vez de la tasa, el usuario escribe cuánto le van a devolver y el
@@ -328,7 +332,9 @@ public partial class PrestamoNuevoViewModel : ObservableObject
                 parametros.FechaPrimerPago,
                 string.IsNullOrWhiteSpace(Garantia) ? null : Garantia.Trim(),
                 string.IsNullOrWhiteSpace(Notas) ? null : Notas.Trim(),
-                EsVehicular ? VehiculoSeleccionado?.Id : null);
+                EsVehicular ? VehiculoSeleccionado?.Id : null,
+                Ncf: string.IsNullOrWhiteSpace(NcfTexto) ? null : NcfTexto.Trim(),
+                AsignarNcfAuto: NcfDeSecuencia);
 
             var (id, codigo) = await _prestamos.CrearAsync(solicitud, autorizacion);
 
@@ -385,6 +391,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
             DeudorCedula: string.IsNullOrWhiteSpace(cliente.Cedula) ? "—" : cliente.Cedula,
             CodigoPrestamo: codigo,
             MontoPrestado: parametros.MontoCapital,
+            TasaTexto: PagareImpreso.FormatearTasa(parametros.TasaInteresMensual, parametros.Modalidad),
             TotalAPagar: tabla.Sum(c => c.MontoTotal),
             Cuotas: [.. tabla.Select(c => new PagareCuota(
                 c.NumeroCuota,
@@ -407,5 +414,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         FechaPrimerPago = FechaNegocio.Hoy.AddMonths(1).ToDateTime(TimeOnly.MinValue);
         Garantia = string.Empty;
         Notas = string.Empty;
+        NcfTexto = string.Empty;
+        NcfDeSecuencia = false;
     }
 }

@@ -31,4 +31,8 @@ public record PrestamoImpreso(
     string EstadoTexto,
     string ProgresoTexto,
     string EmitidoPor,
-    IReadOnlyList<CuotaImpresa> Cuotas);
+    IReadOnlyList<CuotaImpresa> Cuotas,
+    // Marca del negocio en el encabezado (pedido 2026-07-25)
+    string NegocioNombre = "",
+    string NegocioRnc = "",
+    string NegocioTelefono = "");

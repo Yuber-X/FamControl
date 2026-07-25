@@ -29,6 +29,96 @@
         </StackPanel>
       </Border>
 
+      <!-- ============ DATOS DEL NEGOCIO (cliente 2026-07-25) ============ -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+        <StackPanel>
+          <TextBlock Text="Datos del negocio" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="Aparecen en el pagaré, los recibos/facturas y la intimación de pago. El RNC y el teléfono salen en el encabezado de la factura." />
+          <WrapPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Nombre de la empresa" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="280" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding NegocioNombre, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="RNC" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="160" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding NegocioRnc, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Teléfono" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="160" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding NegocioTelefono, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+          </WrapPanel>
+          <WrapPanel Margin="0,4,0,0">
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Dueño / prestamista (firma el pagaré)" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="280" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding NegocioPrestamista, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Ciudad" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="160" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding NegocioCiudad, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Correo" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="200" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding NegocioEmail, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ============ COMPROBANTE FISCAL / SECUENCIA NCF (cliente 2026-07-25) ============ -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12"
+              Visibility="{Binding PuedeConfigurarNcf, Converter={StaticResource BoolAVisibilidad}}">
+        <StackPanel>
+          <TextBlock Text="Comprobante fiscal (NCF)" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="Secuencia autorizada por la DGII para numerar comprobantes desde la app (prefijo B02 tradicional o E32 e-CF). Si usan el Facturador Gratuito de la DGII, no hace falta configurarla: el e-NCF generado allá se pega en el préstamo." />
+          <CheckBox Content="Usar secuencia local de comprobantes" FontSize="13"
+                    IsChecked="{Binding NcfActivo}" />
+          <StackPanel Margin="24,10,0,0" IsEnabled="{Binding NcfActivo}">
+            <WrapPanel>
+              <StackPanel Margin="0,0,16,8">
+                <TextBlock Text="Prefijo (serie + tipo)" Style="{DynamicResource Input.Label}" />
+                <TextBox Width="90" Style="{DynamicResource Input.Texto}" Height="34"
+                         Text="{Binding NcfPrefijo, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <StackPanel Margin="0,0,16,8">
+                <TextBlock Text="Dígitos (8 ó 10)" Style="{DynamicResource Input.Label}" />
+                <TextBox Width="70" Style="{DynamicResource Input.Texto}" Height="34"
+                         Text="{Binding NcfLargoTexto, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <StackPanel Margin="0,0,16,8">
+                <TextBlock Text="Próxima secuencia" Style="{DynamicResource Input.Label}" />
+                <TextBox Width="120" Style="{DynamicResource Input.Texto}" Height="34"
+                         Text="{Binding NcfProximaTexto, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <StackPanel Margin="0,0,16,8">
+                <TextBlock Text="Fin del rango (opcional)" Style="{DynamicResource Input.Label}" />
+                <TextBox Width="120" Style="{DynamicResource Input.Texto}" Height="34"
+                         Text="{Binding NcfFinTexto, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <StackPanel Margin="0,0,16,8">
+                <TextBlock Text="Vence (opcional)" Style="{DynamicResource Input.Label}" />
+                <DatePicker Width="140" Height="34"
+                            SelectedDate="{Binding NcfVencimiento}" />
+              </StackPanel>
+            </WrapPanel>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+            <Button Content="Guardar secuencia" Style="{DynamicResource Boton.Primario}"
+                    Command="{Binding GuardarNcfCommand}" />
+            <TextBlock Text="{Binding NcfEstadoTexto}" Style="{DynamicResource Texto.Caption}"
+                       VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="380" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
       <!-- ============ AVISO DE VENCIMIENTOS ============ -->
       <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
         <StackPanel>

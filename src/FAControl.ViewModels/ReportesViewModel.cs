@@ -72,6 +72,10 @@ public partial class ReportesViewModel : ObservableObject
     [ObservableProperty] private string _cuotasProgramadasTexto = string.Empty;
     [ObservableProperty] private decimal _totalCapitalSemanas;
     [ObservableProperty] private decimal _totalInteresSemanas;
+    // Pedido 2026-07-25: colocación del período y proyección de ganancia
+    [ObservableProperty] private decimal _totalPrestado;
+    [ObservableProperty] private string _prestamosCreadosTexto = string.Empty;
+    [ObservableProperty] private decimal _proyeccionGanancia;
     [ObservableProperty] private ISeries[] _series = [];
     [ObservableProperty] private Axis[] _xAxes = [];
     [ObservableProperty] private Axis[] _yAxes = [];
@@ -207,6 +211,11 @@ public partial class ReportesViewModel : ObservableObject
             TotalCobrado = reporte.TotalCobrado;
             CuotasCobradas = reporte.CuotasCobradas;
             CuotasProgramadasTexto = $"de {reporte.CuotasProgramadas} programadas";
+            TotalPrestado = reporte.TotalPrestado;
+            PrestamosCreadosTexto = reporte.PrestamosCreados == 1
+                ? "1 préstamo nuevo en el período"
+                : $"{reporte.PrestamosCreados} préstamos nuevos en el período";
+            ProyeccionGanancia = reporte.ProyeccionGanancia;
 
             Semanas.Clear();
             foreach (var semana in reporte.PorSemana)

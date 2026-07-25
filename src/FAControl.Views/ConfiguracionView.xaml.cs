@@ -14,7 +14,16 @@ namespace FAControl.Views;
 /// </summary>
 public partial class ConfiguracionView : UserControl
 {
-    public ConfiguracionView() => InitializeComponent();
+    public ConfiguracionView()
+    {
+        InitializeComponent();
+        // La secuencia NCF vive en la BD (no en ajustes.json): se carga al entrar
+        Loaded += async (_, _) =>
+        {
+            if (Vm is { } vm)
+                await vm.CargarNcfAsync();
+        };
+    }
 
     private ConfiguracionViewModel? Vm => DataContext as ConfiguracionViewModel;
 
