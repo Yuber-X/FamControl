@@ -38,7 +38,7 @@ public class FlujoPrestamoPagoTests : IAsyncLifetime
 
         _prestamos = new PrestamoService(_factory, prestamoRepo, contadorRepo,
             new AmortizacionService(), auditoria, new VehiculoRepository(_factory),
-            new NcfRepository(_factory));
+            new NcfRepository(_factory), pagoRepo);
         _pagos = new PagoService(_factory, prestamoRepo, pagoRepo, clienteRepo,
             contadorRepo, auditoria, new FAControl.Common.AjustesLocales());
         _clientes = new ClienteService(clienteRepo, auditoria);
@@ -243,5 +243,46 @@ public class FlujoPrestamoPagoTests : IAsyncLifetime
         var cobrar = () => _pagos.RegistrarPagoAsync(new SolicitudPago(
             prestamoId, 100m, MetodoPago.Efectivo, null));
         await cobrar.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    /// <summary>
+    /// Préstamo ANTIGUO (cliente 2026-07-25): al crearlo con fecha atrasada y
+    /// N cuotas ya pagadas, esas cuotas nacen pagadas con recibos históricos
+    /// fechados en su vencimiento, y el resto queda cobrable con normalidad.
+    /// </summary>
+    [Fact]
+    public async Task PrestamoAntiguo_MarcaCuotasPagadasConRecibosHistoricos()
+    {
+        // 12 cuotas mensuales; la primera venció hace 11 meses → 11 ya pagadas
+        var (prestamoId, _) = await _prestamos.CrearAsync(new NuevoPrestamo(
+            _clienteId, 12_000m, 5m, 12, Modalidad.Mensual, MetodoAmortizacion.CuotaFija,
+            FechaNegocio.Hoy.AddMonths(-11), null, null,
+            CuotasPagadasAlCrear: 11));
+
+        var cuotas = await _prestamos.ObtenerCuotasAsync(prestamoId);
+        cuotas.Where(c => c.NumeroCuota <= 11).Should().OnlyContain(
+            c => c.Estado == EstadoCuota.Pagada && c.MontoPagado == c.MontoTotal);
+        cuotas.Single(c => c.NumeroCuota == 12).Estado.Should().Be(EstadoCuota.Pendiente);
+
+        var prestamo = await _prestamos.ObtenerPorIdAsync(prestamoId);
+        prestamo!.Estado.Should().Be(EstadoPrestamo.Activo);   // aún falta la última
+
+        // Los pagos históricos quedan fechados en el vencimiento de cada cuota,
+        // no hoy (así los reportes los ubican en su mes real)
+        using var conexion = await _factory.AbrirAsync();
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = """
+            SELECT COUNT(*) FROM pago g
+            JOIN cuota q ON q.id = g.cuota_id
+            WHERE q.prestamo_id = @id AND DATE(DATE_SUB(g.fecha_pago, INTERVAL 4 HOUR)) = q.fecha_vencimiento;
+            """;
+        cmd.Parameters.AddWithValue("@id", prestamoId);
+        Convert.ToInt32(await cmd.ExecuteScalarAsync()).Should().Be(11);
+
+        // La última cuota se cobra normal y el préstamo queda saldado
+        var ultima = cuotas.Single(c => c.NumeroCuota == 12);
+        var resultado = await _pagos.RegistrarPagoAsync(new SolicitudPago(
+            prestamoId, ultima.MontoTotal, MetodoPago.Efectivo, null));
+        resultado.PrestamoQuedoPagado.Should().BeTrue();
     }
 }

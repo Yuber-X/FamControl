@@ -16,7 +16,12 @@ public record NuevoPrestamo(
     /// <summary>Comprobante fiscal pegado a mano (Facturador Gratuito DGII). NULL = sin comprobante.</summary>
     string? Ncf = null,
     /// <summary>True = tomar el siguiente NCF de la secuencia configurada (ignora <see cref="Ncf"/>).</summary>
-    bool AsignarNcfAuto = false);
+    bool AsignarNcfAuto = false,
+    /// <summary>
+    /// Préstamo ANTIGUO con fecha atrasada (pedido 2026-07-25): las primeras N
+    /// cuotas nacen pagadas, con recibos históricos fechados en su vencimiento.
+    /// </summary>
+    int CuotasPagadasAlCrear = 0);
 
 /// <summary>
 /// Fila de la lista de préstamos: préstamo + cliente + agregados de sus cuotas

@@ -98,6 +98,15 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     [ObservableProperty] private string _ncfTexto = string.Empty;
     [ObservableProperty] private bool _ncfDeSecuencia;
 
+    // Préstamo ANTIGUO (pedido 2026-07-25): con fecha atrasada se autodetectan
+    // las cuotas ya vencidas y se pregunta si el cliente está al día o cuántas pagó.
+    [ObservableProperty] private bool _esPrestamoAntiguo;
+    [ObservableProperty] private string _prestamoAntiguoTexto = string.Empty;
+    [ObservableProperty] private bool _clienteAlDia = true;
+    [ObservableProperty] private string _cuotasPagadasTexto = string.Empty;
+    /// <summary>Cuotas que ya estarían vencidas si se crea hoy (según el preview).</summary>
+    private int _cuotasVencidasAlCrear;
+
     // ---------- Modo "para bobos" (cliente 2026-07-17) ----------
     // En vez de la tasa, el usuario escribe cuánto le van a devolver y el
     // sistema calcula la tasa. Útil para quien no piensa en porcentajes.
@@ -268,6 +277,8 @@ public partial class PrestamoNuevoViewModel : ObservableObject
             TienePreview = false;
             if (ModoMontoFinal)
                 TasaCalculadaTexto = string.Empty;   // no dejar una pista vieja
+            EsPrestamoAntiguo = false;
+            _cuotasVencidasAlCrear = 0;
             NotificarComandos();
             return;
         }
@@ -275,6 +286,14 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         var tabla = _amortizacion.Calcular(parametros);
         foreach (var cuota in tabla)
             Preview.Add(cuota);
+
+        // Autodetección de préstamo antiguo: cuotas que ya estarían vencidas hoy
+        var hoy = FechaNegocio.Hoy;
+        _cuotasVencidasAlCrear = tabla.Count(c => c.FechaVencimiento <= hoy);
+        EsPrestamoAntiguo = _cuotasVencidasAlCrear > 0;
+        PrestamoAntiguoTexto = _cuotasVencidasAlCrear == 1
+            ? "Este préstamo parece ANTIGUO: 1 cuota ya estaría vencida al crearlo."
+            : $"Este préstamo parece ANTIGUO: {_cuotasVencidasAlCrear} cuotas ya estarían vencidas al crearlo.";
 
         var resumen = _amortizacion.Resumir(tabla);
         ResumenCuota = resumen.CuotaFija;
@@ -300,6 +319,31 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         var parametros = ParsearParametros(out _);
         if (parametros is null || ClienteSeleccionado is null)
             return;
+
+        // Préstamo antiguo: resolver cuántas cuotas nacen pagadas ANTES de crear
+        var cuotasPagadasAlCrear = 0;
+        if (EsPrestamoAntiguo)
+        {
+            if (ClienteAlDia)
+            {
+                cuotasPagadasAlCrear = _cuotasVencidasAlCrear;
+            }
+            else if (!string.IsNullOrWhiteSpace(CuotasPagadasTexto))
+            {
+                if (!int.TryParse(CuotasPagadasTexto, NumberStyles.Integer, CulturaRd, out var n) ||
+                    n < 0 || n > parametros.PlazoCuotas)
+                {
+                    MensajeValidacion = $"Cuotas ya pagadas: ingresá un número entre 0 y {parametros.PlazoCuotas}.";
+                    return;
+                }
+                cuotasPagadasAlCrear = n;
+            }
+
+            if (cuotasPagadasAlCrear > 0 && !_dialogos.Confirmar("Préstamo antiguo",
+                $"Se marcarán {cuotasPagadasAlCrear} cuota(s) como PAGADAS con recibos históricos " +
+                "fechados en su vencimiento (así los reportes quedan en su mes real).\n\n¿Continuar?"))
+                return;
+        }
 
         try
         {
@@ -334,7 +378,8 @@ public partial class PrestamoNuevoViewModel : ObservableObject
                 string.IsNullOrWhiteSpace(Notas) ? null : Notas.Trim(),
                 EsVehicular ? VehiculoSeleccionado?.Id : null,
                 Ncf: string.IsNullOrWhiteSpace(NcfTexto) ? null : NcfTexto.Trim(),
-                AsignarNcfAuto: NcfDeSecuencia);
+                AsignarNcfAuto: NcfDeSecuencia,
+                CuotasPagadasAlCrear: cuotasPagadasAlCrear);
 
             var (id, codigo) = await _prestamos.CrearAsync(solicitud, autorizacion);
 
@@ -416,5 +461,9 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         Notas = string.Empty;
         NcfTexto = string.Empty;
         NcfDeSecuencia = false;
+        EsPrestamoAntiguo = false;
+        ClienteAlDia = true;
+        CuotasPagadasTexto = string.Empty;
+        _cuotasVencidasAlCrear = 0;
     }
 }

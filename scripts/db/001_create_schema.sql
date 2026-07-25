@@ -104,6 +104,22 @@ CREATE TABLE usuario_modo_rol (
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
+-- usuario_modo_permiso: permisos por pantalla MARCADOS por modo (013).
+-- El rol elegido precarga el set; el Admin ajusta fino por checkbox.
+-- usuario_permiso sigue siendo la unión efectiva que lee el login.
+-- -------------------------------------------------------------
+CREATE TABLE usuario_modo_permiso (
+  usuario_id BIGINT UNSIGNED NOT NULL,
+  modo       ENUM('prestcontrol','dealercontrol','autocontrol') NOT NULL,
+  permiso_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (usuario_id, modo, permiso_id),
+  CONSTRAINT fk_ump_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuario (id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_ump_permiso FOREIGN KEY (permiso_id)
+    REFERENCES permiso (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
 -- sesion: registro de logins/logouts
 -- -------------------------------------------------------------
 CREATE TABLE sesion (

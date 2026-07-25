@@ -60,6 +60,31 @@ public class UsuarioService
         return await _usuarios.ObtenerCatalogoPermisosAsync(ct);
     }
 
+    // ---------- Permisos por pantalla (013, cliente 2026-07-25) ----------
+
+    /// <summary>Catálogo de permisos de un modo (para los checkboxes). No mezcla modos.</summary>
+    public async Task<IReadOnlyList<Permiso>> ObtenerCatalogoPermisosDeModoAsync(string modo,
+        CancellationToken ct = default)
+    {
+        ExigirAdmin();
+        return await _usuarios.ObtenerCatalogoPermisosDeModoAsync(modo, ct);
+    }
+
+    /// <summary>Permisos que otorga un rol (precarga de los checkboxes al elegirlo).</summary>
+    public async Task<IReadOnlyList<int>> ObtenerPermisoIdsDeRolAsync(int rolId, CancellationToken ct = default)
+    {
+        ExigirAdmin();
+        return await _usuarios.ObtenerPermisoIdsDeRolAsync(rolId, ct);
+    }
+
+    /// <summary>Set marcado de un usuario en un modo (vacío si nunca se guardó con 013).</summary>
+    public async Task<IReadOnlyList<int>> ObtenerPermisosModoUsuarioAsync(long usuarioId, string modo,
+        CancellationToken ct = default)
+    {
+        ExigirAdmin();
+        return await _usuarios.ObtenerPermisosModoUsuarioAsync(usuarioId, modo, ct);
+    }
+
     public async Task<IReadOnlyList<string>> ObtenerPermisosAsync(long usuarioId, CancellationToken ct = default)
     {
         ExigirAdmin();

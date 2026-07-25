@@ -24,11 +24,30 @@ public record UsuarioFila(Usuario Usuario)
     public bool EsElActual => Usuario.Id == SesionActual.Id;
 }
 
+/// <summary>Checkbox de un permiso por pantalla (013, cliente 2026-07-25).</summary>
+public partial class PermisoCheck : ObservableObject
+{
+    public PermisoCheck(Permiso permiso, bool marcado)
+    {
+        Id = permiso.Id;
+        Nombre = permiso.Nombre;
+        Descripcion = permiso.Descripcion ?? permiso.Nombre;
+        _marcado = marcado;
+    }
+
+    public int Id { get; }
+    public string Nombre { get; }
+    public string Descripcion { get; }
+    [ObservableProperty] private bool _marcado;
+}
+
 /// <summary>
 /// Admin de Usuarios — SOLO Admin. Modelo de ROLES POR MODO (Yuber 2026-07-18):
 /// se marca "administrador" (acceso global) o se elige UN rol por cada modo
-/// (PrestControl / DealControl / AutoControl), con opción "Sin acceso". Cada rol
-/// trae sus propios permisos; los efectivos son la unión (lo maneja el Service).
+/// (PrestControl / DealControl / AutoControl), con opción "Sin acceso".
+/// PERMISOS POR PANTALLA (013, cliente 2026-07-25): el rol elegido precarga
+/// los checkboxes de ese modo y el Admin ajusta fino; lo guardado es el set
+/// marcado, nunca mezclado entre modos.
 /// </summary>
 public partial class UsuariosViewModel : ObservableObject
 {
@@ -49,6 +68,13 @@ public partial class UsuariosViewModel : ObservableObject
     public ObservableCollection<Opcion<int?>> RolesPrest { get; } = [];
     public ObservableCollection<Opcion<int?>> RolesDealer { get; } = [];
     public ObservableCollection<Opcion<int?>> RolesAuto { get; } = [];
+    // Permisos por pantalla de cada modo (013): catálogo fijo, se marca/desmarca
+    public ObservableCollection<PermisoCheck> PermisosPrest { get; } = [];
+    public ObservableCollection<PermisoCheck> PermisosDealer { get; } = [];
+    public ObservableCollection<PermisoCheck> PermisosAuto { get; } = [];
+
+    /// <summary>Evita recargar defaults del rol mientras se abre un usuario existente.</summary>
+    private bool _cargandoUsuario;
 
     [ObservableProperty] private bool _formularioVisible;
     [ObservableProperty] private string _tituloFormulario = "Nuevo usuario";
@@ -69,7 +95,60 @@ public partial class UsuariosViewModel : ObservableObject
 
     /// <summary>True cuando NO es admin: habilita los selectores de rol por modo.</summary>
     public bool RolesPorModoHabilitados => !EsAdministrador;
-    partial void OnEsAdministradorChanged(bool value) => OnPropertyChanged(nameof(RolesPorModoHabilitados));
+    partial void OnEsAdministradorChanged(bool value)
+    {
+        OnPropertyChanged(nameof(RolesPorModoHabilitados));
+        OnPropertyChanged(nameof(PermisosPrestHabilitados));
+        OnPropertyChanged(nameof(PermisosDealerHabilitados));
+        OnPropertyChanged(nameof(PermisosAutoHabilitados));
+    }
+
+    // Los checkboxes de un modo se habilitan solo con un rol elegido (≠ Sin acceso)
+    public bool PermisosPrestHabilitados => !EsAdministrador && RolPrestSeleccionado?.Valor is not null;
+    public bool PermisosDealerHabilitados => !EsAdministrador && RolDealerSeleccionado?.Valor is not null;
+    public bool PermisosAutoHabilitados => !EsAdministrador && RolAutoSeleccionado?.Valor is not null;
+
+    partial void OnRolPrestSeleccionadoChanged(Opcion<int?>? value)
+    {
+        OnPropertyChanged(nameof(PermisosPrestHabilitados));
+        if (!_cargandoUsuario)
+            _ = PrecargarPermisosDeRolAsync(PermisosPrest, value?.Valor);
+    }
+
+    partial void OnRolDealerSeleccionadoChanged(Opcion<int?>? value)
+    {
+        OnPropertyChanged(nameof(PermisosDealerHabilitados));
+        if (!_cargandoUsuario)
+            _ = PrecargarPermisosDeRolAsync(PermisosDealer, value?.Valor);
+    }
+
+    partial void OnRolAutoSeleccionadoChanged(Opcion<int?>? value)
+    {
+        OnPropertyChanged(nameof(PermisosAutoHabilitados));
+        if (!_cargandoUsuario)
+            _ = PrecargarPermisosDeRolAsync(PermisosAuto, value?.Valor);
+    }
+
+    /// <summary>Al elegir un rol, sus permisos precargan los checkboxes del modo.</summary>
+    private async Task PrecargarPermisosDeRolAsync(ObservableCollection<PermisoCheck> destino, int? rolId)
+    {
+        try
+        {
+            if (rolId is not { } rid)
+            {
+                foreach (var p in destino)
+                    p.Marcado = false;
+                return;
+            }
+            var delRol = await _usuarios.ObtenerPermisoIdsDeRolAsync(rid);
+            foreach (var p in destino)
+                p.Marcado = delRol.Contains(p.Id);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error precargando permisos del rol {RolId}", rolId);
+        }
+    }
 
     public string PasswordNueva { get; set; } = string.Empty;
 
@@ -119,6 +198,17 @@ public partial class UsuariosViewModel : ObservableObject
         LlenarCombo(RolesPrest, roles, "prestcontrol");
         LlenarCombo(RolesDealer, roles, "dealercontrol");
         LlenarCombo(RolesAuto, roles, "autocontrol");
+        // Catálogo de permisos por pantalla de cada modo (013): fijo por sesión
+        await LlenarPermisosAsync(PermisosPrest, "prestcontrol");
+        await LlenarPermisosAsync(PermisosDealer, "dealercontrol");
+        await LlenarPermisosAsync(PermisosAuto, "autocontrol");
+    }
+
+    private async Task LlenarPermisosAsync(ObservableCollection<PermisoCheck> destino, string modo)
+    {
+        destino.Clear();
+        foreach (var permiso in await _usuarios.ObtenerCatalogoPermisosDeModoAsync(modo))
+            destino.Add(new PermisoCheck(permiso, marcado: false));
     }
 
     private static void LlenarCombo(ObservableCollection<Opcion<int?>> combo,
@@ -145,6 +235,9 @@ public partial class UsuariosViewModel : ObservableObject
         RolPrestSeleccionado = RolesPrest.FirstOrDefault();
         RolDealerSeleccionado = RolesDealer.FirstOrDefault();
         RolAutoSeleccionado = RolesAuto.FirstOrDefault();
+        // Alta nueva: sin rol elegido, todos los checkboxes desmarcados
+        foreach (var p in PermisosPrest.Concat(PermisosDealer).Concat(PermisosAuto))
+            p.Marcado = false;
         FormularioVisible = true;
     }
 
@@ -167,10 +260,23 @@ public partial class UsuariosViewModel : ObservableObject
             MensajeError = MensajeExito = string.Empty;
 
             var roles = await _usuarios.ObtenerRolesDeUsuarioAsync(fila.Id);
-            EsAdministrador = roles.EsAdmin;
-            RolPrestSeleccionado = OpcionPara(RolesPrest, roles.RolPrestId);
-            RolDealerSeleccionado = OpcionPara(RolesDealer, roles.RolDealerId);
-            RolAutoSeleccionado = OpcionPara(RolesAuto, roles.RolAutoId);
+            _cargandoUsuario = true;
+            try
+            {
+                EsAdministrador = roles.EsAdmin;
+                RolPrestSeleccionado = OpcionPara(RolesPrest, roles.RolPrestId);
+                RolDealerSeleccionado = OpcionPara(RolesDealer, roles.RolDealerId);
+                RolAutoSeleccionado = OpcionPara(RolesAuto, roles.RolAutoId);
+
+                // Checkboxes: el set guardado (013) o, si nunca se guardó, los del rol
+                await CargarPermisosGuardadosAsync(PermisosPrest, fila.Id, "prestcontrol", roles.RolPrestId);
+                await CargarPermisosGuardadosAsync(PermisosDealer, fila.Id, "dealercontrol", roles.RolDealerId);
+                await CargarPermisosGuardadosAsync(PermisosAuto, fila.Id, "autocontrol", roles.RolAutoId);
+            }
+            finally
+            {
+                _cargandoUsuario = false;
+            }
 
             FormularioVisible = true;
         }
@@ -181,6 +287,25 @@ public partial class UsuariosViewModel : ObservableObject
         }
     }
 
+    private async Task CargarPermisosGuardadosAsync(ObservableCollection<PermisoCheck> destino,
+        long usuarioId, string modo, int? rolId)
+    {
+        if (rolId is null)
+        {
+            foreach (var p in destino)
+                p.Marcado = false;
+            return;
+        }
+        var guardados = await _usuarios.ObtenerPermisosModoUsuarioAsync(usuarioId, modo);
+        if (guardados.Count == 0)
+        {
+            await PrecargarPermisosDeRolAsync(destino, rolId);
+            return;
+        }
+        foreach (var p in destino)
+            p.Marcado = guardados.Contains(p.Id);
+    }
+
     private static Opcion<int?> OpcionPara(ObservableCollection<Opcion<int?>> combo, int? rolId) =>
         combo.FirstOrDefault(o => o.Valor == rolId) ?? combo[0];
 
@@ -188,11 +313,21 @@ public partial class UsuariosViewModel : ObservableObject
     private async Task GuardarAsync()
     {
         MensajeError = MensajeExito = string.Empty;
+        // Set marcado por modo (013): solo de los modos con rol elegido
+        var permisosPorModo = new Dictionary<string, IReadOnlyList<int>>();
+        if (RolPrestSeleccionado?.Valor is not null)
+            permisosPorModo["prestcontrol"] = [.. PermisosPrest.Where(p => p.Marcado).Select(p => p.Id)];
+        if (RolDealerSeleccionado?.Valor is not null)
+            permisosPorModo["dealercontrol"] = [.. PermisosDealer.Where(p => p.Marcado).Select(p => p.Id)];
+        if (RolAutoSeleccionado?.Valor is not null)
+            permisosPorModo["autocontrol"] = [.. PermisosAuto.Where(p => p.Marcado).Select(p => p.Id)];
+
         var roles = new RolesUsuario(
             EsAdministrador,
             RolPrestSeleccionado?.Valor,
             RolDealerSeleccionado?.Valor,
-            RolAutoSeleccionado?.Valor);
+            RolAutoSeleccionado?.Valor,
+            permisosPorModo);
 
         try
         {

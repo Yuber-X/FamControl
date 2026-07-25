@@ -19,10 +19,11 @@ public class PrestamoService
     private readonly AuditoriaService _auditoria;
     private readonly VehiculoRepository _vehiculos;
     private readonly NcfRepository _ncf;
+    private readonly PagoRepository _pagos;
 
     public PrestamoService(ConexionFactory factory, PrestamoRepository prestamos,
         ContadorRepository contador, AmortizacionService amortizacion, AuditoriaService auditoria,
-        VehiculoRepository vehiculos, NcfRepository ncf)
+        VehiculoRepository vehiculos, NcfRepository ncf, PagoRepository pagos)
     {
         _factory = factory;
         _prestamos = prestamos;
@@ -31,6 +32,7 @@ public class PrestamoService
         _auditoria = auditoria;
         _vehiculos = vehiculos;
         _ncf = ncf;
+        _pagos = pagos;
     }
 
     /// <summary>
@@ -117,6 +119,39 @@ public class PrestamoService
             var id = await _prestamos.InsertarAsync(prestamo, conexion, transaccion, ct);
             await _prestamos.InsertarCuotasAsync(id, tabla, conexion, transaccion, ct);
 
+            // Préstamo ANTIGUO (pedido 2026-07-25): las primeras N cuotas nacen
+            // pagadas con recibos HISTÓRICOS fechados en su vencimiento (así los
+            // reportes las ubican en su mes real, no en el de hoy). Todo en la
+            // misma transacción.
+            var cuotasHistoricas = Math.Clamp(solicitud.CuotasPagadasAlCrear, 0, tabla.Count);
+            if (cuotasHistoricas > 0)
+            {
+                var cuotas = await _prestamos.ObtenerCuotasImpagasParaPagoAsync(id, conexion, transaccion, ct);
+                foreach (var cuota in cuotas.OrderBy(c => c.NumeroCuota).Take(cuotasHistoricas))
+                {
+                    var numeroRecibo = $"R-{await _contador.SiguienteAsync(ContadorRepository.Recibo, conexion, transaccion, ct):D6}";
+                    // Mediodía local RD (UTC-4) del día de vencimiento
+                    var fechaHistoricaUtc = cuota.FechaVencimiento.ToDateTime(new TimeOnly(12, 0)).AddHours(4);
+                    var pago = new Pago
+                    {
+                        CuotaId = cuota.Id,
+                        NumeroRecibo = numeroRecibo,
+                        FechaPagoUtc = fechaHistoricaUtc,
+                        MontoPagado = cuota.MontoTotal,
+                        MontoInteres = cuota.Interes,
+                        MontoCapital = cuota.Capital,
+                        MetodoPago = MetodoPago.Otro,
+                        Notas = "Registro histórico — préstamo antiguo cargado al sistema"
+                    };
+                    await _pagos.InsertarAsync(pago, conexion, transaccion, ct);
+                    await _prestamos.ActualizarCuotaTrasPagoAsync(
+                        cuota.Id, cuota.MontoTotal, EstadoCuota.Pagada, conexion, transaccion, ct);
+                }
+                // Caso borde: el cliente ya había pagado TODO el préstamo
+                if (cuotasHistoricas == tabla.Count)
+                    await _prestamos.ActualizarEstadoAsync(id, EstadoPrestamo.Pagado, conexion, transaccion, ct);
+            }
+
             // El vehículo financiado sale del inventario: pasa a 'vendido' en la MISMA transacción.
             if (vehiculo is not null)
                 await _vehiculos.CambiarEstadoAsync(vehiculo.Id, EstadoVehiculo.Vendido, conexion, transaccion, ct);
@@ -128,10 +163,13 @@ public class PrestamoService
                 : $"autorizado por {aprobador.Username}";
             var detalleVehiculo = vehiculo is null ? "" : $" — financia el vehículo {vehiculo.Codigo}";
             var detalleNcf = ncf is null ? "" : $" — comprobante fiscal {ncf}";
+            var detalleHistorico = cuotasHistoricas > 0
+                ? $" — préstamo antiguo: {cuotasHistoricas} cuota(s) marcadas pagadas con recibos históricos"
+                : "";
             await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Crear, DbNames.Prestamo, id,
                 $"Préstamo {codigo}: capital {solicitud.MontoCapital:N2} DOP, " +
                 $"{solicitud.PlazoCuotas} cuotas {solicitud.Modalidad}, " +
-                $"tasa {solicitud.TasaInteresMensual}% mensual — {quienAutorizo}{detalleVehiculo}{detalleNcf}",
+                $"tasa {solicitud.TasaInteresMensual}% mensual — {quienAutorizo}{detalleVehiculo}{detalleNcf}{detalleHistorico}",
                 conexion, transaccion, ct);
 
             await transaccion.CommitAsync(ct);

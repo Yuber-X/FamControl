@@ -21,7 +21,7 @@ namespace FAControl.Services.Tests;
 [Collection(ColeccionSesion.Nombre)]   // SesionActual es global: ver ColeccionSesion
 public class AutorizacionPrestamoTests : IDisposable
 {
-    private readonly PrestamoService _prestamos = new(null!, null!, null!, null!, null!, null!, null!);
+    private readonly PrestamoService _prestamos = new(null!, null!, null!, null!, null!, null!, null!, null!);
 
     private static readonly NuevoPrestamo Solicitud = new(
         ClienteId: 1, MontoCapital: 50_000m, TasaInteresMensual: 5m, PlazoCuotas: 12,

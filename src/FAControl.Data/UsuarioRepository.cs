@@ -242,7 +242,72 @@ public class UsuarioRepository
                 }
             }
 
-            // 3. Recomputar usuario_permiso: TODO si Admin, si no la UNIÓN de los roles.
+            // 2.5 usuario_modo_permiso (013): el set por pantalla de cada modo.
+            //     Con checkboxes de la UI se guardan tal cual; sin ellos, se
+            //     materializan los del rol. acceso_<modo> va SIEMPRE que haya rol
+            //     (la puerta de acceso no es un checkbox).
+            using (var cmd = conexion.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = $"DELETE FROM {DbNames.UsuarioModoPermiso} WHERE usuario_id = @id;";
+                cmd.Parameters.AddWithValue("@id", usuarioId);
+                await cmd.ExecuteNonQueryAsync(ct);
+            }
+            if (!roles.EsAdmin)
+            {
+                foreach (var (modo, rolId) in new[]
+                    { ("prestcontrol", roles.RolPrestId), ("dealercontrol", roles.RolDealerId), ("autocontrol", roles.RolAutoId) })
+                {
+                    if (rolId is not { } rid) continue;
+
+                    if (roles.PermisosPorModo is { } sets && sets.TryGetValue(modo, out var marcados))
+                    {
+                        foreach (var permisoId in marcados.Distinct())
+                        {
+                            using var cmd = conexion.CreateCommand();
+                            cmd.Transaction = tx;
+                            cmd.CommandText = $"""
+                                INSERT IGNORE INTO {DbNames.UsuarioModoPermiso} (usuario_id, modo, permiso_id)
+                                VALUES (@id, @modo, @permiso);
+                                """;
+                            cmd.Parameters.AddWithValue("@id", usuarioId);
+                            cmd.Parameters.AddWithValue("@modo", modo);
+                            cmd.Parameters.AddWithValue("@permiso", permisoId);
+                            await cmd.ExecuteNonQueryAsync(ct);
+                        }
+                    }
+                    else
+                    {
+                        using var cmd = conexion.CreateCommand();
+                        cmd.Transaction = tx;
+                        cmd.CommandText = $"""
+                            INSERT IGNORE INTO {DbNames.UsuarioModoPermiso} (usuario_id, modo, permiso_id)
+                            SELECT @id, @modo, rp.permiso_id FROM {DbNames.RolPermiso} rp WHERE rp.rol_id = @rol;
+                            """;
+                        cmd.Parameters.AddWithValue("@id", usuarioId);
+                        cmd.Parameters.AddWithValue("@modo", modo);
+                        cmd.Parameters.AddWithValue("@rol", rid);
+                        await cmd.ExecuteNonQueryAsync(ct);
+                    }
+
+                    // La puerta de acceso al modo va siempre que haya rol
+                    using (var cmd = conexion.CreateCommand())
+                    {
+                        cmd.Transaction = tx;
+                        cmd.CommandText = $"""
+                            INSERT IGNORE INTO {DbNames.UsuarioModoPermiso} (usuario_id, modo, permiso_id)
+                            SELECT @id, @modo, p.id FROM {DbNames.Permiso} p WHERE p.codigo = @acceso;
+                            """;
+                        cmd.Parameters.AddWithValue("@id", usuarioId);
+                        cmd.Parameters.AddWithValue("@modo", modo);
+                        cmd.Parameters.AddWithValue("@acceso", $"acceso_{modo}");
+                        await cmd.ExecuteNonQueryAsync(ct);
+                    }
+                }
+            }
+
+            // 3. Recomputar usuario_permiso: TODO si Admin, si no la UNIÓN de los
+            //    sets por modo (013; antes venía directo de los roles).
             using (var cmd = conexion.CreateCommand())
             {
                 cmd.Transaction = tx;
@@ -257,10 +322,9 @@ public class UsuarioRepository
                     ? $"INSERT IGNORE INTO {DbNames.UsuarioPermiso} (usuario_id, permiso_id) SELECT @id, p.id FROM {DbNames.Permiso} p;"
                     : $"""
                         INSERT IGNORE INTO {DbNames.UsuarioPermiso} (usuario_id, permiso_id)
-                        SELECT @id, rp.permiso_id
-                        FROM {DbNames.UsuarioModoRol} umr
-                        JOIN {DbNames.RolPermiso} rp ON rp.rol_id = umr.rol_id
-                        WHERE umr.usuario_id = @id;
+                        SELECT @id, ump.permiso_id
+                        FROM {DbNames.UsuarioModoPermiso} ump
+                        WHERE ump.usuario_id = @id;
                         """;
                 cmd.Parameters.AddWithValue("@id", usuarioId);
                 await cmd.ExecuteNonQueryAsync(ct);
@@ -273,6 +337,74 @@ public class UsuarioRepository
             await tx.RollbackAsync(ct);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Catálogo de permisos DE UN MODO (013): la unión de lo que otorgan los
+    /// roles de ese modo. Así los checkboxes de cada estancia nunca mezclan
+    /// permisos de otra. Excluye acceso_<modo> (eso lo maneja el combo de rol).
+    /// </summary>
+    public async Task<IReadOnlyList<Permiso>> ObtenerCatalogoPermisosDeModoAsync(string modo,
+        CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT DISTINCT p.id, p.codigo, p.nombre, p.descripcion
+            FROM {DbNames.Permiso} p
+            JOIN {DbNames.RolPermiso} rp ON rp.permiso_id = p.id
+            JOIN {DbNames.Rol} r ON r.id = rp.rol_id
+            WHERE r.modo = @modo AND p.codigo NOT LIKE 'acceso\_%'
+            ORDER BY p.id;
+            """;
+        cmd.Parameters.AddWithValue("@modo", modo);
+
+        var lista = new List<Permiso>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            lista.Add(new Permiso
+            {
+                Id = reader.GetInt32("id"),
+                Codigo = reader.GetString("codigo"),
+                Nombre = reader.GetString("nombre"),
+                Descripcion = reader.IsDBNull(reader.GetOrdinal("descripcion")) ? null : reader.GetString("descripcion")
+            });
+        return lista;
+    }
+
+    /// <summary>Ids de permiso que otorga un rol (para precargar los checkboxes).</summary>
+    public async Task<IReadOnlyList<int>> ObtenerPermisoIdsDeRolAsync(int rolId, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"SELECT permiso_id FROM {DbNames.RolPermiso} WHERE rol_id = @rol;";
+        cmd.Parameters.AddWithValue("@rol", rolId);
+
+        var lista = new List<int>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            lista.Add(reader.GetInt32("permiso_id"));
+        return lista;
+    }
+
+    /// <summary>Set de permisos marcados de un usuario en un modo (013). Vacío = nunca se guardó.</summary>
+    public async Task<IReadOnlyList<int>> ObtenerPermisosModoUsuarioAsync(long usuarioId, string modo,
+        CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT permiso_id FROM {DbNames.UsuarioModoPermiso}
+            WHERE usuario_id = @id AND modo = @modo;
+            """;
+        cmd.Parameters.AddWithValue("@id", usuarioId);
+        cmd.Parameters.AddWithValue("@modo", modo);
+
+        var lista = new List<int>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            lista.Add(reader.GetInt32("permiso_id"));
+        return lista;
     }
 
     public async Task<IReadOnlyList<Permiso>> ObtenerCatalogoPermisosAsync(CancellationToken ct = default)

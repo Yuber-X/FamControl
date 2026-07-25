@@ -153,6 +153,27 @@
                     FontSize="12" Margin="0,6,0,0"
                     IsChecked="{Binding NcfDeSecuencia}" />
 
+          <!-- Préstamo antiguo autodetectado (pedido 2026-07-25) -->
+          <Border Background="#1AF59E0B" CornerRadius="8" Padding="12,10" Margin="0,14,0,0"
+                  Visibility="{Binding EsPrestamoAntiguo, Converter={StaticResource BoolAVisibilidad}}">
+            <StackPanel>
+              <TextBlock Text="{Binding PrestamoAntiguoTexto}" FontSize="12.5" FontWeight="SemiBold"
+                         TextWrapping="Wrap" />
+              <CheckBox Content="El cliente está al día (marcar TODAS las cuotas vencidas como pagadas)"
+                        FontSize="12" Margin="0,8,0,0"
+                        IsChecked="{Binding ClienteAlDia}" />
+              <StackPanel Orientation="Horizontal" Margin="0,6,0,0"
+                          IsEnabled="{Binding ClienteAlDia, Converter={StaticResource InversorBool}}">
+                <TextBlock Text="Cuotas que ya pagó:" FontSize="12" VerticalAlignment="Center" />
+                <TextBox Width="70" Height="30" Margin="8,0,0,0" Style="{DynamicResource Input.Texto}"
+                         Text="{Binding CuotasPagadasTexto, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text="(se marcan desde la primera, con recibos históricos)"
+                           FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
+                           Style="{DynamicResource Texto.Caption}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
           <TextBlock Text="{Binding MensajeValidacion}"
                      Foreground="{DynamicResource Brush.Destructivo}"
                      Style="{DynamicResource Texto.Caption}"

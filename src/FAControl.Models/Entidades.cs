@@ -34,7 +34,12 @@ public class Rol
 /// Roles de un usuario POR MODO (roles por modo, 011). EsAdmin = global.
 /// RolPrestId/RolDealerId/RolAutoId = rol elegido en cada modo (null = sin acceso).
 /// </summary>
-public record RolesUsuario(bool EsAdmin, int? RolPrestId, int? RolDealerId, int? RolAutoId);
+public record RolesUsuario(bool EsAdmin, int? RolPrestId, int? RolDealerId, int? RolAutoId,
+    /// <summary>
+    /// Permisos por pantalla MARCADOS por modo (013): clave = modo en texto de BD
+    /// ('prestcontrol'...), valor = ids de permiso. Null = usar los del rol.
+    /// </summary>
+    IReadOnlyDictionary<string, IReadOnlyList<int>>? PermisosPorModo = null);
 
 /// <summary>Permiso del catálogo. `Codigo` es lo que consulta SesionActual.TienePermiso.</summary>
 public class Permiso
