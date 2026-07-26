@@ -51,6 +51,8 @@ public partial class MainViewModel : ObservableObject
     private readonly AlquileresViewModel _alquileresVm;
     private readonly AlquilerNuevoViewModel _alquilerNuevoVm;
     private readonly GastosViewModel _gastosVm;
+    private readonly PanelDealViewModel _panelDealVm;
+    private readonly VehiculoFichaViewModel _fichaVehiculoVm;
 
     public MainViewModel(PrestamosViewModel prestamosVm, PrestamoNuevoViewModel nuevoVm,
         PrestamoDetalleViewModel detalleVm, CobrosViewModel cobrosVm,
@@ -59,9 +61,12 @@ public partial class MainViewModel : ObservableObject
         UsuariosViewModel usuariosVm, ContratosViewModel contratosVm, ConfiguracionViewModel configuracionVm,
         VehiculosViewModel vehiculosVm, VehiculoFormViewModel vehiculoFormVm,
         VentasViewModel ventasVm, VentaNuevaViewModel ventaNuevaVm,
-        AlquileresViewModel alquileresVm, AlquilerNuevoViewModel alquilerNuevoVm, GastosViewModel gastosVm)
+        AlquileresViewModel alquileresVm, AlquilerNuevoViewModel alquilerNuevoVm, GastosViewModel gastosVm,
+        PanelDealViewModel panelDealVm, VehiculoFichaViewModel fichaVehiculoVm)
     {
         _panelVm = panelVm;
+        _panelDealVm = panelDealVm;
+        _fichaVehiculoVm = fichaVehiculoVm;
         _reportesVm = reportesVm;
         _historialVm = historialVm;
         _usuariosVm = usuariosVm;
@@ -103,6 +108,8 @@ public partial class MainViewModel : ObservableObject
         _gastosVm = gastosVm;
         _vehiculosVm.NuevoSolicitado += AbrirVehiculoNuevo;
         _vehiculosVm.EditarSolicitado += id => _ = AbrirVehiculoEdicionAsync(id);
+        _vehiculosVm.FichaSolicitada += id => _ = AbrirFichaVehiculoAsync(id);
+        _fichaVehiculoVm.VolverSolicitado += () => _ = NavegarAsync(Pagina.Vehiculos);
         _vehiculoFormVm.Guardado += id => _ = NavegarAsync(Pagina.Vehiculos);
         _vehiculoFormVm.Cancelado += () => _ = NavegarAsync(Pagina.Vehiculos);
 
@@ -144,7 +151,8 @@ public partial class MainViewModel : ObservableObject
     //   (reusa la misma maquinaria, filtrada).  DealerControl: inventario/ventas.
     //   Historial / Usuarios / Configuración son transversales a los modos.
     // ------------------------------------------------------------------
-    public bool PuedeVerPanel => EsPrestControl && SesionActual.TienePermiso(Permisos.Panel);
+    /// <summary>PrestControl: panel de cartera. DealControl: panel del dealer (2026-07-25) — el Vendedor no lo ve.</summary>
+    public bool PuedeVerPanel => (EsPrestControl || EsDealerControl) && SesionActual.TienePermiso(Permisos.Panel);
     /// <summary>
     /// Clientes existe en los TRES modos, pero cada estancia ve solo LOS SUYOS
     /// (aislamiento por ámbito, 2026-07-18). Así Dealer/Auto registran sus
@@ -233,7 +241,7 @@ public partial class MainViewModel : ObservableObject
     /// (Panel en PrestControl, Vehículos en DealerControl).
     /// </summary>
     public Task InicializarAsync() =>
-        NavegarAsync(EsDealerControl ? Pagina.Vehiculos
+        NavegarAsync(EsDealerControl ? (PuedeVerPanel ? Pagina.Panel : Pagina.Vehiculos)
                    : EsAutoControl ? Pagina.Prestamos          // ventas financiadas
                    : Pagina.Panel);
 
@@ -247,6 +255,11 @@ public partial class MainViewModel : ObservableObject
 
             switch (destino)
             {
+                case Pagina.Panel when EsDealerControl:
+                    // Panel PROPIO del dealer (2026-07-25): nunca datos de Prest
+                    await _panelDealVm.CargarAsync();
+                    PaginaActualVm = _panelDealVm;
+                    break;
                 case Pagina.Panel:
                     await _panelVm.CargarAsync();
                     PaginaActualVm = _panelVm;
@@ -310,6 +323,22 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             Log.Error(ex, "Error navegando a {Destino}", destino);
+        }
+    }
+
+    /// <summary>Ficha completa del vehículo (pedido 2026-07-25).</summary>
+    private async Task AbrirFichaVehiculoAsync(long vehiculoId)
+    {
+        try
+        {
+            PaginaActual = Pagina.Vehiculos;
+            TituloPagina = "Ficha del vehículo";
+            await _fichaVehiculoVm.CargarAsync(vehiculoId);
+            PaginaActualVm = _fichaVehiculoVm;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error abriendo la ficha del vehículo {Id}", vehiculoId);
         }
     }
 

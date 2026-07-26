@@ -49,9 +49,11 @@
           </StackPanel>
         </Grid>
 
-        <!-- Color / Placa -->
+        <!-- Color / Placa / Matrícula -->
         <Grid Margin="0,14,0,0">
           <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="16" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="16" />
             <ColumnDefinition Width="*" />
@@ -62,9 +64,15 @@
                      Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}" />
           </StackPanel>
           <StackPanel Grid.Column="2">
-            <TextBlock Text="Placa / Matrícula" Style="{DynamicResource Input.Label}" />
+            <TextBlock Text="Placa" Style="{DynamicResource Input.Label}" />
             <TextBox Style="{DynamicResource Input.Texto}"
                      Text="{Binding Placa, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Column="4">
+            <TextBlock Text="Matrícula (certificado)" Style="{DynamicResource Input.Label}" />
+            <TextBox Style="{DynamicResource Input.Texto}"
+                     Text="{Binding Matricula, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="Número del certificado de matrícula emitido por la DGII" />
           </StackPanel>
         </Grid>
 

@@ -17,6 +17,9 @@ public record VehiculoFila(VehiculoResumen Resumen)
     public string TipoTexto => Textos.De(Resumen.Tipo);
     public string AnioTexto => Resumen.Anio?.ToString(Textos.CulturaRd) ?? "—";
     public string PlacaTexto => string.IsNullOrWhiteSpace(Resumen.Placa) ? "—" : Resumen.Placa!;
+    public string VinTexto => string.IsNullOrWhiteSpace(Resumen.Vin) ? "—" : Resumen.Vin!;
+    public string ColorTexto => string.IsNullOrWhiteSpace(Resumen.Color) ? "—" : Resumen.Color!;
+    public string MatriculaTexto => string.IsNullOrWhiteSpace(Resumen.Matricula) ? "—" : Resumen.Matricula!;
     public decimal CostoTotal => Resumen.CostoTotal;
     public decimal PrecioVenta => Resumen.PrecioVenta;
     public decimal GananciaEstimada => Resumen.GananciaEstimada;
@@ -47,6 +50,8 @@ public partial class VehiculosViewModel : ObservableObject
 
     public event Action? NuevoSolicitado;
     public event Action<long>? EditarSolicitado;
+    /// <summary>Ficha completa del vehículo (pedido 2026-07-25).</summary>
+    public event Action<long>? FichaSolicitada;
 
     public VehiculosViewModel(VehiculoService servicio, IDialogService dialogos)
     {
@@ -67,8 +72,19 @@ public partial class VehiculosViewModel : ObservableObject
     public ObservableCollection<VehiculoFila> Filas { get; } = [];
     public IReadOnlyList<Opcion<FiltroVehiculo>> Filtros { get; }
 
-    /// <summary>Solo quien puede editar ve los botones de alta/edición/baja.</summary>
-    public bool PuedeEditar => SesionActual.TienePermiso(Permisos.VehiculosEditar);
+    /// <summary>
+    /// Solo quien puede editar ve los botones de alta/edición/baja.
+    /// FIX 2026-07-25: usaba el permiso viejo 'vehiculos_editar'; los roles por
+    /// modo (011) otorgan 'inventario_editar' — el Encargado no podía editar.
+    /// </summary>
+    public bool PuedeEditar => SesionActual.TienePermiso(Permisos.InventarioEditar);
+
+    /// <summary>
+    /// El VENDEDOR no ve costos, totales ni ganancias del inventario (pedido
+    /// 2026-07-25): solo marca/modelo/chasis/año/color/precio de venta/nota.
+    /// Los costos son de quien gestiona el inventario (Encargado/Admin).
+    /// </summary>
+    public bool PuedeVerCostos => SesionActual.TienePermiso(Permisos.InventarioEditar);
 
     [ObservableProperty] private string _textoBusqueda = string.Empty;
     [ObservableProperty] private Opcion<FiltroVehiculo> _filtroSeleccionado;
@@ -83,6 +99,7 @@ public partial class VehiculosViewModel : ObservableObject
         {
             _todos = await _servicio.ObtenerResumenesAsync();
             OnPropertyChanged(nameof(PuedeEditar));
+            OnPropertyChanged(nameof(PuedeVerCostos));
             AplicarFiltro();
         }
         catch (Exception ex)
@@ -127,6 +144,13 @@ public partial class VehiculosViewModel : ObservableObject
     {
         if (fila is not null)
             EditarSolicitado?.Invoke(fila.Id);
+    }
+
+    [RelayCommand]
+    private void VerFicha(VehiculoFila? fila)
+    {
+        if (fila is not null)
+            FichaSolicitada?.Invoke(fila.Id);
     }
 
     [RelayCommand]

@@ -28,10 +28,10 @@ public class VehiculoRepository
         cmd.Transaction = transaccion;
         cmd.CommandText = $"""
             INSERT INTO {DbNames.Vehiculo}
-              (codigo, vin, marca, modelo, anio, color, placa, tipo, kilometraje,
+              (codigo, vin, marca, modelo, anio, color, placa, matricula, tipo, kilometraje,
                costo_adquisicion, gastos_importacion, precio_venta, estado, notas)
             VALUES
-              (@codigo, @vin, @marca, @modelo, @anio, @color, @placa, @tipo, @kilometraje,
+              (@codigo, @vin, @marca, @modelo, @anio, @color, @placa, @matricula, @tipo, @kilometraje,
                @costoAdquisicion, @gastosImportacion, @precioVenta, @estado, @notas);
             SELECT LAST_INSERT_ID();
             """;
@@ -48,7 +48,7 @@ public class VehiculoRepository
         cmd.CommandText = $"""
             UPDATE {DbNames.Vehiculo}
             SET vin = @vin, marca = @marca, modelo = @modelo, anio = @anio, color = @color,
-                placa = @placa, tipo = @tipo, kilometraje = @kilometraje,
+                placa = @placa, matricula = @matricula, tipo = @tipo, kilometraje = @kilometraje,
                 costo_adquisicion = @costoAdquisicion, gastos_importacion = @gastosImportacion,
                 precio_venta = @precioVenta, notas = @notas, updated_at = UTC_TIMESTAMP()
             WHERE id = @id AND deleted_at IS NULL;
@@ -144,7 +144,7 @@ public class VehiculoRepository
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
-            SELECT id, codigo, marca, modelo, anio, tipo, placa,
+            SELECT id, codigo, marca, modelo, anio, tipo, placa, vin, color, matricula,
                    (costo_adquisicion + gastos_importacion) AS costo_total,
                    precio_venta, estado
             FROM {DbNames.Vehiculo}
@@ -171,7 +171,10 @@ public class VehiculoRepository
                 reader.IsDBNull(placaOrd) ? null : reader.GetString("placa"),
                 reader.GetDecimal("costo_total"),
                 reader.GetDecimal("precio_venta"),
-                EnumMap.EstadoVehiculoDeDb(reader.GetString("estado"))));
+                EnumMap.EstadoVehiculoDeDb(reader.GetString("estado")),
+                Vin: reader.IsDBNull(reader.GetOrdinal("vin")) ? null : reader.GetString("vin"),
+                Color: reader.IsDBNull(reader.GetOrdinal("color")) ? null : reader.GetString("color"),
+                Matricula: reader.IsDBNull(reader.GetOrdinal("matricula")) ? null : reader.GetString("matricula")));
         }
         return lista;
     }
@@ -181,7 +184,7 @@ public class VehiculoRepository
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
-            SELECT id, codigo, vin, marca, modelo, anio, color, placa, tipo, kilometraje,
+            SELECT id, codigo, vin, marca, modelo, anio, color, placa, matricula, tipo, kilometraje,
                    costo_adquisicion, gastos_importacion, precio_venta, estado, notas,
                    created_at, updated_at
             FROM {DbNames.Vehiculo}
@@ -226,6 +229,7 @@ public class VehiculoRepository
         cmd.Parameters.AddWithValue("@anio", (object?)d.Anio ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@color", (object?)d.Color ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@placa", (object?)d.Placa ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@matricula", (object?)d.Matricula ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@tipo", EnumMap.ADb(d.Tipo));
         cmd.Parameters.AddWithValue("@kilometraje", (object?)d.Kilometraje ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@costoAdquisicion", d.CostoAdquisicion);
@@ -243,6 +247,7 @@ public class VehiculoRepository
         cmd.Parameters.AddWithValue("@anio", (object?)v.Anio ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@color", (object?)v.Color ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@placa", (object?)v.Placa ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@matricula", (object?)v.Matricula ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@tipo", EnumMap.ADb(v.Tipo));
         cmd.Parameters.AddWithValue("@kilometraje", (object?)v.Kilometraje ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@costoAdquisicion", v.CostoAdquisicion);
@@ -261,6 +266,7 @@ public class VehiculoRepository
         Anio = reader.IsDBNull(reader.GetOrdinal("anio")) ? null : reader.GetInt32(reader.GetOrdinal("anio")),
         Color = reader.IsDBNull(reader.GetOrdinal("color")) ? null : reader.GetString("color"),
         Placa = reader.IsDBNull(reader.GetOrdinal("placa")) ? null : reader.GetString("placa"),
+        Matricula = reader.IsDBNull(reader.GetOrdinal("matricula")) ? null : reader.GetString("matricula"),
         Tipo = EnumMap.TipoVehiculoDeDb(reader.GetString("tipo")),
         Kilometraje = reader.IsDBNull(reader.GetOrdinal("kilometraje")) ? null : reader.GetInt32(reader.GetOrdinal("kilometraje")),
         CostoAdquisicion = reader.GetDecimal("costo_adquisicion"),

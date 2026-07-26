@@ -1,0 +1,183 @@
+<UserControl x:Class="FAControl.Views.VehiculoFichaView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,12,0">
+    <StackPanel MaxWidth="980" HorizontalAlignment="Left">
+
+      <!-- Encabezado -->
+      <Grid Margin="0,0,0,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <Button Grid.Column="0" Content="← Volver" Style="{DynamicResource Boton.Terciario}"
+                Command="{Binding VolverCommand}" />
+        <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+          <TextBlock Style="{DynamicResource Texto.Titulo2}">
+            <Run Text="{Binding Codigo, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Descripcion, Mode=OneWay}" />
+          </TextBlock>
+          <TextBlock Text="{Binding EstadoTexto}" Style="{DynamicResource Texto.Caption}" />
+        </StackPanel>
+        <Button Grid.Column="2" Content="Imprimir ficha (PDF)" Style="{DynamicResource Boton.Primario}"
+                Command="{Binding ImprimirCommand}" />
+      </Grid>
+
+      <!-- Datos del vehículo -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+        <WrapPanel>
+          <StackPanel Margin="0,0,32,8">
+            <TextBlock Text="CHASIS (VIN)" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding VinTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+          <StackPanel Margin="0,0,32,8">
+            <TextBlock Text="PLACA" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding PlacaTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+          <StackPanel Margin="0,0,32,8">
+            <TextBlock Text="MATRÍCULA" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding MatriculaTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+          <StackPanel Margin="0,0,32,8">
+            <TextBlock Text="AÑO" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding AnioTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+          <StackPanel Margin="0,0,32,8">
+            <TextBlock Text="COLOR" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding ColorTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+          <StackPanel Margin="0,0,32,8">
+            <TextBlock Text="TIPO" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding TipoTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+          <StackPanel Margin="0,0,32,8">
+            <TextBlock Text="KILOMETRAJE" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding KilometrajeTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+          <StackPanel Margin="0,0,32,8">
+            <TextBlock Text="PRECIO DE VENTA" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding PrecioVenta, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+          <StackPanel Margin="0,0,0,8">
+            <TextBlock Text="NOTA / CONDICIÓN" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding NotasTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                       TextWrapping="Wrap" MaxWidth="420" />
+          </StackPanel>
+        </WrapPanel>
+      </Border>
+
+      <!-- Costos: SOLO Encargado/Admin (el Vendedor no los ve — 2026-07-25) -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12"
+              Visibility="{Binding PuedeVerCostos, Converter={StaticResource BoolAVisibilidad}}">
+        <WrapPanel>
+          <StackPanel Margin="0,0,32,0">
+            <TextBlock Text="COSTO ADQUISICIÓN" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding CostoAdquisicion, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+          <StackPanel Margin="0,0,32,0">
+            <TextBlock Text="GASTOS IMPORTACIÓN" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding GastosImportacion, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+          <StackPanel Margin="0,0,32,0">
+            <TextBlock Text="COSTO TOTAL" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding CostoTotal, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Text="GANANCIA ESTIMADA" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding GananciaEstimada, Converter={StaticResource Money}}"
+                       Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          </StackPanel>
+        </WrapPanel>
+      </Border>
+
+      <!-- Comprador / contrato -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+        <StackPanel>
+          <TextBlock Text="COMPRADOR / CONTRATO" Style="{DynamicResource Texto.MicroLabel}" />
+          <TextBlock Text="{Binding CompradorTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                     TextWrapping="Wrap" Margin="0,4,0,0" />
+        </StackPanel>
+      </Border>
+
+      <!-- Reparaciones -->
+      <Border Style="{DynamicResource Card}" Padding="20,14">
+        <StackPanel>
+          <DockPanel Margin="0,0,0,10">
+            <TextBlock Text="{Binding CostoReparaciones, Converter={StaticResource Money}}"
+                       DockPanel.Dock="Right" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                       VerticalAlignment="Center"
+                       Visibility="{Binding HayReparaciones, Converter={StaticResource BoolAVisibilidad}}" />
+            <TextBlock Text="Reparaciones del vehículo" Style="{DynamicResource Texto.Titulo3}" />
+          </DockPanel>
+
+          <!-- Alta inline (solo con permiso de edición) -->
+          <WrapPanel Margin="0,0,0,10"
+                     Visibility="{Binding PuedeEditar, Converter={StaticResource BoolAVisibilidad}}">
+            <StackPanel Margin="0,0,12,6">
+              <TextBlock Text="Fecha" Style="{DynamicResource Input.Label}" />
+              <DatePicker Width="130" Height="32" SelectedDate="{Binding ReparacionFecha}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,6">
+              <TextBlock Text="Detalle (qué se hizo)" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="320" Height="32" Style="{DynamicResource Input.Texto}"
+                       Text="{Binding ReparacionDetalle, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,12,6">
+              <TextBlock Text="Costo" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="110" Height="32" Style="{DynamicResource Input.Texto}"
+                       Text="{Binding ReparacionCostoTexto, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <Button Content="+ Agregar" Style="{DynamicResource Boton.Secundario}"
+                    VerticalAlignment="Bottom" Margin="0,0,0,6"
+                    Command="{Binding AgregarReparacionCommand}" />
+          </WrapPanel>
+          <TextBlock Text="{Binding MensajeReparacion}" Foreground="{DynamicResource Brush.Destructivo}"
+                     Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+          <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Reparaciones}"
+                    AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="110" />
+              <DataGridTextColumn Header="Detalle" Binding="{Binding Detalle}" Width="*">
+                <DataGridTextColumn.ElementStyle>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="TextWrapping" Value="Wrap" />
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+              <DataGridTextColumn Header="Costo" Width="130"
+                                  Binding="{Binding Costo, Converter={StaticResource Money}}">
+                <DataGridTextColumn.ElementStyle>
+                  <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+              <DataGridTextColumn Header="Registró" Binding="{Binding RegistradaPor}" Width="140" />
+              <DataGridTemplateColumn Width="90">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Button Content="Eliminar" Style="{DynamicResource Boton.Terciario}" FontSize="11"
+                            Visibility="{Binding DataContext.PuedeEditar,
+                                         RelativeSource={RelativeSource AncestorType=DataGrid},
+                                         Converter={StaticResource BoolAVisibilidad}}"
+                            Command="{Binding DataContext.EliminarReparacionCommand,
+                                      RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                            CommandParameter="{Binding}" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+            </DataGrid.Columns>
+          </DataGrid>
+          <TextBlock Text="Sin reparaciones registradas."
+                     Style="{DynamicResource Texto.Caption}" Margin="0,8,0,0"
+                     Visibility="{Binding SinReparaciones, Converter={StaticResource BoolAVisibilidad}}" />
+        </StackPanel>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

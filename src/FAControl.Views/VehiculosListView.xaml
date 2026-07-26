@@ -42,8 +42,21 @@
           <DataGridTextColumn Header="Vehículo" Binding="{Binding Descripcion}" Width="*" MinWidth="180"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Tipo" Binding="{Binding TipoTexto}" Width="110" MinWidth="100" />
+          <DataGridTextColumn Header="Año" Binding="{Binding AnioTexto}" Width="70" />
+          <DataGridTextColumn Header="Chasis" Binding="{Binding VinTexto}" Width="150" MinWidth="120">
+            <DataGridTextColumn.ElementStyle>
+              <Style TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{DynamicResource Fuente.Mono}" />
+              </Style>
+            </DataGridTextColumn.ElementStyle>
+          </DataGridTextColumn>
+          <DataGridTextColumn Header="Color" Binding="{Binding ColorTexto}" Width="90" />
           <DataGridTextColumn Header="Placa" Binding="{Binding PlacaTexto}" Width="100" />
-          <DataGridTextColumn Header="Costo total"
+          <DataGridTextColumn Header="Matrícula" Binding="{Binding MatriculaTexto}" Width="110" />
+          <!-- Costo y ganancia: ocultos al Vendedor (pedido 2026-07-25) — el
+               code-behind los apaga según PuedeVerCostos (las columnas del
+               DataGrid no están en el árbol visual y no se pueden bindear) -->
+          <DataGridTextColumn x:Name="ColumnaCosto" Header="Costo total"
                               Binding="{Binding CostoTotal, Converter={StaticResource Money}}"
                               Width="140" MinWidth="130">
             <DataGridTextColumn.ElementStyle>
@@ -57,7 +70,7 @@
               <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTextColumn Header="Ganancia"
+          <DataGridTextColumn x:Name="ColumnaGanancia" Header="Ganancia"
                               Binding="{Binding GananciaEstimada, Converter={StaticResource Money}}"
                               Width="140" MinWidth="130">
             <DataGridTextColumn.ElementStyle>
@@ -65,22 +78,30 @@
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
           <DataGridTextColumn Header="Estado" Binding="{Binding EstadoTexto}" Width="120" MinWidth="110" />
-          <DataGridTemplateColumn Width="180">
+          <DataGridTemplateColumn Width="230">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
-                <StackPanel Orientation="Horizontal"
-                            Visibility="{Binding DataContext.PuedeEditar,
-                                        RelativeSource={RelativeSource AncestorType=DataGrid},
-                                        Converter={StaticResource BoolAVisibilidad}}">
-                  <Button Content="Editar" Style="{DynamicResource Boton.Terciario}"
-                          Command="{Binding DataContext.EditarCommand,
+                <StackPanel Orientation="Horizontal">
+                  <!-- La ficha la ve todo el que ve el inventario (Vendedor incluido, sin costos) -->
+                  <Button Content="Ficha" Style="{DynamicResource Boton.Terciario}"
+                          Command="{Binding DataContext.VerFichaCommand,
                                     RelativeSource={RelativeSource AncestorType=DataGrid}}"
                           CommandParameter="{Binding}" />
-                  <Button Content="Eliminar" Style="{DynamicResource Boton.Terciario}"
-                          Margin="4,0,0,0"
-                          Command="{Binding DataContext.EliminarCommand,
-                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                          CommandParameter="{Binding}" />
+                  <StackPanel Orientation="Horizontal"
+                              Visibility="{Binding DataContext.PuedeEditar,
+                                          RelativeSource={RelativeSource AncestorType=DataGrid},
+                                          Converter={StaticResource BoolAVisibilidad}}">
+                    <Button Content="Editar" Style="{DynamicResource Boton.Terciario}"
+                            Margin="4,0,0,0"
+                            Command="{Binding DataContext.EditarCommand,
+                                      RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                            CommandParameter="{Binding}" />
+                    <Button Content="Eliminar" Style="{DynamicResource Boton.Terciario}"
+                            Margin="4,0,0,0"
+                            Command="{Binding DataContext.EliminarCommand,
+                                      RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                            CommandParameter="{Binding}" />
+                  </StackPanel>
                 </StackPanel>
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>

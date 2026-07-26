@@ -15,6 +15,8 @@ public class Vehiculo
     public int? Anio { get; set; }
     public string? Color { get; set; }
     public string? Placa { get; set; }
+    /// <summary>Nro. del certificado de matrícula DGII (015). Distinto de la placa.</summary>
+    public string? Matricula { get; set; }
     public TipoVehiculo Tipo { get; set; } = TipoVehiculo.Otro;
     public int? Kilometraje { get; set; }
     /// <summary>Lo que costó comprar el vehículo.</summary>

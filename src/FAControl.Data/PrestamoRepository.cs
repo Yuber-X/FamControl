@@ -276,6 +276,32 @@ public class PrestamoRepository
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    /// <summary>
+    /// Crédito vehicular (AutoControl) que financió un vehículo, para la ficha
+    /// del inventario: código del préstamo y nombre del cliente. Null si nunca
+    /// se financió. Toma el más reciente no cancelado.
+    /// </summary>
+    public async Task<(string Codigo, string ClienteNombre)?> ObtenerCreditoDeVehiculoAsync(
+        long vehiculoId, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT p.codigo, TRIM(CONCAT(c.nombre, ' ', COALESCE(c.apellido, ''))) AS cliente
+            FROM {DbNames.Prestamo} p
+            JOIN {DbNames.Cliente} c ON c.id = p.cliente_id
+            WHERE p.vehiculo_id = @vehiculoId AND p.estado <> 'cancelado'
+            ORDER BY p.id DESC
+            LIMIT 1;
+            """;
+        cmd.Parameters.AddWithValue("@vehiculoId", vehiculoId);
+
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+            return null;
+        return (reader.GetString("codigo"), reader.GetString("cliente"));
+    }
+
     public async Task<IReadOnlyList<Cuota>> ObtenerCuotasAsync(long prestamoId, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);

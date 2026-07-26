@@ -180,7 +180,8 @@ CREATE TABLE vehiculo (
   modelo             VARCHAR(50)   NOT NULL,
   anio               SMALLINT UNSIGNED NULL,
   color              VARCHAR(30)   NULL,
-  placa              VARCHAR(15)   NULL,                   -- matrícula / chapa
+  placa              VARCHAR(15)   NULL,                   -- chapa
+  matricula          VARCHAR(30)   NULL,                   -- nro. certificado de matrícula DGII (015)
   tipo               ENUM('sedan','suv','jeepeta','camioneta','camion','motor','otro')
                        NOT NULL DEFAULT 'otro',
   kilometraje        INT UNSIGNED  NULL,
@@ -413,6 +414,27 @@ CREATE TABLE vehiculo_gasto (
   CONSTRAINT fk_gasto_usuario  FOREIGN KEY (created_by)  REFERENCES usuario (id)  ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+-- -------------------------------------------------------------
+-- vehiculo_reparacion: historial de reparaciones/mantenimientos (015).
+-- Se muestra en la ficha del vehículo; soft delete.
+-- -------------------------------------------------------------
+CREATE TABLE vehiculo_reparacion (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  vehiculo_id BIGINT UNSIGNED NOT NULL,
+  fecha       DATE          NOT NULL,
+  detalle     VARCHAR(500)  NOT NULL,
+  costo       DECIMAL(15,2) NOT NULL DEFAULT 0,
+  created_at  DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  created_by  BIGINT UNSIGNED NULL,
+  deleted_at  DATETIME      NULL,
+  PRIMARY KEY (id),
+  KEY ix_reparacion_vehiculo (vehiculo_id),
+  CONSTRAINT fk_reparacion_vehiculo FOREIGN KEY (vehiculo_id)
+    REFERENCES vehiculo (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_reparacion_usuario FOREIGN KEY (created_by)
+    REFERENCES usuario (id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
 -- =============================================================
 -- Catálogo de roles y permisos (multicuentas — cliente 2026-07-16)
 -- Va acá y no en el seed porque NO son datos de prueba: sin esto la
@@ -476,7 +498,7 @@ WHERE r.nombre = 'Cobrador' AND r.modo = 'prestcontrol'
 INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Encargado' AND r.modo = 'dealercontrol'
-  AND p.codigo IN ('inventario','inventario_editar','ventas','alquileres','gastos',
+  AND p.codigo IN ('panel','inventario','inventario_editar','ventas','alquileres','gastos',
                    'clientes','clientes_editar','reportes','historial','acceso_dealercontrol');
 
 -- Vendedor (DealControl): vende y alquila; consulta el inventario

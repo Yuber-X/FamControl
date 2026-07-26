@@ -51,6 +51,7 @@ public partial class VehiculoFormViewModel : ObservableObject
     [ObservableProperty] private string _anio = string.Empty;
     [ObservableProperty] private string _color = string.Empty;
     [ObservableProperty] private string _placa = string.Empty;
+    [ObservableProperty] private string _matricula = string.Empty;   // nro. certificado DGII (015)
     [ObservableProperty] private Opcion<TipoVehiculo> _tipoSeleccionado;
     [ObservableProperty] private string _kilometraje = string.Empty;
     [ObservableProperty] private string _costoAdquisicion = string.Empty;
@@ -79,7 +80,7 @@ public partial class VehiculoFormViewModel : ObservableObject
     {
         _vehiculoId = null;
         Titulo = "Nuevo vehículo";
-        Vin = Marca = Modelo = Anio = Color = Placa = Kilometraje =
+        Vin = Marca = Modelo = Anio = Color = Placa = Matricula = Kilometraje =
             CostoAdquisicion = GastosImportacion = PrecioVenta = Notas = string.Empty;
         TipoSeleccionado = Tipos[0];
         MensajeError = string.Empty;
@@ -99,6 +100,7 @@ public partial class VehiculoFormViewModel : ObservableObject
         Anio = v.Anio?.ToString(CulturaRd) ?? string.Empty;
         Color = v.Color ?? string.Empty;
         Placa = v.Placa ?? string.Empty;
+        Matricula = v.Matricula ?? string.Empty;
         TipoSeleccionado = Tipos.First(t => t.Valor == v.Tipo);
         Kilometraje = v.Kilometraje?.ToString(CulturaRd) ?? string.Empty;
         CostoAdquisicion = v.CostoAdquisicion.ToString("0.##", CulturaRd);
@@ -138,7 +140,8 @@ public partial class VehiculoFormViewModel : ObservableObject
                 ParsearMontoEstricto(CostoAdquisicion, "costo de adquisición"),
                 ParsearMontoEstricto(GastosImportacion, "gastos de importación"),
                 ParsearMontoEstricto(PrecioVenta, "precio de venta"),
-                Notas);
+                Notas,
+                Matricula: string.IsNullOrWhiteSpace(Matricula) ? null : Matricula.Trim());
 
             long id;
             if (_vehiculoId is null)

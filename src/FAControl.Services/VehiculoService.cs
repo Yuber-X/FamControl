@@ -17,14 +17,71 @@ public class VehiculoService
     private readonly ContadorRepository _contador;
     private readonly ConexionFactory _factory;
     private readonly AuditoriaService _auditoria;
+    private readonly VehiculoReparacionRepository _reparaciones;
+    private readonly VentaVehiculoRepository _ventas;
+    private readonly PrestamoRepository _prestamos;
 
     public VehiculoService(VehiculoRepository vehiculos, ContadorRepository contador,
-        ConexionFactory factory, AuditoriaService auditoria)
+        ConexionFactory factory, AuditoriaService auditoria,
+        VehiculoReparacionRepository reparaciones, VentaVehiculoRepository ventas,
+        PrestamoRepository prestamos)
     {
         _vehiculos = vehiculos;
         _contador = contador;
         _factory = factory;
         _auditoria = auditoria;
+        _reparaciones = reparaciones;
+        _ventas = ventas;
+        _prestamos = prestamos;
+    }
+
+    // ---------- Ficha completa (pedido 2026-07-25) ----------
+
+    /// <summary>
+    /// Ficha del vehículo: datos completos + comprador (venta al contado o
+    /// crédito de AutoControl) + historial de reparaciones.
+    /// </summary>
+    public async Task<FichaVehiculo> ObtenerFichaAsync(long id, CancellationToken ct = default)
+    {
+        ExigirLectura();
+        var vehiculo = await _vehiculos.ObtenerPorIdAsync(id, ct)
+            ?? throw new InvalidOperationException("El vehículo no existe o fue eliminado.");
+        var venta = await _ventas.ObtenerDeVehiculoAsync(id, ct);
+        var credito = await _prestamos.ObtenerCreditoDeVehiculoAsync(id, ct);
+        var reparaciones = await _reparaciones.ObtenerDeVehiculoAsync(id, ct);
+        return new FichaVehiculo(vehiculo, venta, credito?.Codigo, credito?.ClienteNombre, reparaciones);
+    }
+
+    /// <summary>Registra una reparación/mantenimiento del vehículo (con auditoría).</summary>
+    public async Task AgregarReparacionAsync(long vehiculoId, DateOnly fecha, string detalle,
+        decimal costo, CancellationToken ct = default)
+    {
+        ExigirEscritura();
+        if (string.IsNullOrWhiteSpace(detalle))
+            throw new ArgumentException("Describí la reparación (qué se hizo).");
+        if (costo < 0m)
+            throw new ArgumentException("El costo no puede ser negativo.");
+
+        var reparacion = new VehiculoReparacion
+        {
+            VehiculoId = vehiculoId,
+            Fecha = fecha,
+            Detalle = detalle.Trim(),
+            Costo = costo
+        };
+        var id = await _reparaciones.InsertarAsync(reparacion, SesionActual.Id, ct);
+        await _auditoria.RegistrarAsync(AccionAuditoria.Crear, DbNames.VehiculoReparacion, id,
+            $"Reparación del vehículo #{vehiculoId}: {reparacion.Detalle} — {costo:N2} DOP ({fecha:dd/MM/yyyy})", ct);
+        Log.Information("Reparación registrada al vehículo {VehiculoId}: {Detalle}", vehiculoId, reparacion.Detalle);
+    }
+
+    /// <summary>Elimina (soft) una reparación registrada por error.</summary>
+    public async Task EliminarReparacionAsync(long reparacionId, CancellationToken ct = default)
+    {
+        ExigirEscritura();
+        await _reparaciones.EliminarAsync(reparacionId, ct);
+        await _auditoria.RegistrarAsync(AccionAuditoria.Eliminar, DbNames.VehiculoReparacion,
+            reparacionId, "Reparación eliminada", ct);
     }
 
     // ---------- Lecturas ----------
