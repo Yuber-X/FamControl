@@ -68,6 +68,12 @@
               <TextBox Width="200" Style="{DynamicResource Input.Texto}" Height="34"
                        Text="{Binding NegocioEmail, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Comisión del vendedor (%)" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="140" Style="{DynamicResource Input.Texto}" Height="34"
+                       ToolTip="DealControl: % sobre el monto vendido que se muestra en el reporte de comisiones"
+                       Text="{Binding ComisionVendedorTexto, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
           </WrapPanel>
         </StackPanel>
       </Border>

@@ -278,6 +278,7 @@ public partial class App : Application
         servicios.AddSingleton<PanelDealRepository>();
         servicios.AddSingleton<VehiculoReparacionRepository>();
         servicios.AddSingleton<VentaPlazoRepository>();
+        servicios.AddSingleton<ReporteDealRepository>();
 
         // Services
         servicios.AddSingleton<AuditoriaService>();
@@ -303,6 +304,7 @@ public partial class App : Application
         servicios.AddSingleton<NcfService>();
         servicios.AddSingleton<PanelDealService>();
         servicios.AddSingleton<VentaPlazoService>();
+        servicios.AddSingleton<ReporteDealService>();
         servicios.AddSingleton(sp =>
             new RespaldoService(sp.GetRequiredService<ConexionFactory>().CadenaConexion));
         servicios.AddSingleton(FAControl.Common.AjustesLocales.Cargar());
@@ -332,6 +334,8 @@ public partial class App : Application
         servicios.AddSingleton<PanelDealViewModel>();
         servicios.AddSingleton<VehiculoFichaViewModel>();
         servicios.AddSingleton<VentaFinanciamientoViewModel>();
+        servicios.AddSingleton<ContratosDealViewModel>();
+        servicios.AddSingleton<ReportesDealViewModel>();
         servicios.AddSingleton<ReportesViewModel>();
         servicios.AddSingleton<HistorialViewModel>();
         servicios.AddSingleton<ConfiguracionViewModel>();

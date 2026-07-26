@@ -77,6 +77,12 @@ public class AjustesLocales
     /// <summary>Plazo (días) que se concede en la intimación de pago antes de la vía legal.</summary>
     public int PlazoIntimacionDias { get; set; } = 15;
 
+    /// <summary>
+    /// % de comisión del vendedor sobre el monto vendido (DealControl, 2026-07-25).
+    /// Lo define el negocio; 0 = no se calculan comisiones en el reporte.
+    /// </summary>
+    public decimal PorcentajeComisionVendedor { get; set; }
+
     // ---------- Recordatorios por correo (Gmail) — cliente 2026-07-19 ----------
     public bool RecordatoriosActivos { get; set; }
     /// <summary>Cuenta Gmail que ENVÍA los recordatorios.</summary>

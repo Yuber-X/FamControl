@@ -54,6 +54,8 @@ public partial class MainViewModel : ObservableObject
     private readonly PanelDealViewModel _panelDealVm;
     private readonly VehiculoFichaViewModel _fichaVehiculoVm;
     private readonly VentaFinanciamientoViewModel _financiamientoVm;
+    private readonly ContratosDealViewModel _contratosDealVm;
+    private readonly ReportesDealViewModel _reportesDealVm;
 
     public MainViewModel(PrestamosViewModel prestamosVm, PrestamoNuevoViewModel nuevoVm,
         PrestamoDetalleViewModel detalleVm, CobrosViewModel cobrosVm,
@@ -64,12 +66,15 @@ public partial class MainViewModel : ObservableObject
         VentasViewModel ventasVm, VentaNuevaViewModel ventaNuevaVm,
         AlquileresViewModel alquileresVm, AlquilerNuevoViewModel alquilerNuevoVm, GastosViewModel gastosVm,
         PanelDealViewModel panelDealVm, VehiculoFichaViewModel fichaVehiculoVm,
-        VentaFinanciamientoViewModel financiamientoVm)
+        VentaFinanciamientoViewModel financiamientoVm,
+        ContratosDealViewModel contratosDealVm, ReportesDealViewModel reportesDealVm)
     {
         _panelVm = panelVm;
         _panelDealVm = panelDealVm;
         _fichaVehiculoVm = fichaVehiculoVm;
         _financiamientoVm = financiamientoVm;
+        _contratosDealVm = contratosDealVm;
+        _reportesDealVm = reportesDealVm;
         _reportesVm = reportesVm;
         _historialVm = historialVm;
         _usuariosVm = usuariosVm;
@@ -120,6 +125,8 @@ public partial class MainViewModel : ObservableObject
         _ventasVm.NuevoSolicitado += () => _ = AbrirVentaNuevaAsync();
         _ventasVm.FinanciamientoSolicitado += id => _ = AbrirFinanciamientoAsync(id);
         _financiamientoVm.VolverSolicitado += () => _ = NavegarAsync(Pagina.Ventas);
+        // Expediente de contratos del dealer: "ver detalles" abre el financiamiento
+        _contratosDealVm.DetalleSolicitado += id => _ = AbrirFinanciamientoAsync(id);
         _ventaNuevaVm.Registrado += () => _ = NavegarAsync(Pagina.Ventas);
         _ventaNuevaVm.Cancelado += () => _ = NavegarAsync(Pagina.Ventas);
 
@@ -171,9 +178,16 @@ public partial class MainViewModel : ObservableObject
     /// <summary>AutoControl: alta de crédito vehicular (mismo wizard, con picker de vehículo).</summary>
     public bool PuedeVerNuevaVentaFinanciada => EsAutoControl && SesionActual.TienePermiso(Permisos.PrestamosCrear);
     public bool PuedeVerCobros => EsCredito && SesionActual.TienePermiso(Permisos.Cobros);
-    /// <summary>El contrato es el pagaré del préstamo: reusa el permiso de préstamos.</summary>
-    public bool PuedeVerContratos => EsCredito && SesionActual.TienePermiso(Permisos.Prestamos);
-    public bool PuedeVerReportes => EsCredito && SesionActual.TienePermiso(Permisos.Reportes);
+    /// <summary>
+    /// Contratos: en crédito es el pagaré del préstamo; en DealControl es el
+    /// expediente de la venta (2026-07-25), con su propio permiso ('ventas').
+    /// </summary>
+    public bool PuedeVerContratos => EsDealerControl
+        ? SesionActual.TienePermiso(Permisos.Ventas)
+        : EsCredito && SesionActual.TienePermiso(Permisos.Prestamos);
+    /// <summary>Reportes: cada estancia tiene los suyos, nunca datos cruzados.</summary>
+    public bool PuedeVerReportes => (EsCredito || EsDealerControl)
+        && SesionActual.TienePermiso(Permisos.Reportes);
     /// <summary>Inventario, ventas, alquileres y gastos: exclusivos de DealControl, con permisos FINOS (roles por modo).</summary>
     public bool PuedeVerVehiculos => EsDealerControl && SesionActual.TienePermiso(Permisos.Inventario);
     public bool PuedeVerVentas => EsDealerControl && SesionActual.TienePermiso(Permisos.Ventas);
@@ -285,6 +299,11 @@ public partial class MainViewModel : ObservableObject
                     await _cobrosVm.CargarAsync();
                     PaginaActualVm = _cobrosVm;
                     break;
+                case Pagina.Reportes when EsDealerControl:
+                    // Reportes PROPIOS del dealer (2026-07-25): nunca datos de Prest
+                    await _reportesDealVm.CargarAsync();
+                    PaginaActualVm = _reportesDealVm;
+                    break;
                 case Pagina.Reportes:
                     await _reportesVm.CargarAsync();
                     PaginaActualVm = _reportesVm;
@@ -292,6 +311,11 @@ public partial class MainViewModel : ObservableObject
                 case Pagina.Historial:
                     await _historialVm.CargarAsync();
                     PaginaActualVm = _historialVm;
+                    break;
+                case Pagina.Contratos when EsDealerControl:
+                    // Expediente de contratos del dealer (2026-07-25)
+                    await _contratosDealVm.CargarAsync();
+                    PaginaActualVm = _contratosDealVm;
                     break;
                 case Pagina.Contratos:
                     await _contratosVm.CargarAsync();
@@ -484,8 +508,10 @@ public partial class MainViewModel : ObservableObject
         Pagina.Prestamos => EsAutoControl ? "Ventas financiadas" : "Préstamos",
         Pagina.NuevoPrestamo => EsAutoControl ? "Nueva venta financiada" : "Nuevo préstamo",
         Pagina.Cobros => "Cobros",
-        Pagina.Contratos => "Almacén de contratos",
-        Pagina.Reportes => "Reportes",
+        // En DealControl el contrato es el expediente de la venta, no el pagaré
+        Pagina.Contratos => EsDealerControl ? "Contratos del dealer" : "Almacén de contratos",
+        Pagina.Reportes => EsDealerControl ? "Reportes del dealer" : "Reportes",
+        Pagina.Ventas when EsDealerControl => "Ventas",
         Pagina.Historial => "Historial",
         Pagina.Usuarios => "Usuarios",
         Pagina.Configuracion => "Configuración",

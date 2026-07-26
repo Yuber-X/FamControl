@@ -77,6 +77,7 @@ public partial class ConfiguracionViewModel : ObservableObject
         _negocioTelefono = ajustes.TelefonoNegocio;
         _negocioEmail = ajustes.EmailNegocio;
         _negocioRnc = ajustes.RncNegocio;
+        _comisionVendedorTexto = ajustes.PorcentajeComisionVendedor.ToString("0.##", Textos.CulturaRd);
         ActualizarUltimaExportacion();
         ActualizarUltimoRespaldo();
         ActualizarUltimoRecordatorio();
@@ -212,7 +213,10 @@ public partial class ConfiguracionViewModel : ObservableObject
     [ObservableProperty] private string _negocioTelefono;
     [ObservableProperty] private string _negocioEmail;
     [ObservableProperty] private string _negocioRnc;
+    /// <summary>% de comisión del vendedor sobre el monto vendido (DealControl).</summary>
+    [ObservableProperty] private string _comisionVendedorTexto;
 
+    partial void OnComisionVendedorTextoChanged(string value) => GuardarAjustesNegocio();
     partial void OnNegocioNombreChanged(string value) => GuardarAjustesNegocio();
     partial void OnNegocioPrestamistaChanged(string value) => GuardarAjustesNegocio();
     partial void OnNegocioCiudadChanged(string value) => GuardarAjustesNegocio();
@@ -230,6 +234,10 @@ public partial class ConfiguracionViewModel : ObservableObject
         _ajustes.TelefonoNegocio = NegocioTelefono?.Trim() ?? string.Empty;
         _ajustes.EmailNegocio = NegocioEmail?.Trim() ?? string.Empty;
         _ajustes.RncNegocio = NegocioRnc?.Trim() ?? string.Empty;
+        // Comisión: se ignora lo que no sea un número válido (el campo se está escribiendo)
+        if (decimal.TryParse(ComisionVendedorTexto, System.Globalization.NumberStyles.Number,
+                Textos.CulturaRd, out var comision) && comision >= 0m && comision <= 100m)
+            _ajustes.PorcentajeComisionVendedor = comision;
         _ajustes.Guardar();
     }
 

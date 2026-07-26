@@ -1,6 +1,27 @@
 # TODO.md — FAControl
 
-> Actualizado: 2026-07-19 (roles por modo)
+> Actualizado: 2026-07-25 (comprobante fiscal + DealControl completo)
+
+## ✅ Pedidos del cliente 2026-07-25 (COMPLETO)
+
+### PrestControl
+- [x] Pagaré: tasa en el texto principal; "Púrpura Datos" → nombre de la empresa
+- [x] Factura/recibo con logo, empresa, RNC, teléfono y comprobante fiscal + Datos del negocio en Configuración
+- [x] Reportes: total prestado y proyección a ganar
+- [x] Comprobante fiscal DGII (012): registrar e-NCF del Facturador Gratuito o asignar de secuencia local con reserva atómica
+- [x] Permisos por pantalla de vuelta (013): checkboxes por modo, precargados por el rol, sin mezclar estancias
+- [x] Préstamo antiguo con fecha atrasada: autodetección + cuotas pagadas con recibos históricos
+
+### DealControl
+- [x] Panel principal propio (014), sin datos de PrestControl
+- [x] Inventario ampliado (015): matrícula, año/chasis/color en el grid, ficha con comprador y reparaciones, PDF
+- [x] Vendedor: no ve costos ni ganancias (solo modelo/marca/chasis/año/color/precio/nota); sí vende
+- [x] Facturación: ver/imprimir con marca, cliente, vehículo y firmas
+- [x] Financiamiento por plazos (016): inicial + N pagos, separación con 15 días de derecho, cobro con recibo RV-000001
+- [x] Carta de compromiso y recibo de separación imprimibles
+- [x] Contratos del dealer: expediente con cliente, vendedor, documentos, matrícula y estado de plazos
+- [x] Reportes propios con comisiones por vendedor (% configurable)
+- Nota: **AutoControl quedó de lado por pedido del cliente** en esta ronda.
 
 ## ✅ Roles por modo (COMPLETO — 2026-07-19)
 - [x] Esquema: `usuario_modo_rol`, `rol.modo`, clave única `(nombre, modo)`, roles Encargado/Vendedor y permisos propios de Dealer/Auto (`inventario`, `inventario_editar`, `ventas`, `alquileres`, `gastos`) — migración 011 + espejo en 001

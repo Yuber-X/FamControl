@@ -2,6 +2,38 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [1.4.0] — 2026-07-25 · Comprobante fiscal, préstamos antiguos y DealControl completo
+
+### PrestControl
+
+- **Pagaré**: la tasa de interés ahora aparece en el texto principal ("…con una tasa de interés del 10% mensual…"), y la cláusula de datos crediticios usa el **nombre de la empresa** en lugar de "Púrpura Datos".
+- **Papelería con la marca**: el recibo 80mm y el estado de préstamo llevan el **logo FA, el nombre del negocio, el RNC y el teléfono**. Nueva sección **Datos del negocio** en Configuración (nombre, RNC, teléfono, dueño, ciudad, correo) — antes solo se podían cambiar editando el archivo de ajustes.
+- **Comprobante fiscal (NCF)**: cada préstamo puede llevar su comprobante. Dos caminos, los dos soportados: **registrar** el e-NCF generado en el Facturador Gratuito de la DGII, o **asignar** el siguiente de una secuencia local configurada (prefijo B02/E32, próxima, fin de rango y vencimiento). La reserva es atómica dentro de la transacción del préstamo, así que un error no consume el número, y la app avisa cuando la secuencia está por agotarse o vencida. El comprobante sale impreso en el recibo.
+- **Reportes**: dos KPIs nuevos — **Total prestado** (capital colocado en el período) y **Proyección a ganar** (interés que falta por cobrar de los préstamos activos).
+- **Permisos por pantalla de vuelta**: el Admin vuelve a tener los **checkboxes por pantalla**, conviviendo con los roles por modo — el rol elegido precarga los permisos y el Admin ajusta fino. Cada estancia muestra solo SUS permisos; nunca se mezclan entre modos.
+- **Préstamos antiguos**: al crear un préstamo con fecha atrasada, el wizard lo **detecta y pregunta** si el cliente está al día o cuántas cuotas ya pagó. Las cuotas saldadas nacen pagadas con **recibos históricos fechados en su vencimiento**, así los reportes las ubican en su mes real. Esto reemplaza el flujo que limitaba el abono al cargar un cliente antiguo.
+
+### DealControl
+
+- **Panel principal propio**: inventario disponible, inversión, ventas del mes con su ganancia, alquileres e ingresos, y últimos movimientos. **Cero datos de PrestControl**.
+- **Inventario ampliado**: nueva **matrícula** (certificado DGII, distinta de la placa) y columnas de año, chasis, color y matrícula en el grid.
+- **Ficha del vehículo**: datos completos + **quién lo compró** (venta al contado o crédito de AutoControl) + **historial de reparaciones** con costo, todo imprimible en carta y exportable a PDF.
+- **Vendedor restringido**: no ve costo total ni ganancia, ni en el inventario ni en la ficha — solo marca, modelo, chasis, año, color, precio y nota de condición. Sí puede vender.
+- **Facturación**: ver e imprimir la factura de una venta, con la marca del negocio, los datos del cliente y del vehículo, el total, la forma de pago y las firmas de cliente, vendedor y gerencia.
+- **Financiamiento por plazos**: la venta se pacta **al contado, por plazos** (inicial + N pagos sin interés, como financia un dealer) **o como separación/apartado**. La pantalla de plazos muestra **total por pagar, lo pendiente, la cantidad de plazos y lo pagado**, con cobro por plazo (recibo propio RV-000001), historial de abonos y semáforo de atrasos.
+- **Documentos**: **carta de compromiso** con el calendario pactado y **recibo de separación** con la cláusula de los días de derecho (15 por default). Una separación reserva el vehículo en vez de darlo por vendido, y la app avisa cuando el plazo está por vencer.
+- **Contratos del dealer**: expediente por venta con cliente, **quién vendió**, cantidad de documentos, matrícula del auto y estado de los plazos (pagados / atrasados / pendiente), con "ver detalles" al financiamiento completo.
+- **Reportes propios**: ganancia del período, monto vendido, ingresos por alquiler, pendiente de cobro, inventario, y **comisiones por vendedor** (el % lo define el negocio en Configuración).
+
+### Cambios técnicos
+- Migraciones `012_ncf.sql` (comprobante fiscal), `013_permisos_por_pantalla.sql`, `014_panel_deal.sql`, `015_vehiculo_ficha.sql` y `016_venta_plazos.sql` — todas idempotentes, con espejo en `001` y aplicadas a `facontrol_db`.
+- `usuario_modo_permiso` guarda el set marcado por modo; `usuario_permiso` sigue siendo la unión efectiva que lee el login (semántica intacta). El permiso `acceso_<modo>` nunca es un checkbox: se quita eligiendo "Sin acceso".
+- Reserva atómica (`SELECT … FOR UPDATE`) para el NCF y para los recibos de plazos, siempre dentro de la transacción de la operación que consume el número.
+- `LogoFa` centraliza el monograma vectorial que comparten pagaré, recibo, ficha y factura.
+- **FIX**: editar inventario exigía el permiso viejo `vehiculos_editar` y vender también — el Encargado no podía editar y el Vendedor no podía vender. Ahora usan `inventario_editar` y `ventas`.
+- Los tests de integración que tocan `SesionActual` (estático global) corren en una colección serializada: el paralelismo de xUnit hacía que una clase le cerrara la sesión a la otra.
+- Build Release sin warnings; **146 tests verdes** (133 unitarios + 13 de integración).
+
 ## [1.3.5] — 2026-07-19 · Roles por modo (permisos diferenciados por estancia)
 
 ### Added

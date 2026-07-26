@@ -1,0 +1,74 @@
+<UserControl x:Class="FAControl.Views.ContratosDealView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <DockPanel Grid.Row="0" Margin="0,0,0,16">
+      <TextBox DockPanel.Dock="Right" Width="280" Height="38"
+               Style="{DynamicResource Input.Texto}"
+               ToolTip="Buscar por código, cliente, vendedor, vehículo o matrícula"
+               Text="{Binding TextoBusqueda, UpdateSourceTrigger=PropertyChanged}" />
+      <TextBlock Text="Expediente de contratos del dealer" VerticalAlignment="Center"
+                 Style="{DynamicResource Texto.Cuerpo}" />
+    </DockPanel>
+
+    <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0">
+      <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Filas}"
+                AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Código" Binding="{Binding Codigo}" Width="90">
+            <DataGridTextColumn.ElementStyle>
+              <Style TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{DynamicResource Fuente.Mono}" />
+              </Style>
+            </DataGridTextColumn.ElementStyle>
+          </DataGridTextColumn>
+          <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="110" />
+          <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*" MinWidth="150"
+                              HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+          <DataGridTextColumn Header="Vendió" Binding="{Binding VendedorNombre}" Width="140"
+                              HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+          <DataGridTextColumn Header="Vehículo" Binding="{Binding VehiculoDescripcion}" Width="*" MinWidth="150"
+                              HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+          <DataGridTextColumn Header="Matrícula" Binding="{Binding MatriculaTexto}" Width="110" />
+          <DataGridTextColumn Header="Docs" Binding="{Binding CantidadDocumentos}" Width="60" />
+          <DataGridTextColumn Header="Tipo" Binding="{Binding TipoTexto}" Width="100" />
+          <DataGridTextColumn Header="Estado de pagos" Binding="{Binding EstadoPagosTexto}"
+                              Width="*" MinWidth="170"
+                              HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
+            <DataGridTextColumn.ElementStyle>
+              <Style TargetType="TextBlock">
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding TieneAtrasos}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource Brush.Destructivo}" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </DataGridTextColumn.ElementStyle>
+          </DataGridTextColumn>
+          <DataGridTemplateColumn Width="110">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <Button Content="Ver detalles" Style="{DynamicResource Boton.Terciario}" FontSize="11"
+                        Command="{Binding DataContext.VerDetallesCommand,
+                                  RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        CommandParameter="{Binding}" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+        </DataGrid.Columns>
+      </DataGrid>
+    </Border>
+
+    <TextBlock Grid.Row="2" Text="{Binding ContadorTexto}"
+               Style="{DynamicResource Texto.Caption}" Margin="4,10,0,0" />
+  </Grid>
+</UserControl>
