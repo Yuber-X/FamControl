@@ -10,9 +10,12 @@ using Serilog;
 namespace FAControl.ViewModels;
 
 /// <summary>
-/// Formulario de venta al contado (DealerControl): elegir un vehículo disponible
-/// y un cliente, fijar el precio y el método de pago. Al registrar, el vehículo
-/// pasa a 'vendido' (Service, atómico).
+/// Formulario de venta del dealer: elegir un vehículo disponible y un cliente,
+/// fijar el precio y el método de pago. Desde 2026-07-25 soporta las TRES
+/// formas del dealer (016): al contado, financiada por plazos (inicial + N
+/// pagos sin interés) y separación/apartado con fecha límite de derecho.
+/// Al registrar, el Service marca el vehículo vendido (o reservado, si es
+/// separación) de forma atómica.
 /// </summary>
 public partial class VentaNuevaViewModel : ObservableObject
 {
@@ -42,11 +45,21 @@ public partial class VentaNuevaViewModel : ObservableObject
             new Opcion<MetodoPago>(MetodoPago.Otro, Textos.De(MetodoPago.Otro))
         ];
         _metodoSeleccionado = MetodosPago[0];
+
+        TiposVenta =
+        [
+            new Opcion<TipoVenta>(TipoVenta.Contado, "Al contado"),
+            new Opcion<TipoVenta>(TipoVenta.Plazos, "Financiada por plazos"),
+            new Opcion<TipoVenta>(TipoVenta.Separacion, "Separación / apartado")
+        ];
+        _tipoSeleccionado = TiposVenta[0];
+        _fechaPrimerPlazo = FechaNegocio.Hoy.AddMonths(1).ToDateTime(TimeOnly.MinValue);
     }
 
     public ObservableCollection<VehiculoResumen> Vehiculos { get; } = [];
     public ObservableCollection<Cliente> Clientes { get; } = [];
     public IReadOnlyList<Opcion<MetodoPago>> MetodosPago { get; }
+    public IReadOnlyList<Opcion<TipoVenta>> TiposVenta { get; }
 
     [ObservableProperty] private VehiculoResumen? _vehiculoSeleccionado;
     [ObservableProperty] private Cliente? _clienteSeleccionado;
@@ -55,6 +68,54 @@ public partial class VentaNuevaViewModel : ObservableObject
     [ObservableProperty] private string _notas = string.Empty;
     [ObservableProperty] private string _mensajeError = string.Empty;
     [ObservableProperty] private bool _ocupado;
+
+    // ---- Financiamiento del dealer (016) ----
+    [ObservableProperty] private Opcion<TipoVenta> _tipoSeleccionado;
+    [ObservableProperty] private string _inicialTexto = string.Empty;
+    [ObservableProperty] private string _cantidadPlazosTexto = "12";
+    [ObservableProperty] private DateTime _fechaPrimerPlazo;
+    [ObservableProperty] private string _cadaDiasTexto = "30";
+    [ObservableProperty] private string _adelantoSeparacionTexto = string.Empty;
+    [ObservableProperty] private string _diasSeparacionTexto = "15";
+    [ObservableProperty] private string _previewPlazosTexto = string.Empty;
+
+    public bool EsPlazos => TipoSeleccionado?.Valor == TipoVenta.Plazos;
+    public bool EsSeparacion => TipoSeleccionado?.Valor == TipoVenta.Separacion;
+
+    partial void OnTipoSeleccionadoChanged(Opcion<TipoVenta> value)
+    {
+        OnPropertyChanged(nameof(EsPlazos));
+        OnPropertyChanged(nameof(EsSeparacion));
+        MensajeError = string.Empty;
+        RecalcularPreview();
+    }
+
+    partial void OnPrecioTextoChanged(string value) => RecalcularPreview();
+    partial void OnInicialTextoChanged(string value) => RecalcularPreview();
+    partial void OnCantidadPlazosTextoChanged(string value) => RecalcularPreview();
+
+    /// <summary>Vista previa del plan: cuánto queda por plazo (el resto cae en el último).</summary>
+    private void RecalcularPreview()
+    {
+        PreviewPlazosTexto = string.Empty;
+        if (!EsPlazos)
+            return;
+        if (!decimal.TryParse(PrecioTexto, NumberStyles.Number, CulturaRd, out var precio) || precio <= 0m)
+            return;
+        decimal.TryParse(InicialTexto, NumberStyles.Number, CulturaRd, out var inicial);
+        if (!int.TryParse(CantidadPlazosTexto, NumberStyles.Integer, CulturaRd, out var cantidad) || cantidad < 1)
+            return;
+
+        var saldo = precio - inicial;
+        if (saldo <= 0m)
+        {
+            PreviewPlazosTexto = "Con esa inicial no queda saldo por financiar.";
+            return;
+        }
+        var porPlazo = Math.Round(saldo / cantidad, 2, MidpointRounding.AwayFromZero);
+        PreviewPlazosTexto = $"Saldo a financiar: {saldo.ToString("N2", CulturaRd)} DOP · " +
+                             $"{cantidad} plazo(s) de ~{porPlazo.ToString("N2", CulturaRd)} DOP";
+    }
 
     partial void OnVehiculoSeleccionadoChanged(VehiculoResumen? value)
     {
@@ -71,6 +132,13 @@ public partial class VentaNuevaViewModel : ObservableObject
             ClienteSeleccionado = null;
             PrecioTexto = Notas = string.Empty;
             MetodoSeleccionado = MetodosPago[0];
+            TipoSeleccionado = TiposVenta[0];
+            InicialTexto = AdelantoSeparacionTexto = string.Empty;
+            CantidadPlazosTexto = "12";
+            CadaDiasTexto = "30";
+            DiasSeparacionTexto = "15";
+            FechaPrimerPlazo = FechaNegocio.Hoy.AddMonths(1).ToDateTime(TimeOnly.MinValue);
+            PreviewPlazosTexto = string.Empty;
 
             var vehiculos = await _vehiculos.ObtenerResumenesAsync();
             Vehiculos.Clear();
@@ -104,13 +172,54 @@ public partial class VentaNuevaViewModel : ObservableObject
             if (!decimal.TryParse(PrecioTexto, NumberStyles.Number, CulturaRd, out var precio) || precio <= 0m)
                 throw new ArgumentException("Ingresá un precio válido mayor que cero.");
 
+            // Financiamiento del dealer (016): se arma el plan según el tipo
+            PlanPlazos? plan = null;
+            var diasSeparacion = 15;
+            var adelanto = 0m;
+
+            switch (TipoSeleccionado.Valor)
+            {
+                case TipoVenta.Plazos:
+                    decimal.TryParse(InicialTexto, NumberStyles.Number, CulturaRd, out var inicial);
+                    if (inicial < 0m)
+                        throw new ArgumentException("La inicial no puede ser negativa.");
+                    if (!int.TryParse(CantidadPlazosTexto, NumberStyles.Integer, CulturaRd, out var cantidad) || cantidad < 1)
+                        throw new ArgumentException("Ingresá la cantidad de plazos (ej. 12).");
+                    if (!int.TryParse(CadaDiasTexto, NumberStyles.Integer, CulturaRd, out var cadaDias) || cadaDias < 1)
+                        throw new ArgumentException("Ingresá cada cuántos días vence un plazo (30 = mensual).");
+                    plan = new PlanPlazos(inicial, cantidad,
+                        DateOnly.FromDateTime(FechaPrimerPlazo), cadaDias);
+                    break;
+
+                case TipoVenta.Separacion:
+                    if (!decimal.TryParse(AdelantoSeparacionTexto, NumberStyles.Number, CulturaRd, out adelanto) || adelanto <= 0m)
+                        throw new ArgumentException("Ingresá el adelanto que dejó el cliente por la separación.");
+                    if (!int.TryParse(DiasSeparacionTexto, NumberStyles.Integer, CulturaRd, out diasSeparacion) || diasSeparacion < 1)
+                        throw new ArgumentException("Ingresá los días de derecho de la separación (el dealer usa 15).");
+                    break;
+            }
+
             var datos = new VentaVehiculoDatos(
                 VehiculoSeleccionado.Id, ClienteSeleccionado.Id, precio,
-                MetodoSeleccionado.Valor, Notas);
+                MetodoSeleccionado.Valor, Notas,
+                TipoVenta: TipoSeleccionado.Valor,
+                Plan: plan,
+                DiasSeparacion: diasSeparacion,
+                AdelantoSeparacion: adelanto);
 
             var (_, codigo) = await _ventas.RegistrarAsync(datos);
-            _dialogos.Informar("Venta registrada",
-                $"Venta {codigo}: {VehiculoSeleccionado.Descripcion} vendido a {ClienteSeleccionado.NombreCompleto}.");
+            var mensaje = TipoSeleccionado.Valor switch
+            {
+                TipoVenta.Plazos =>
+                    $"Venta {codigo}: {VehiculoSeleccionado.Descripcion} financiado a " +
+                    $"{ClienteSeleccionado.NombreCompleto} en {plan!.CantidadPlazos} plazo(s).",
+                TipoVenta.Separacion =>
+                    $"Separación {codigo}: {VehiculoSeleccionado.Descripcion} reservado para " +
+                    $"{ClienteSeleccionado.NombreCompleto} por {diasSeparacion} días.",
+                _ =>
+                    $"Venta {codigo}: {VehiculoSeleccionado.Descripcion} vendido a {ClienteSeleccionado.NombreCompleto}."
+            };
+            _dialogos.Informar("Venta registrada", mensaje);
             Registrado?.Invoke();
         }
         catch (ArgumentException ex)

@@ -13,6 +13,7 @@ namespace FAControl.Data.Tests;
 /// abono parcial → adelanto → liquidación anticipada → préstamo pagado.
 /// Requiere el servicio MySQL80 local con credenciales Dev (root/root).
 /// </summary>
+[Collection(ColeccionSesionData.Nombre)]   // SesionActual es global: ver ColeccionSesionData
 public class FlujoPrestamoPagoTests : IAsyncLifetime
 {
     private const string CadenaServidor = "Server=localhost;Port=3306;Uid=root;Pwd=root;";

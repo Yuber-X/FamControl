@@ -30,4 +30,7 @@ public static class DbNames
     public const string NcfSecuencia = "ncf_secuencia";
     // Ficha del vehículo (015)
     public const string VehiculoReparacion = "vehiculo_reparacion";
+    // Financiamiento por plazos del dealer (016)
+    public const string VentaPlazo = "venta_plazo";
+    public const string VentaPlazoPago = "venta_plazo_pago";
 }

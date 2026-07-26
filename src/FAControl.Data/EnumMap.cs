@@ -155,4 +155,38 @@ internal static class EnumMap
         "cancelado" => EstadoAlquiler.Cancelado,
         _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Estado de alquiler desconocido en BD.")
     };
+
+    // Financiamiento del dealer (016)
+
+    public static string ADb(TipoVenta t) => t switch
+    {
+        TipoVenta.Contado => "contado",
+        TipoVenta.Plazos => "plazos",
+        TipoVenta.Separacion => "separacion",
+        _ => throw new ArgumentOutOfRangeException(nameof(t))
+    };
+
+    public static TipoVenta TipoVentaDeDb(string valor) => valor switch
+    {
+        "contado" => TipoVenta.Contado,
+        "plazos" => TipoVenta.Plazos,
+        "separacion" => TipoVenta.Separacion,
+        _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Tipo de venta desconocido en BD.")
+    };
+
+    public static string ADb(EstadoPlazo e) => e switch
+    {
+        EstadoPlazo.Pendiente => "pendiente",
+        EstadoPlazo.Pagado => "pagado",
+        EstadoPlazo.Cancelado => "cancelado",
+        _ => throw new ArgumentOutOfRangeException(nameof(e))
+    };
+
+    public static EstadoPlazo EstadoPlazoDeDb(string valor) => valor switch
+    {
+        "pendiente" => EstadoPlazo.Pendiente,
+        "pagado" => EstadoPlazo.Pagado,
+        "cancelado" => EstadoPlazo.Cancelado,
+        _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Estado de plazo desconocido en BD.")
+    };
 }

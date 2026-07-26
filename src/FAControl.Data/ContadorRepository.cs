@@ -16,6 +16,8 @@ public class ContadorRepository
     public const string Vehiculo = "vehiculo";
     public const string Venta = "venta";
     public const string Alquiler = "alquiler";
+    /// <summary>Recibos de los plazos del dealer (016): RV-000001.</summary>
+    public const string ReciboVenta = "recibo_venta";
 
     /// <summary>Reserva y devuelve el siguiente valor del contador indicado.</summary>
     public async Task<long> SiguienteAsync(string nombre, MySqlConnection conexion,

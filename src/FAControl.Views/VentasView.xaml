@@ -34,6 +34,7 @@
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="120" />
           <DataGridTextColumn Header="Método" Binding="{Binding MetodoTexto}" Width="120" MinWidth="110" />
+          <DataGridTextColumn Header="Tipo" Binding="{Binding TipoTexto}" Width="110" />
           <DataGridTextColumn Header="Precio"
                               Binding="{Binding Precio, Converter={StaticResource Money}}"
                               Width="160" MinWidth="140">
@@ -41,6 +42,24 @@
               <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
+          <!-- Facturación y financiamiento (pedido 2026-07-25) -->
+          <DataGridTemplateColumn Width="180">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal">
+                  <Button Content="Factura" Style="{DynamicResource Boton.Terciario}"
+                          Command="{Binding DataContext.VerFacturaCommand,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                          CommandParameter="{Binding}" />
+                  <Button Content="Plazos" Style="{DynamicResource Boton.Terciario}" Margin="4,0,0,0"
+                          Visibility="{Binding TienePlan, Converter={StaticResource BoolAVisibilidad}}"
+                          Command="{Binding DataContext.VerPlazosCommand,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                          CommandParameter="{Binding}" />
+                </StackPanel>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
         </DataGrid.Columns>
       </DataGrid>
     </Border>

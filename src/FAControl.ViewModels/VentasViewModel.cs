@@ -18,6 +18,15 @@ public record VentaFila(VentaResumen Resumen)
     public string FechaTexto => Resumen.FechaVentaUtc.ToLocalTime().ToString(Textos.FormatoFecha, Textos.CulturaRd);
     public decimal Precio => Resumen.Precio;
     public string MetodoTexto => Textos.De(Resumen.MetodoPago);
+    /// <summary>Cómo se pactó la venta (016): contado, plazos o separación.</summary>
+    public string TipoTexto => Resumen.TipoVenta switch
+    {
+        TipoVenta.Plazos => "Por plazos",
+        TipoVenta.Separacion => "Separación",
+        _ => "Contado"
+    };
+    /// <summary>Solo las financiadas/separadas tienen pantalla de plazos.</summary>
+    public bool TienePlan => Resumen.TipoVenta != TipoVenta.Contado;
 }
 
 /// <summary>Lista de ventas al contado (DealerControl). El alta la abre el shell.</summary>
@@ -25,18 +34,28 @@ public partial class VentasViewModel : ObservableObject
 {
     private readonly VentaVehiculoService _servicio;
     private readonly IDialogService _dialogos;
+    private readonly AjustesLocales _ajustes;
 
     public event Action? NuevoSolicitado;
+    /// <summary>La View abre la vista previa imprimible de la factura (2026-07-25).</summary>
+    public event Action<FacturaVentaImpresa>? FacturaSolicitada;
+    /// <summary>El shell abre la pantalla de plazos de una venta financiada (016).</summary>
+    public event Action<long>? FinanciamientoSolicitado;
 
-    public VentasViewModel(VentaVehiculoService servicio, IDialogService dialogos)
+    public VentasViewModel(VentaVehiculoService servicio, IDialogService dialogos, AjustesLocales ajustes)
     {
         _servicio = servicio;
         _dialogos = dialogos;
+        _ajustes = ajustes;
     }
 
     public ObservableCollection<VentaFila> Filas { get; } = [];
 
-    public bool PuedeEditar => SesionActual.TienePermiso(Permisos.VehiculosEditar);
+    /// <summary>
+    /// FIX 2026-07-25: usaba el permiso viejo 'vehiculos_editar'; vender exige
+    /// 'ventas' (el Vendedor puede vender — pedido del cliente).
+    /// </summary>
+    public bool PuedeEditar => SesionActual.TienePermiso(Permisos.Ventas);
 
     [ObservableProperty] private string _contadorTexto = string.Empty;
 
@@ -60,4 +79,49 @@ public partial class VentasViewModel : ObservableObject
 
     [RelayCommand]
     private void Nuevo() => NuevoSolicitado?.Invoke();
+
+    [RelayCommand]
+    private void VerPlazos(VentaFila? fila)
+    {
+        if (fila is not null)
+            FinanciamientoSolicitado?.Invoke(fila.Id);
+    }
+
+    /// <summary>Arma la factura imprimible de la venta (pedido 2026-07-25).</summary>
+    [RelayCommand]
+    private async Task VerFacturaAsync(VentaFila? fila)
+    {
+        if (fila is null)
+            return;
+        try
+        {
+            var d = await _servicio.ObtenerFacturaAsync(fila.Id);
+            FacturaSolicitada?.Invoke(new FacturaVentaImpresa(
+                NegocioNombre: _ajustes.NombreNegocio,
+                NegocioRnc: _ajustes.RncNegocio,
+                NegocioTelefono: _ajustes.TelefonoNegocio,
+                NegocioCiudad: _ajustes.CiudadNegocio,
+                Codigo: d.Codigo,
+                FechaTexto: FechaNegocio.AUtcLocal(d.FechaVentaUtc).ToString(Textos.FormatoFecha, Textos.CulturaRd),
+                Precio: d.Precio,
+                MetodoTexto: Textos.De(d.MetodoPago),
+                Notas: d.Notas,
+                VendedorNombre: d.VendedorNombre,
+                ClienteNombre: d.ClienteNombre,
+                ClienteCedula: d.ClienteCedula ?? "—",
+                ClienteTelefono: d.ClienteTelefono ?? "—",
+                ClienteDireccion: d.ClienteDireccion ?? "—",
+                VehiculoDescripcion: d.VehiculoDescripcion,
+                Vin: d.Vin ?? "—",
+                Placa: d.Placa ?? "—",
+                Matricula: d.Matricula ?? "—",
+                Color: d.Color ?? "—",
+                AnioTexto: d.Anio?.ToString(Textos.CulturaRd) ?? "—"));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error armando la factura de la venta {Id}", fila.Id);
+            _dialogos.MostrarError("Factura", $"No se pudo abrir la factura.\n\n{ex.Message}");
+        }
+    }
 }

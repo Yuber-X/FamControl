@@ -11,18 +11,32 @@ public class VentaVehiculo
     public long ClienteId { get; set; }
     public DateTime FechaVentaUtc { get; set; }
     public decimal Precio { get; set; }
+    /// <summary>Cómo se pactó: contado, por plazos o separación (016).</summary>
+    public TipoVenta TipoVenta { get; set; } = TipoVenta.Contado;
+    /// <summary>Inicial/anticipo recibido al firmar (016).</summary>
+    public decimal Inicial { get; set; }
+    /// <summary>Separación: fecha en que vence el derecho del cliente (016).</summary>
+    public DateOnly? FechaLimite { get; set; }
     public MetodoPago MetodoPago { get; set; } = MetodoPago.Efectivo;
     public string? Notas { get; set; }
     public DateTime CreatedAtUtc { get; set; }
 }
 
-/// <summary>Datos que captura la pantalla de venta al contado.</summary>
+/// <summary>Datos que captura la pantalla de venta (contado, plazos o separación).</summary>
 public record VentaVehiculoDatos(
     long VehiculoId,
     long ClienteId,
     decimal Precio,
     MetodoPago MetodoPago,
-    string? Notas);
+    string? Notas,
+    // Financiamiento del dealer (016). Null = venta al contado de toda la vida.
+    TipoVenta TipoVenta = TipoVenta.Contado,
+    /// <summary>Plan de plazos cuando <see cref="TipoVenta"/> es Plazos.</summary>
+    PlanPlazos? Plan = null,
+    /// <summary>Separación: días de derecho del cliente (el dealer usa 15).</summary>
+    int DiasSeparacion = 15,
+    /// <summary>Separación: adelanto recibido al apartar el vehículo.</summary>
+    decimal AdelantoSeparacion = 0m);
 
 /// <summary>Fila de la lista de ventas al contado (con datos del vehículo y cliente vía JOIN).</summary>
 public record VentaResumen(
@@ -32,7 +46,9 @@ public record VentaResumen(
     string ClienteNombre,
     DateTime FechaVentaUtc,
     decimal Precio,
-    MetodoPago MetodoPago);
+    MetodoPago MetodoPago,
+    /// <summary>Cómo se pactó la venta (016): contado, plazos o separación.</summary>
+    TipoVenta TipoVenta = TipoVenta.Contado);
 
 // ===================== Rent a car =====================
 

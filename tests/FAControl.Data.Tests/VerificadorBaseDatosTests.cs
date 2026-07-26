@@ -71,12 +71,13 @@ public class VerificadorBaseDatosTests : IAsyncLifetime
         (await verificador.VerificarAsync()).Should().Be(EstadoBaseDatos.Lista);
 
         // El esquema quedó operativo: los contadores semilla existen
-        // (recibo, prestamo, vehiculo, venta, alquiler — 5 desde Tier 5).
+        // (recibo, prestamo, vehiculo, venta, alquiler — 5 desde Tier 5;
+        //  recibo_venta desde el financiamiento del dealer, 016 → 6).
         await using var conexion = new MySqlConnection(CadenaProvision);
         await conexion.OpenAsync();
         await using var cmd = conexion.CreateCommand();
         cmd.CommandText = "SELECT COUNT(*) FROM contador;";
-        Convert.ToInt32(await cmd.ExecuteScalarAsync()).Should().Be(5);
+        Convert.ToInt32(await cmd.ExecuteScalarAsync()).Should().Be(6);
     }
 
     [Fact]

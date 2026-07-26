@@ -6,7 +6,7 @@
     <Border Style="{DynamicResource Card}" MaxWidth="640" VerticalAlignment="Top"
             HorizontalAlignment="Center" Padding="32" Margin="0,8">
       <StackPanel>
-        <TextBlock Text="Registrar venta al contado" Style="{DynamicResource Texto.Titulo2}"
+        <TextBlock Text="Registrar venta" Style="{DynamicResource Texto.Titulo2}"
                    Margin="0,0,0,20" />
 
         <TextBlock Text="Vehículo (disponible)" Style="{DynamicResource Input.Label}" />
@@ -42,6 +42,85 @@
                       ItemsSource="{Binding MetodosPago}" SelectedItem="{Binding MetodoSeleccionado}" />
           </StackPanel>
         </Grid>
+
+        <!-- Forma de la venta: contado / plazos / separación (016 — 2026-07-25) -->
+        <TextBlock Text="Forma de la venta" Style="{DynamicResource Input.Label}" Margin="0,14,0,6" />
+        <ComboBox Height="40" FontSize="13"
+                  ItemsSource="{Binding TiposVenta}" SelectedItem="{Binding TipoSeleccionado}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate><TextBlock Text="{Binding Texto}" /></DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+
+        <!-- Plan de plazos -->
+        <Border Background="#12000000" CornerRadius="8" Padding="14,12" Margin="0,12,0,0"
+                Visibility="{Binding EsPlazos, Converter={StaticResource BoolAVisibilidad}}">
+          <StackPanel>
+            <TextBlock Text="Plan de pagos del dealer (sin interés)"
+                       Style="{DynamicResource Texto.CuerpoEnfatizado}" Margin="0,0,0,10" />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="Inicial recibida (RD$)" Style="{DynamicResource Input.Label}" />
+                <TextBox Style="{DynamicResource Input.Texto}"
+                         Text="{Binding InicialTexto, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="Cantidad de plazos" Style="{DynamicResource Input.Label}" />
+                <TextBox Style="{DynamicResource Input.Texto}"
+                         Text="{Binding CantidadPlazosTexto, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+            </Grid>
+            <Grid Margin="0,10,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="Primer plazo vence" Style="{DynamicResource Input.Label}" />
+                <DatePicker Height="40" SelectedDate="{Binding FechaPrimerPlazo}" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="Cada cuántos días (30 = mensual)" Style="{DynamicResource Input.Label}" />
+                <TextBox Style="{DynamicResource Input.Texto}"
+                         Text="{Binding CadaDiasTexto, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+            </Grid>
+            <TextBlock Text="{Binding PreviewPlazosTexto}" Style="{DynamicResource Texto.Caption}"
+                       TextWrapping="Wrap" Margin="0,10,0,0" />
+          </StackPanel>
+        </Border>
+
+        <!-- Separación / apartado -->
+        <Border Background="#1AF59E0B" CornerRadius="8" Padding="14,12" Margin="0,12,0,0"
+                Visibility="{Binding EsSeparacion, Converter={StaticResource BoolAVisibilidad}}">
+          <StackPanel>
+            <TextBlock Text="Separación: el vehículo queda reservado y el cliente tiene N días de derecho."
+                       Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,10" />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="Adelanto recibido (RD$)" Style="{DynamicResource Input.Label}" />
+                <TextBox Style="{DynamicResource Input.Texto}"
+                         Text="{Binding AdelantoSeparacionTexto, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="Días de derecho" Style="{DynamicResource Input.Label}" />
+                <TextBox Style="{DynamicResource Input.Texto}"
+                         Text="{Binding DiasSeparacionTexto, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+        </Border>
 
         <TextBlock Text="Notas" Style="{DynamicResource Input.Label}" Margin="0,14,0,6" />
         <TextBox Style="{DynamicResource Input.Texto}" Height="72"

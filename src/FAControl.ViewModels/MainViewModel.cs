@@ -53,6 +53,7 @@ public partial class MainViewModel : ObservableObject
     private readonly GastosViewModel _gastosVm;
     private readonly PanelDealViewModel _panelDealVm;
     private readonly VehiculoFichaViewModel _fichaVehiculoVm;
+    private readonly VentaFinanciamientoViewModel _financiamientoVm;
 
     public MainViewModel(PrestamosViewModel prestamosVm, PrestamoNuevoViewModel nuevoVm,
         PrestamoDetalleViewModel detalleVm, CobrosViewModel cobrosVm,
@@ -62,11 +63,13 @@ public partial class MainViewModel : ObservableObject
         VehiculosViewModel vehiculosVm, VehiculoFormViewModel vehiculoFormVm,
         VentasViewModel ventasVm, VentaNuevaViewModel ventaNuevaVm,
         AlquileresViewModel alquileresVm, AlquilerNuevoViewModel alquilerNuevoVm, GastosViewModel gastosVm,
-        PanelDealViewModel panelDealVm, VehiculoFichaViewModel fichaVehiculoVm)
+        PanelDealViewModel panelDealVm, VehiculoFichaViewModel fichaVehiculoVm,
+        VentaFinanciamientoViewModel financiamientoVm)
     {
         _panelVm = panelVm;
         _panelDealVm = panelDealVm;
         _fichaVehiculoVm = fichaVehiculoVm;
+        _financiamientoVm = financiamientoVm;
         _reportesVm = reportesVm;
         _historialVm = historialVm;
         _usuariosVm = usuariosVm;
@@ -115,6 +118,8 @@ public partial class MainViewModel : ObservableObject
 
         // Ventas al contado: lista → nueva venta → vuelta
         _ventasVm.NuevoSolicitado += () => _ = AbrirVentaNuevaAsync();
+        _ventasVm.FinanciamientoSolicitado += id => _ = AbrirFinanciamientoAsync(id);
+        _financiamientoVm.VolverSolicitado += () => _ = NavegarAsync(Pagina.Ventas);
         _ventaNuevaVm.Registrado += () => _ = NavegarAsync(Pagina.Ventas);
         _ventaNuevaVm.Cancelado += () => _ = NavegarAsync(Pagina.Ventas);
 
@@ -323,6 +328,22 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             Log.Error(ex, "Error navegando a {Destino}", destino);
+        }
+    }
+
+    /// <summary>Plazos de una venta financiada del dealer (016).</summary>
+    private async Task AbrirFinanciamientoAsync(long ventaId)
+    {
+        try
+        {
+            PaginaActual = Pagina.Ventas;
+            TituloPagina = "Financiamiento de la venta";
+            await _financiamientoVm.CargarAsync(ventaId);
+            PaginaActualVm = _financiamientoVm;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error abriendo el financiamiento de la venta {Id}", ventaId);
         }
     }
 

@@ -324,7 +324,8 @@ INSERT INTO contador (nombre, valor) VALUES
   ('prestamo', 0),
   ('vehiculo', 0),
   ('venta', 0),
-  ('alquiler', 0);
+  ('alquiler', 0),
+  ('recibo_venta', 0);   -- recibos de plazos del dealer (016): RV-000001
 
 -- -------------------------------------------------------------
 -- Secuencia de comprobantes fiscales (012): prefijo autorizado por la DGII
@@ -356,6 +357,10 @@ CREATE TABLE venta_vehiculo (
   cliente_id  BIGINT UNSIGNED NOT NULL,
   fecha_venta DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
   precio      DECIMAL(15,2) NOT NULL,
+  -- Financiamiento del dealer (016): contado, por plazos o separación/reserva
+  tipo_venta   ENUM('contado','plazos','separacion') NOT NULL DEFAULT 'contado',
+  inicial      DECIMAL(15,2) NOT NULL DEFAULT 0.00,   -- anticipo recibido al firmar
+  fecha_limite DATE          NULL,                    -- separación: vence a los N días (15 por default)
   metodo_pago ENUM('efectivo','transferencia','cheque','otro') NOT NULL DEFAULT 'efectivo',
   notas       TEXT          NULL,
   created_at  DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
@@ -367,6 +372,47 @@ CREATE TABLE venta_vehiculo (
   CONSTRAINT fk_venta_vehiculo FOREIGN KEY (vehiculo_id) REFERENCES vehiculo (id) ON DELETE RESTRICT,
   CONSTRAINT fk_venta_cliente  FOREIGN KEY (cliente_id)  REFERENCES cliente (id)  ON DELETE RESTRICT,
   CONSTRAINT fk_venta_usuario  FOREIGN KEY (created_by)  REFERENCES usuario (id)  ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- venta_plazo: calendario de pagos pactado del dealer (016).
+-- Financiamiento propio SIN interés (el interés vive en AutoControl).
+-- -------------------------------------------------------------
+CREATE TABLE venta_plazo (
+  id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  venta_id          BIGINT UNSIGNED NOT NULL,
+  numero            INT UNSIGNED  NOT NULL,
+  fecha_vencimiento DATE          NOT NULL,
+  monto             DECIMAL(15,2) NOT NULL,
+  monto_pagado      DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+  estado            ENUM('pendiente','pagado','cancelado') NOT NULL DEFAULT 'pendiente',
+  created_at        DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  updated_at        DATETIME      NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_venta_plazo (venta_id, numero),
+  CONSTRAINT fk_plazo_venta FOREIGN KEY (venta_id)
+    REFERENCES venta_vehiculo (id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- venta_plazo_pago: abonos a los plazos, cada uno con su recibo (016).
+-- -------------------------------------------------------------
+CREATE TABLE venta_plazo_pago (
+  id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  plazo_id       BIGINT UNSIGNED NOT NULL,
+  numero_recibo  VARCHAR(20)   NOT NULL,
+  fecha_pago     DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  monto          DECIMAL(15,2) NOT NULL,
+  metodo_pago    ENUM('efectivo','transferencia','cheque','otro') NOT NULL DEFAULT 'efectivo',
+  notas          TEXT          NULL,
+  created_at     DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  created_by     BIGINT UNSIGNED NULL,
+  deleted_at     DATETIME      NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_plazo_pago_recibo (numero_recibo),
+  KEY ix_plazo_pago_plazo (plazo_id),
+  CONSTRAINT fk_plazo_pago_plazo   FOREIGN KEY (plazo_id)   REFERENCES venta_plazo (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_plazo_pago_usuario FOREIGN KEY (created_by) REFERENCES usuario (id)     ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
