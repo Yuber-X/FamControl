@@ -6,7 +6,7 @@
 ; =============================================================
 
 #define AppNombre "FAControl"
-#define AppVersion "1.0.1"
+#define AppVersion "1.5.0"
 #define AppEditor "Yuber Santana"
 #define AppExe "FAControl.App.exe"
 
@@ -44,17 +44,25 @@ Source: "..\publish\*"; DestDir: "{app}"; \
 ; La configuración (cadena de conexión) NUNCA se pisa en actualizaciones
 Source: "..\publish\FAControl.App.dll.config"; DestDir: "{app}"; \
   Flags: onlyifdoesntexist uninsneveruninstall
-; Scripts de base de datos y documentación
-Source: "..\scripts\db\001_create_schema.sql"; DestDir: "{app}\scripts\db"; Flags: ignoreversion
-Source: "..\scripts\db\003_crear_usuario_dedicado.sql"; DestDir: "{app}\scripts\db"; Flags: ignoreversion
+; Scripts de base de datos y documentación.
+; Van TODAS las migraciones: una instalación nueva se arma sola con el esquema
+; embebido, pero actualizar la base que ya tiene el cliente necesita correrlas.
+; Se excluyen a propósito: 999_rollback.sql (BORRA la base entera — no tiene
+; nada que hacer en la máquina del cliente) y los seeds de datos de prueba.
+Source: "..\scripts\db\*.sql"; DestDir: "{app}\scripts\db"; \
+  Excludes: "999_rollback.sql,002_seed_data.sql,seed_*.sql"; \
+  Flags: ignoreversion
 Source: "..\docs\INSTALL.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "..\docs\MANUAL.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 
 [Dirs]
-; La app escribe logs\ y ajustes.json junto al ejecutable:
+; La app escribe logs\, ajustes.json y licencia.json junto al ejecutable:
 ; los usuarios estándar necesitan permiso de modificación
 Name: "{app}"; Permissions: users-modify
 Name: "{app}\logs"; Permissions: users-modify
+; Expediente digital de los contratos (018): acá van los archivos que sube el
+; usuario. NO se borra al desinstalar — son documentos del negocio.
+Name: "{app}\expedientes"; Permissions: users-modify
 
 [Icons]
 Name: "{group}\{#AppNombre}"; Filename: "{app}\{#AppExe}"
@@ -66,5 +74,7 @@ Filename: "{app}\{#AppExe}"; Description: "Abrir {#AppNombre} ahora"; \
   Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-; Los logs se van con la app; ajustes.json y la BD (MySQL) se conservan
+; Los logs se van con la app. Se CONSERVAN a propósito: ajustes.json, la
+; licencia (licencia.json — si no, reinstalar borraría la activación), la
+; carpeta expedientes\ (documentos del cliente) y la base MySQL.
 Type: filesandordirs; Name: "{app}\logs"

@@ -1,6 +1,25 @@
 # TODO.md — FAControl
 
-> Actualizado: 2026-07-25 (comprobante fiscal + DealControl completo)
+> Actualizado: 2026-07-27 (códigos del producto + expediente digital + instalador 1.5.0)
+
+## ✅ Pedidos del cliente 2026-07-27 (COMPLETO)
+
+### FAControl (los tres modos)
+- [x] 4 códigos digitables en el launcher: prueba de 14 días, activación, recuperar acceso, restablecer todo
+- [x] Licencia local firmada (`licencia.json` + marca en el registro); códigos solo hasheados en el binario
+- [x] Códigos documentados en `Freelancer - Claude Save\docs\Done\FAControl_CodigosDeActivacion_v1_2026-07-27.md` (NO va al repo)
+- [x] Rol **Programador** (017): autoridad total, invisible e intocable para el Admin; solo otro Programador lo crea
+
+### DealControl
+- [x] Grids con alto fijo, columnas por contenido y scroll horizontal real
+- [x] Panel: textos legibles en modo noche (la tabla de movimientos usaba TextBlocks sin estilo)
+- [x] Ficha de cliente propia del dealer (transferido / cobrado / pendiente / vehículos) + grid de sus vehículos con "Ver ficha"
+- [x] Gráficos en Panel (6 meses de ventas vs alquiler + torta del inventario) y en Reportes (origen del dinero + por vendedor)
+- [x] Expediente digital (018): subida múltiple, vista lista/cuadrícula, abrir/guardar/re-ubicar/eliminar, ZIP y respaldo
+- [x] Factura: reemplazar por la firmada y escaneada
+- [x] **Instalador 1.5.0** self-contained + todas las migraciones (sin rollback ni seeds)
+
+- Nota: **AutoControl sigue de lado** por pedido del cliente.
 
 ## ✅ Pedidos del cliente 2026-07-25 (COMPLETO)
 

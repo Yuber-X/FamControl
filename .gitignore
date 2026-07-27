@@ -6,7 +6,11 @@ logs/
 publish/
 installer/Output/
 
-# Secretos y config local (NUNCA subir) — ajustes.json guarda el App Password
+# Secretos y config local (NUNCA subir) — ajustes.json
+# Licencia de la instalación y archivos del expediente digital: son del
+# equipo/cliente, nunca del repositorio.
+licencia.json
+expedientes/ guarda el App Password
 # cifrado con DPAPI; los .dll.config del cliente llevan credenciales reales.
 ajustes.json
 *.dll.config

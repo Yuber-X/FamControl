@@ -2,6 +2,36 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [1.5.0] — 2026-07-27 · Códigos del producto, expediente digital y primer instalador de la suite
+
+### FAControl (los tres modos)
+
+- **Cuatro códigos digitables en el launcher**, con botón propio en el pie:
+  1. **prueba de 2 semanas** — 14 días de uso completo; al pasarse, la app se bloquea;
+  2. **activación total** — habilita el producto en firme;
+  3. **recuperar acceso** — para cuando el cliente perdió todas las contraseñas: le pone contraseña nueva a una cuenta (o la crea) con acceso total, **sin tocar un solo dato del negocio**;
+  4. **restablecer todo** — deja el sistema como recién instalado, con **respaldo obligatorio antes** y doble confirmación; si el respaldo falla, no se borra nada.
+  El estado de la licencia vive en `licencia.json` **firmado**, con la marca del inicio de prueba también en el registro de Windows: borrar el archivo no reinicia los 14 días. Los códigos solo viajan **hasheados** en el binario (están en un MD privado del desarrollador, fuera del repositorio).
+- **Rol Programador**: autoridad total sobre todo el sistema, **invisible e intocable para el Admin** — no aparece en la lista de usuarios, no se puede editar, desactivar ni cambiarle la contraseña. Solo otro Programador puede crearlo o asignarlo, y la única vía para la primera cuenta es el código 3.
+
+### DealControl
+
+- **Grids**: las columnas se miden por su contenido y la tabla se desplaza de lado cuando no caben — se acabaron las columnas que cortaban la información. El alto de fila queda fijo y cada tabla tiene su propio scroll.
+- **Panel en modo noche**: "Últimos movimientos" pasó a ser una tabla del tema; antes eran textos negros sobre fondo oscuro.
+- **Ficha de cliente propia del dealer**: cambian las métricas de PrestControl por las que sí significan algo acá — **Total transferido** (compras + alquileres), **Total cobrado**, **Saldo pendiente**, **Vehículos comprados/alquilados** y **Plazos vencidos** — y el grid muestra **sus vehículos** (compra o alquiler, con matrícula, chasis, color, estado y pendiente) con botón **Ver ficha** al detalle del vehículo.
+- **Gráficos**: en el panel, **ventas vs alquiler de los últimos 6 meses** y **torta del inventario** por estado; en reportes, **de dónde vino el dinero** y **monto vendido por vendedor**.
+- **Expediente digital del contrato** (Financiamiento de la venta): subir **varios archivos a la vez**, verlos en **lista** o en **cuadrícula** con su ícono, y **descargar todo en un ZIP** para migrar cuando haga falta. Doble clic sobre un documento abre el "ver automático": **Abrir** con la app de Windows que corresponda (Word, Excel, visor de fotos…), **Guardar** una copia, **Re-ubicar** en otro contrato y **Eliminar** — los dos últimos, **solo Admin**. Se aceptan PDF, Word, Excel, comprimidos e imágenes (incluidas las de iPhone). Los expedientes entran en el **respaldo automático**, en su propio ZIP.
+- **Factura firmada**: botón para **reemplazar la factura del sistema por la escaneada y firmada**, que queda guardada en el expediente y se puede volver a abrir desde ahí. La factura generada se sigue pudiendo imprimir.
+- La **cantidad de documentos** del expediente de contratos ahora suma los archivos reales, no solo los que emite la app.
+
+### Cambios técnicos
+- Migraciones `017_rol_programador.sql` y `018_expediente_documentos.sql`, idempotentes, con espejo en `001` y aplicadas a `facontrol_db`.
+- El archivo del expediente vive en **disco** (`<app>\expedientes\<venta>\`) y la base solo guarda su ficha: un BLOB por cada foto de cédula haría lento e inmanejable el respaldo.
+- **Lista blanca de extensiones** en el expediente: nada de `.exe`, `.bat` ni `.lnk`, porque los documentos se abren con doble clic.
+- `SesionActual.EsAdmin` incluye al Programador; el blindaje real vive en `UsuarioService` (la UI solo oculta lo que el servicio ya rechaza).
+- **Primer instalador de la suite completa**: `FAControl_Setup_1.5.0.exe` (Inno Setup 6, español, self-contained win-x64 — no requiere .NET en la PC del cliente). Incluye todas las migraciones para actualizar una base existente y **excluye** el script de rollback y los seeds de prueba. Al desinstalar se conservan la licencia, los ajustes, los expedientes y la base.
+- Build sin warnings; **178 tests verdes** (165 unitarios + 13 de integración).
+
 ## [1.4.0] — 2026-07-25 · Comprobante fiscal, préstamos antiguos y DealControl completo
 
 ### PrestControl
