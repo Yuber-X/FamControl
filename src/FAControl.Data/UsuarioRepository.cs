@@ -58,12 +58,25 @@ public class UsuarioRepository
         return await reader.ReadAsync(ct) ? Mapear(reader) : null;
     }
 
-    /// <summary>Todos los usuarios, activos e inactivos (la pantalla de Admin los muestra todos).</summary>
-    public async Task<IReadOnlyList<Usuario>> ObtenerTodosAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Todos los usuarios, activos e inactivos (la pantalla de Admin los muestra
+    /// todos). Con <paramref name="incluirProgramadores"/> en false se OCULTAN las
+    /// cuentas con rol Programador (017): el Admin no puede tocar lo que no ve.
+    /// </summary>
+    public async Task<IReadOnlyList<Usuario>> ObtenerTodosAsync(bool incluirProgramadores,
+        CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
-        cmd.CommandText = $"SELECT {Columnas} {Desde} ORDER BY u.activo DESC, u.nombre;";
+        cmd.CommandText = incluirProgramadores
+            ? $"SELECT {Columnas} {Desde} ORDER BY u.activo DESC, u.nombre;"
+            : $"""
+               SELECT {Columnas} {Desde}
+               WHERE COALESCE(r.nombre, '') <> @programador
+               ORDER BY u.activo DESC, u.nombre;
+               """;
+        if (!incluirProgramadores)
+            cmd.Parameters.AddWithValue("@programador", Roles.Programador);
 
         var lista = new List<Usuario>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -155,18 +168,44 @@ public class UsuarioRepository
                 }
             }
         }
-        bool esAdmin;
+        string rolGlobal;
         using (var cmd = conexion.CreateCommand())
         {
             cmd.CommandText = $"""
-                SELECT COUNT(*) FROM {DbNames.Usuario} u JOIN {DbNames.Rol} r ON r.id = u.rol_id
-                WHERE u.id = @id AND r.nombre = @admin;
+                SELECT COALESCE(r.nombre, '') FROM {DbNames.Usuario} u
+                LEFT JOIN {DbNames.Rol} r ON r.id = u.rol_id
+                WHERE u.id = @id;
                 """;
             cmd.Parameters.AddWithValue("@id", usuarioId);
-            cmd.Parameters.AddWithValue("@admin", Roles.Admin);
-            esAdmin = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct)) > 0;
+            rolGlobal = (await cmd.ExecuteScalarAsync(ct)) as string ?? string.Empty;
         }
-        return new RolesUsuario(esAdmin, prest, dealer, auto);
+        return new RolesUsuario(rolGlobal == Roles.Admin, prest, dealer, auto,
+            EsProgramador: rolGlobal == Roles.Programador);
+    }
+
+    /// <summary>Id del rol Programador (017), o null si la base no lo tiene todavía.</summary>
+    public async Task<int?> ObtenerRolProgramadorIdAsync(CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"SELECT id FROM {DbNames.Rol} WHERE nombre = @rol AND modo IS NULL LIMIT 1;";
+        cmd.Parameters.AddWithValue("@rol", Roles.Programador);
+        var r = await cmd.ExecuteScalarAsync(ct);
+        return r is null or DBNull ? null : Convert.ToInt32(r);
+    }
+
+    /// <summary>True si esa cuenta tiene el rol Programador (blindaje 017).</summary>
+    public async Task<bool> EsProgramadorAsync(long usuarioId, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT COUNT(*) FROM {DbNames.Usuario} u JOIN {DbNames.Rol} r ON r.id = u.rol_id
+            WHERE u.id = @id AND r.nombre = @rol;
+            """;
+        cmd.Parameters.AddWithValue("@id", usuarioId);
+        cmd.Parameters.AddWithValue("@rol", Roles.Programador);
+        return Convert.ToInt64(await cmd.ExecuteScalarAsync(ct)) > 0;
     }
 
     /// <summary>Nombre del rol del usuario en un modo (para mostrarlo en la sesión). Null si no tiene.</summary>
@@ -201,19 +240,26 @@ public class UsuarioRepository
     /// El login sigue leyendo usuario_permiso sin cambios.
     /// </summary>
     public async Task GuardarRolesPorModoAsync(long usuarioId, RolesUsuario roles,
-        int? rolAdminId, CancellationToken ct = default)
+        int? rolAdminId, int? rolProgramadorId = null, CancellationToken ct = default)
     {
+        // Los roles GLOBALES (Admin, Programador) no usan roles por modo: entran
+        // a todo y su set de permisos es el catálogo completo.
+        var esGlobal = roles.EsAdmin || roles.EsProgramador;
+
         using var conexion = await _factory.AbrirAsync(ct);
         using var tx = await conexion.BeginTransactionAsync(ct);
         try
         {
-            // 1. rol_id global: Admin o NULL. (El trigger tocará usuario_permiso;
-            //    lo recomputamos en el paso 3, así que su efecto se sobrescribe.)
+            // 1. rol_id global: Programador, Admin o NULL. (El trigger tocará
+            //    usuario_permiso; lo recomputamos en el paso 3, así que su
+            //    efecto se sobrescribe.)
             using (var cmd = conexion.CreateCommand())
             {
                 cmd.Transaction = tx;
                 cmd.CommandText = $"UPDATE {DbNames.Usuario} SET rol_id = @rol, updated_at = UTC_TIMESTAMP() WHERE id = @id;";
-                cmd.Parameters.AddWithValue("@rol", roles.EsAdmin ? (object?)rolAdminId ?? DBNull.Value : DBNull.Value);
+                cmd.Parameters.AddWithValue("@rol", roles.EsProgramador
+                    ? (object?)rolProgramadorId ?? DBNull.Value
+                    : roles.EsAdmin ? (object?)rolAdminId ?? DBNull.Value : DBNull.Value);
                 cmd.Parameters.AddWithValue("@id", usuarioId);
                 await cmd.ExecuteNonQueryAsync(ct);
             }
@@ -226,7 +272,7 @@ public class UsuarioRepository
                 cmd.Parameters.AddWithValue("@id", usuarioId);
                 await cmd.ExecuteNonQueryAsync(ct);
             }
-            if (!roles.EsAdmin)
+            if (!esGlobal)
             {
                 foreach (var (modo, rolId) in new[]
                     { ("prestcontrol", roles.RolPrestId), ("dealercontrol", roles.RolDealerId), ("autocontrol", roles.RolAutoId) })
@@ -253,7 +299,7 @@ public class UsuarioRepository
                 cmd.Parameters.AddWithValue("@id", usuarioId);
                 await cmd.ExecuteNonQueryAsync(ct);
             }
-            if (!roles.EsAdmin)
+            if (!esGlobal)
             {
                 foreach (var (modo, rolId) in new[]
                     { ("prestcontrol", roles.RolPrestId), ("dealercontrol", roles.RolDealerId), ("autocontrol", roles.RolAutoId) })
@@ -318,7 +364,7 @@ public class UsuarioRepository
             using (var cmd = conexion.CreateCommand())
             {
                 cmd.Transaction = tx;
-                cmd.CommandText = roles.EsAdmin
+                cmd.CommandText = esGlobal
                     ? $"INSERT IGNORE INTO {DbNames.UsuarioPermiso} (usuario_id, permiso_id) SELECT @id, p.id FROM {DbNames.Permiso} p;"
                     : $"""
                         INSERT IGNORE INTO {DbNames.UsuarioPermiso} (usuario_id, permiso_id)

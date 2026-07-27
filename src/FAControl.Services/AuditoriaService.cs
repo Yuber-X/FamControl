@@ -51,7 +51,7 @@ public class AuditoriaService
 
     /// <summary>Usuarios para el combo de filtro del Historial.</summary>
     public Task<IReadOnlyList<Usuario>> ObtenerUsuariosAsync(CancellationToken ct = default) =>
-        _usuarios.ObtenerTodosAsync(ct);
+        _usuarios.ObtenerTodosAsync(incluirProgramadores: false, ct);
 
     /// <summary>
     /// Fecha de negocio RD (UTC-4) → instante UTC del inicio de ese día.

@@ -26,7 +26,15 @@ public static class SesionActual
     private static HashSet<string> _permisos = [];
 
     public static bool HaySesionActiva => Id > 0;
-    public static bool EsAdmin => Rol == Roles.Admin;
+
+    /// <summary>
+    /// Autoridad total del desarrollador (017). Un Programador ES admin para
+    /// todo lo demás del sistema, pero además nadie puede tocarlo: ni verlo en
+    /// la lista de usuarios, ni editarlo, ni crear otro. Solo otro Programador.
+    /// </summary>
+    public static bool EsProgramador => Rol == Roles.Programador;
+
+    public static bool EsAdmin => Rol == Roles.Admin || EsProgramador;
 
     /// <summary>True si el usuario tiene el permiso (código de la tabla permiso).</summary>
     public static bool TienePermiso(string codigoPermiso) => _permisos.Contains(codigoPermiso);
@@ -84,6 +92,8 @@ public static class SesionActual
 public static class Roles
 {
     public const string Admin = "Admin";
+    /// <summary>Rol blindado del desarrollador (017): autoridad total, intocable por el Admin.</summary>
+    public const string Programador = "Programador";
     public const string Supervisor = "Supervisor";
     public const string Cobrador = "Cobrador";
     // Roles de los modos de vehículos (011). 'Vendedor'/'Encargado' se repiten

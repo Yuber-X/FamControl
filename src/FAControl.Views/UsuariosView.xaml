@@ -96,6 +96,14 @@
           <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,16,0,12" />
           <CheckBox Content="Administrador (acceso total a los tres modos)" FontSize="13"
                     IsChecked="{Binding EsAdministrador}" />
+          <!-- Rol Programador (017): la casilla solo existe para otro Programador.
+               El servicio la vuelve a validar, esto es comodidad visual. -->
+          <StackPanel Visibility="{Binding PuedeAsignarProgramador, Converter={StaticResource BoolAVisibilidad}}">
+            <CheckBox Content="Programador (autoridad total, intocable por el Admin)" FontSize="13"
+                      Margin="0,6,0,0" IsChecked="{Binding EsProgramador}" />
+            <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Text="Reservado al desarrollador: ningún administrador puede verla, editarla ni quitarle la autoridad. Solo otro Programador." />
+          </StackPanel>
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,4,0,8"
                      Text="Si no es administrador, elegí un rol por modo. 'Sin acceso' = no entra a ese modo. Cada rol trae sus propios permisos." />
 

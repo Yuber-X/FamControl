@@ -35,7 +35,7 @@
       <Border Style="{DynamicResource Card}" Padding="0">
         <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Filas}">
           <DataGrid.Columns>
-            <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*" MinWidth="140"
+            <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="Auto" MinWidth="140"
                                 HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
             <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="120" />
             <DataGridTextColumn Header="Monto"

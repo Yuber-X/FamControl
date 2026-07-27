@@ -108,14 +108,16 @@ public class AuthService
         // Puerta de acceso por modo: el Admin entra a todo; los demás solo si el
         // Admin les habilitó acceso_<modo> (parte del rol de ese modo). Sin acceso
         // NO se abre sesión.
-        var esAdmin = usuario.RolNombre == Roles.Admin;
-        if (!esAdmin && !permisos.Contains(Permisos.AccesoDe(modo)))
+        // Roles GLOBALES (sin modo): Admin y Programador (017). Entran a las tres
+        // estancias sin necesitar acceso_<modo>.
+        var esGlobal = usuario.RolNombre is Roles.Admin or Roles.Programador;
+        if (!esGlobal && !permisos.Contains(Permisos.AccesoDe(modo)))
             return ResultadoLogin.SinAccesoAlModo;
 
-        // El rol MOSTRADO es el del modo activo (roles por modo): Admin es global;
-        // los demás muestran su rol de esta estancia (Cobrador, Vendedor…).
-        var rolMostrar = esAdmin
-            ? Roles.Admin
+        // El rol MOSTRADO es el del modo activo (roles por modo): los globales
+        // muestran el suyo; los demás el de esta estancia (Cobrador, Vendedor…).
+        var rolMostrar = esGlobal
+            ? usuario.RolNombre
             : await _usuarios.ObtenerRolDeModoAsync(usuario.Id, modo.ClaveDb(), ct) ?? usuario.RolNombre;
 
         var ahoraUtc = DateTime.UtcNow;

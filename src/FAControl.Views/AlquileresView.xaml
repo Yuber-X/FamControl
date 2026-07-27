@@ -28,9 +28,9 @@
               </Style>
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTextColumn Header="Vehículo" Binding="{Binding Vehiculo}" Width="*" MinWidth="150"
+          <DataGridTextColumn Header="Vehículo" Binding="{Binding Vehiculo}" Width="Auto" MinWidth="150"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-          <DataGridTextColumn Header="Cliente" Binding="{Binding Cliente}" Width="*" MinWidth="140"
+          <DataGridTextColumn Header="Cliente" Binding="{Binding Cliente}" Width="Auto" MinWidth="140"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Período" Binding="{Binding PeriodoTexto}" Width="190" MinWidth="180" />
           <DataGridTextColumn Header="Días" Binding="{Binding Dias}" Width="70" />

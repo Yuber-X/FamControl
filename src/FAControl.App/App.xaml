@@ -40,6 +40,9 @@
       <DataTemplate DataType="{x:Type vm:ClienteFichaViewModel}">
         <views:ClienteFichaView />
       </DataTemplate>
+      <DataTemplate DataType="{x:Type vm:ClienteFichaDealViewModel}">
+        <views:ClienteFichaDealView />
+      </DataTemplate>
       <DataTemplate DataType="{x:Type vm:ClienteFormViewModel}">
         <views:ClienteFormView />
       </DataTemplate>

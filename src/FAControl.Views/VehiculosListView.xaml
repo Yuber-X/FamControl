@@ -39,7 +39,7 @@
               </Style>
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTextColumn Header="Vehículo" Binding="{Binding Descripcion}" Width="*" MinWidth="180"
+          <DataGridTextColumn Header="Vehículo" Binding="{Binding Descripcion}" Width="Auto" MinWidth="180"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Tipo" Binding="{Binding TipoTexto}" Width="110" MinWidth="100" />
           <DataGridTextColumn Header="Año" Binding="{Binding AnioTexto}" Width="70" />

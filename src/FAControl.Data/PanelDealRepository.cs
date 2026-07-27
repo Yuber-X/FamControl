@@ -1,3 +1,4 @@
+using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models;
 
@@ -105,10 +106,102 @@ public class PanelDealRepository
             }
         }
 
+        // ---------- Gráficos (pedido 2026-07-27) ----------
+        // Lo primero que quiere ver un dealer al abrir: cómo viene el mes contra
+        // los anteriores, y cuánto del inventario está parado.
+        var meses = await ObtenerUltimosMesesAsync(conexion, hoyLocal, 6, ct);
+        var inventario = await ObtenerInventarioAsync(conexion, ct);
+
         return new ResumenPanelDeal(
             disponibles, alquilados, capitalInvertido,
             ventasMes, montoVentasMes, gananciaVentasMes,
             alquileresActivos, ingresosAlquilerMes,
-            movimientos);
+            movimientos, meses, inventario);
+    }
+
+    /// <summary>
+    /// Ventas y alquileres de los últimos N meses, del más viejo al más nuevo.
+    /// Los meses SIN movimiento igual aparecen (en cero): si no, el gráfico
+    /// miente sobre la continuidad del negocio.
+    /// </summary>
+    private static async Task<IReadOnlyList<MesDeal>> ObtenerUltimosMesesAsync(
+        MySqlConnection conexion, DateOnly hoyLocal, int cantidadMeses,
+        CancellationToken ct)
+    {
+        var primerMes = new DateTime(hoyLocal.Year, hoyLocal.Month, 1).AddMonths(-(cantidadMeses - 1));
+        var desdeUtc = primerMes.AddHours(OffsetRdHoras);
+
+        var ventas = new Dictionary<(int, int), decimal>();
+        var alquileres = new Dictionary<(int, int), decimal>();
+
+        using (var cmd = conexion.CreateCommand())
+        {
+            cmd.CommandText = $"""
+                SELECT origen, YEAR(fecha) AS anio, MONTH(fecha) AS mes, SUM(monto) AS monto
+                FROM (
+                  SELECT 'venta' AS origen, fecha_venta AS fecha, precio AS monto
+                  FROM {DbNames.VentaVehiculo} WHERE fecha_venta >= @desde
+                  UNION ALL
+                  SELECT 'alquiler' AS origen, created_at AS fecha, monto_total AS monto
+                  FROM {DbNames.Alquiler} WHERE estado <> 'cancelado' AND created_at >= @desde
+                ) m
+                GROUP BY origen, anio, mes;
+                """;
+            cmd.Parameters.AddWithValue("@desde", desdeUtc);
+
+            using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                var clave = (Convert.ToInt32(reader["anio"]), Convert.ToInt32(reader["mes"]));
+                var monto = reader.GetDecimal("monto");
+                if (reader.GetString("origen") == "venta")
+                    ventas[clave] = monto;
+                else
+                    alquileres[clave] = monto;
+            }
+        }
+
+        var lista = new List<MesDeal>(cantidadMeses);
+        for (var i = 0; i < cantidadMeses; i++)
+        {
+            var mes = primerMes.AddMonths(i);
+            var clave = (mes.Year, mes.Month);
+            lista.Add(new MesDeal(mes.Year, mes.Month,
+                ventas.GetValueOrDefault(clave, 0m),
+                alquileres.GetValueOrDefault(clave, 0m)));
+        }
+        return lista;
+    }
+
+    /// <summary>Composición del inventario vivo por estado (los vendidos no cuentan: ya no son inventario).</summary>
+    private static async Task<IReadOnlyList<ConteoInventario>> ObtenerInventarioAsync(
+        MySqlConnection conexion, CancellationToken ct)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT estado, COUNT(*) AS cantidad
+            FROM {DbNames.Vehiculo}
+            WHERE deleted_at IS NULL AND estado <> 'vendido'
+            GROUP BY estado
+            ORDER BY cantidad DESC;
+            """;
+
+        var lista = new List<ConteoInventario>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var estado = reader.GetString("estado");
+            lista.Add(new ConteoInventario(
+                estado switch
+                {
+                    "disponible" => "Disponibles",
+                    "alquilado" => "Alquilados",
+                    "reservado" => "Reservados",
+                    "baja" => "Dados de baja",
+                    _ => estado
+                },
+                Convert.ToInt32(reader["cantidad"])));
+        }
+        return lista;
     }
 }

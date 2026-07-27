@@ -139,17 +139,14 @@
           <TextBlock Text="{Binding MensajeReparacion}" Foreground="{DynamicResource Brush.Destructivo}"
                      Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,8" />
 
+          <!-- Alto acotado + scroll horizontal (pedido 2026-07-27): la tabla no
+               crece sin fin dentro de la ficha y ninguna columna recorta texto -->
           <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Reparaciones}"
-                    AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column">
+                    AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                    MaxHeight="300">
             <DataGrid.Columns>
               <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="110" />
-              <DataGridTextColumn Header="Detalle" Binding="{Binding Detalle}" Width="*">
-                <DataGridTextColumn.ElementStyle>
-                  <Style TargetType="TextBlock">
-                    <Setter Property="TextWrapping" Value="Wrap" />
-                  </Style>
-                </DataGridTextColumn.ElementStyle>
-              </DataGridTextColumn>
+              <DataGridTextColumn Header="Detalle" Binding="{Binding Detalle}" Width="Auto" MinWidth="220" />
               <DataGridTextColumn Header="Costo" Width="130"
                                   Binding="{Binding Costo, Converter={StaticResource Money}}">
                 <DataGridTextColumn.ElementStyle>

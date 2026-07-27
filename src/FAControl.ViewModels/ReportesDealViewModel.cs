@@ -4,7 +4,11 @@ using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
 using FAControl.Models;
 using FAControl.Services;
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
 using Serilog;
+using SkiaSharp;
 
 namespace FAControl.ViewModels;
 
@@ -57,6 +61,21 @@ public partial class ReportesDealViewModel : ObservableObject
     [ObservableProperty] private decimal _pendienteDeCobro;
     [ObservableProperty] private string _comisionTexto = string.Empty;
     [ObservableProperty] private bool _hayComisiones;
+
+    // ---------- Gráficos del período (pedido 2026-07-27) ----------
+    /// <summary>De dónde vino el dinero: ventas vs alquiler.</summary>
+    [ObservableProperty] private ISeries[] _seriesOrigen = [];
+    /// <summary>Cuánto vendió cada vendedor (barras horizontales).</summary>
+    [ObservableProperty] private ISeries[] _seriesVendedores = [];
+    [ObservableProperty] private Axis[] _vendedoresXAxes = [];
+    [ObservableProperty] private Axis[] _vendedoresYAxes = [];
+    [ObservableProperty] private bool _hayIngresos;
+    [ObservableProperty] private bool _sinIngresos = true;
+    [ObservableProperty] private bool _sinComisiones = true;
+
+    private static readonly SKColor ColorVentas = SKColor.Parse("#3D5A80");
+    private static readonly SKColor ColorAlquiler = SKColor.Parse("#C9A15A");
+    private static readonly SKColor ColorEtiquetas = SKColor.Parse("#888780");
 
     public async Task CargarAsync() => await GenerarAsync();
 
@@ -121,11 +140,13 @@ public partial class ReportesDealViewModel : ObservableObject
             foreach (var comision in reporte.PorVendedor)
                 PorVendedor.Add(new ComisionFila(comision));
             HayComisiones = PorVendedor.Count > 0;
+            SinComisiones = !HayComisiones;
 
             ComisionTexto = _ajustes.PorcentajeComisionVendedor > 0m
                 ? $"Comisión configurada: {_ajustes.PorcentajeComisionVendedor:0.##}% del monto vendido."
                 : "Sin % de comisión configurado (Configuración → Datos del negocio): la columna irá en cero.";
 
+            ConstruirGraficos(reporte);
             TieneReporte = true;
         }
         catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
@@ -137,5 +158,76 @@ public partial class ReportesDealViewModel : ObservableObject
             Log.Error(ex, "Error generando el reporte de DealControl");
             _dialogos.MostrarError("Reporte del dealer", $"No se pudo generar el reporte.\n\n{ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Dos lecturas rápidas del período: de dónde vino el dinero (torta) y
+    /// quién vendió cuánto (barras). Salen de los mismos datos del reporte,
+    /// sin consultas extra.
+    /// </summary>
+    private void ConstruirGraficos(ReporteDeal reporte)
+    {
+        HayIngresos = reporte.MontoVendido > 0m || reporte.IngresosAlquiler > 0m;
+        SinIngresos = !HayIngresos;
+
+        SeriesOrigen =
+        [
+            new PieSeries<double>
+            {
+                Name = "Ventas",
+                Values = [(double)reporte.MontoVendido],
+                Fill = new SolidColorPaint(ColorVentas),
+                DataLabelsPaint = new SolidColorPaint(SKColors.White),
+                DataLabelsSize = 12,
+                DataLabelsPosition = LiveChartsCore.Measure.PolarLabelsPosition.Middle,
+                DataLabelsFormatter = _ => "Ventas"
+            },
+            new PieSeries<double>
+            {
+                Name = "Alquiler",
+                Values = [(double)reporte.IngresosAlquiler],
+                Fill = new SolidColorPaint(ColorAlquiler),
+                DataLabelsPaint = new SolidColorPaint(SKColors.White),
+                DataLabelsSize = 12,
+                DataLabelsPosition = LiveChartsCore.Measure.PolarLabelsPosition.Middle,
+                DataLabelsFormatter = _ => "Alquiler"
+            }
+        ];
+
+        var vendedores = reporte.PorVendedor.ToList();
+        SeriesVendedores =
+        [
+            new ColumnSeries<double>
+            {
+                Name = "Vendido",
+                Values = [.. vendedores.Select(v => (double)v.MontoVendido)],
+                Fill = new SolidColorPaint(ColorVentas),
+                Rx = 4,
+                Ry = 4
+            }
+        ];
+        VendedoresXAxes =
+        [
+            new Axis
+            {
+                Labels = [.. vendedores.Select(v => v.VendedorNombre)],
+                TextSize = 10,
+                LabelsRotation = vendedores.Count > 4 ? 25 : 0,
+                LabelsPaint = new SolidColorPaint(ColorEtiquetas),
+                SeparatorsPaint = null
+            }
+        ];
+        VendedoresYAxes =
+        [
+            new Axis
+            {
+                MinLimit = 0,
+                TextSize = 10,
+                LabelsPaint = new SolidColorPaint(ColorEtiquetas),
+                Labeler = valor => valor >= 1000
+                    ? $"{valor / 1000:0.#}k"
+                    : valor.ToString("0", Textos.CulturaRd)
+            }
+        ];
     }
 }

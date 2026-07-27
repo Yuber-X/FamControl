@@ -39,7 +39,12 @@ public record RolesUsuario(bool EsAdmin, int? RolPrestId, int? RolDealerId, int?
     /// Permisos por pantalla MARCADOS por modo (013): clave = modo en texto de BD
     /// ('prestcontrol'...), valor = ids de permiso. Null = usar los del rol.
     /// </summary>
-    IReadOnlyDictionary<string, IReadOnlyList<int>>? PermisosPorModo = null);
+    IReadOnlyDictionary<string, IReadOnlyList<int>>? PermisosPorModo = null,
+    /// <summary>
+    /// Rol PROGRAMADOR (017): autoridad total y blindada. Manda sobre EsAdmin.
+    /// Solo un Programador puede marcarlo; UsuarioService rechaza el resto.
+    /// </summary>
+    bool EsProgramador = false);
 
 /// <summary>Permiso del catálogo. `Codigo` es lo que consulta SesionActual.TienePermiso.</summary>
 public class Permiso

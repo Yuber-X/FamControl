@@ -56,6 +56,7 @@ public partial class MainViewModel : ObservableObject
     private readonly VentaFinanciamientoViewModel _financiamientoVm;
     private readonly ContratosDealViewModel _contratosDealVm;
     private readonly ReportesDealViewModel _reportesDealVm;
+    private readonly ClienteFichaDealViewModel _fichaDealVm;
 
     public MainViewModel(PrestamosViewModel prestamosVm, PrestamoNuevoViewModel nuevoVm,
         PrestamoDetalleViewModel detalleVm, CobrosViewModel cobrosVm,
@@ -67,7 +68,8 @@ public partial class MainViewModel : ObservableObject
         AlquileresViewModel alquileresVm, AlquilerNuevoViewModel alquilerNuevoVm, GastosViewModel gastosVm,
         PanelDealViewModel panelDealVm, VehiculoFichaViewModel fichaVehiculoVm,
         VentaFinanciamientoViewModel financiamientoVm,
-        ContratosDealViewModel contratosDealVm, ReportesDealViewModel reportesDealVm)
+        ContratosDealViewModel contratosDealVm, ReportesDealViewModel reportesDealVm,
+        ClienteFichaDealViewModel fichaDealVm)
     {
         _panelVm = panelVm;
         _panelDealVm = panelDealVm;
@@ -105,6 +107,11 @@ public partial class MainViewModel : ObservableObject
         _fichaVm.VolverSolicitado += () => _ = NavegarAsync(Pagina.Clientes);
         _fichaVm.PrestamoSeleccionado += id => _ = AbrirDetalleAsync(id);
         _fichaVm.NuevoPrestamoSolicitado += id => _ = AbrirNuevoPrestamoParaClienteAsync(id);
+        // Ficha PROPIA del dealer (2026-07-27): mismos eventos, otra pantalla
+        _fichaDealVm = fichaDealVm;
+        _fichaDealVm.EditarSolicitado += id => _ = AbrirClienteEdicionAsync(id);
+        _fichaDealVm.VolverSolicitado += () => _ = NavegarAsync(Pagina.Clientes);
+        _fichaDealVm.FichaVehiculoSolicitada += id => _ = AbrirFichaVehiculoAsync(id);
         _clienteFormVm.Guardado += id => _ = AbrirFichaAsync(id);
         _clienteFormVm.Cancelado += () => _ = NavegarAsync(Pagina.Clientes);
 
@@ -408,6 +415,14 @@ public partial class MainViewModel : ObservableObject
         {
             PaginaActual = Pagina.Clientes;
             TituloPagina = "Ficha de cliente";
+            // DealControl tiene su propia ficha: métricas de compras/alquileres
+            // y el grid de SUS vehículos, no la de préstamos (pedido 2026-07-27)
+            if (EsDealerControl)
+            {
+                await _fichaDealVm.CargarAsync(clienteId);
+                PaginaActualVm = _fichaDealVm;
+                return;
+            }
             await _fichaVm.CargarAsync(clienteId);
             PaginaActualVm = _fichaVm;
         }

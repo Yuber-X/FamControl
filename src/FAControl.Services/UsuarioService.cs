@@ -42,16 +42,45 @@ public class UsuarioService
                 "Solo un administrador puede gestionar usuarios.");
     }
 
+    /// <summary>
+    /// BLINDAJE DEL PROGRAMADOR (017, cliente 2026-07-27): ningún Admin puede
+    /// tocar una cuenta con rol Programador — ni editarla, ni desactivarla, ni
+    /// restablecerle la contraseña, ni verla. Solo otro Programador.
+    /// La cuenta tampoco aparece en la lista, así que esto es la segunda puerta:
+    /// aunque alguien llegue con el id en la mano, acá se corta.
+    /// </summary>
+    private async Task ExigirPuedeTocarAsync(long usuarioId, CancellationToken ct)
+    {
+        if (SesionActual.EsProgramador)
+            return;
+        if (await _usuarios.EsProgramadorAsync(usuarioId, ct))
+            throw new UnauthorizedAccessException(
+                "Esa cuenta está reservada al desarrollador del sistema y no se puede modificar.");
+    }
+
+    /// <summary>Solo un Programador puede otorgar o quitar el rol Programador.</summary>
+    private static void ExigirPuedeAsignarProgramador(RolesUsuario roles)
+    {
+        if (roles.EsProgramador && !SesionActual.EsProgramador)
+            throw new UnauthorizedAccessException(
+                "El rol Programador solo lo puede asignar otro Programador.");
+    }
+
     public async Task<IReadOnlyList<Usuario>> ObtenerTodosAsync(CancellationToken ct = default)
     {
         ExigirAdmin();
-        return await _usuarios.ObtenerTodosAsync(ct);
+        // El Admin no ve las cuentas del desarrollador (017)
+        return await _usuarios.ObtenerTodosAsync(SesionActual.EsProgramador, ct);
     }
 
     public async Task<IReadOnlyList<Rol>> ObtenerRolesAsync(CancellationToken ct = default)
     {
         ExigirAdmin();
-        return await _usuarios.ObtenerRolesAsync(ct);
+        var roles = await _usuarios.ObtenerRolesAsync(ct);
+        // El rol Programador no se ofrece a nadie más (017)
+        return SesionActual.EsProgramador
+            ? roles
+            : [.. roles.Where(r => r.Nombre != Roles.Programador)];
     }
 
     public async Task<IReadOnlyList<Permiso>> ObtenerCatalogoPermisosAsync(CancellationToken ct = default)
@@ -82,12 +111,14 @@ public class UsuarioService
         CancellationToken ct = default)
     {
         ExigirAdmin();
+        await ExigirPuedeTocarAsync(usuarioId, ct);
         return await _usuarios.ObtenerPermisosModoUsuarioAsync(usuarioId, modo, ct);
     }
 
     public async Task<IReadOnlyList<string>> ObtenerPermisosAsync(long usuarioId, CancellationToken ct = default)
     {
         ExigirAdmin();
+        await ExigirPuedeTocarAsync(usuarioId, ct);
         return await _usuarios.ObtenerPermisosAsync(usuarioId, ct);
     }
 
@@ -95,6 +126,7 @@ public class UsuarioService
     public async Task<RolesUsuario> ObtenerRolesDeUsuarioAsync(long usuarioId, CancellationToken ct = default)
     {
         ExigirAdmin();
+        await ExigirPuedeTocarAsync(usuarioId, ct);
         return await _usuarios.ObtenerRolesDeUsuarioAsync(usuarioId, ct);
     }
 
@@ -106,6 +138,7 @@ public class UsuarioService
         RolesUsuario roles, string password, CancellationToken ct = default)
     {
         ExigirAdmin();
+        ExigirPuedeAsignarProgramador(roles);
         ValidarDatos(username, nombre);
         ValidarPassword(password);
         ValidarTieneAlgunAcceso(roles);
@@ -114,12 +147,13 @@ public class UsuarioService
             throw new InvalidOperationException($"Ya existe un usuario con el username '{username.Trim()}'.");
 
         var rolAdminId = await _usuarios.ObtenerRolAdminIdAsync(ct);
+        var rolProgramadorId = await _usuarios.ObtenerRolProgramadorIdAsync(ct);
         var hash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: CostBcrypt);
         var id = await _usuarios.CrearAsync(username.Trim(), hash, nombre.Trim(),
             string.IsNullOrWhiteSpace(apellido) ? null : apellido.Trim(),
-            roles.EsAdmin ? rolAdminId : null, ct);
+            roles.EsProgramador ? rolProgramadorId : roles.EsAdmin ? rolAdminId : null, ct);
 
-        await _usuarios.GuardarRolesPorModoAsync(id, roles, rolAdminId, ct);
+        await _usuarios.GuardarRolesPorModoAsync(id, roles, rolAdminId, rolProgramadorId, ct);
 
         await _auditoria.RegistrarAsync(AccionAuditoria.Crear, DbNames.Usuario, id,
             $"Usuario {username.Trim()} creado ({DescribirRoles(roles)})", ct);
@@ -132,6 +166,8 @@ public class UsuarioService
         RolesUsuario roles, bool activo, CancellationToken ct = default)
     {
         ExigirAdmin();
+        ExigirPuedeAsignarProgramador(roles);
+        await ExigirPuedeTocarAsync(id, ct);
         if (string.IsNullOrWhiteSpace(nombre))
             throw new ArgumentException("El nombre es obligatorio.");
         ValidarTieneAlgunAcceso(roles);
@@ -156,7 +192,8 @@ public class UsuarioService
         await _usuarios.ActualizarAsync(id, nombre.Trim(),
             string.IsNullOrWhiteSpace(apellido) ? null : apellido.Trim(), antes.RolId, activo, ct);
         var rolAdminId = await _usuarios.ObtenerRolAdminIdAsync(ct);
-        await _usuarios.GuardarRolesPorModoAsync(id, roles, rolAdminId, ct);
+        var rolProgramadorId = await _usuarios.ObtenerRolProgramadorIdAsync(ct);
+        await _usuarios.GuardarRolesPorModoAsync(id, roles, rolAdminId, rolProgramadorId, ct);
 
         await _auditoria.RegistrarAsync(AccionAuditoria.Modificar, DbNames.Usuario, id,
             $"Usuario {antes.Username}: {DescribirRoles(roles)}, activo {antes.Activo} → {activo}", ct);
@@ -164,13 +201,16 @@ public class UsuarioService
 
     private static void ValidarTieneAlgunAcceso(RolesUsuario r)
     {
-        if (!r.EsAdmin && r.RolPrestId is null && r.RolDealerId is null && r.RolAutoId is null)
+        if (!r.EsAdmin && !r.EsProgramador
+            && r.RolPrestId is null && r.RolDealerId is null && r.RolAutoId is null)
             throw new ArgumentException("Asigná al menos un rol (en algún modo) o marcá administrador.");
     }
 
-    private static string DescribirRoles(RolesUsuario r) => r.EsAdmin
-        ? "Administrador"
-        : $"Prest={r.RolPrestId?.ToString() ?? "—"}, Dealer={r.RolDealerId?.ToString() ?? "—"}, Auto={r.RolAutoId?.ToString() ?? "—"}";
+    private static string DescribirRoles(RolesUsuario r) => r.EsProgramador
+        ? "Programador"
+        : r.EsAdmin
+            ? "Administrador"
+            : $"Prest={r.RolPrestId?.ToString() ?? "—"}, Dealer={r.RolDealerId?.ToString() ?? "—"}, Auto={r.RolAutoId?.ToString() ?? "—"}";
 
     /// <summary>
     /// El Admin restablece la contraseña de un empleado SIN conocer la anterior
@@ -181,6 +221,7 @@ public class UsuarioService
         CancellationToken ct = default)
     {
         ExigirAdmin();
+        await ExigirPuedeTocarAsync(usuarioId, ct);
         ValidarPassword(passwordNueva);
 
         var usuario = await _usuarios.ObtenerPorIdAsync(usuarioId, ct)

@@ -28,7 +28,7 @@ public class ReporteService
 
     /// <summary>Usuarios para el filtro del reporte (todos, sin puerta de Admin).</summary>
     public Task<IReadOnlyList<Usuario>> ObtenerUsuariosAsync(CancellationToken ct = default) =>
-        _usuarios.ObtenerTodosAsync(ct);
+        _usuarios.ObtenerTodosAsync(incluirProgramadores: false, ct);
 
     /// <summary>Clientes activos (del modo activo) para el filtro del reporte.</summary>
     public Task<IReadOnlyList<Cliente>> ObtenerClientesAsync(CancellationToken ct = default) =>

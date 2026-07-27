@@ -118,7 +118,7 @@
                   <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
                 </DataGridTextColumn.ElementStyle>
               </DataGridTextColumn>
-              <DataGridTextColumn Header="Estado" Binding="{Binding EstadoTexto}" Width="*" MinWidth="110">
+              <DataGridTextColumn Header="Estado" Binding="{Binding EstadoTexto}" Width="Auto" MinWidth="110">
                 <DataGridTextColumn.ElementStyle>
                   <Style TargetType="TextBlock">
                     <Style.Triggers>
@@ -189,7 +189,7 @@
                 </DataGridTextColumn.ElementStyle>
               </DataGridTextColumn>
               <DataGridTextColumn Header="Forma de pago" Binding="{Binding MetodoTexto}" Width="150" />
-              <DataGridTextColumn Header="Nota" Binding="{Binding NotasTexto}" Width="*" MinWidth="140" />
+              <DataGridTextColumn Header="Nota" Binding="{Binding NotasTexto}" Width="Auto" MinWidth="140" />
             </DataGrid.Columns>
           </DataGrid>
         </StackPanel>

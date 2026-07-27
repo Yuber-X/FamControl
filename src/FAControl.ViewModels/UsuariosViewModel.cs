@@ -16,6 +16,8 @@ public record UsuarioFila(Usuario Usuario)
     public string NombreCompleto => Usuario.NombreCompleto;
     public string RolTexto => Usuario.RolNombre == Roles.Admin ? "Administrador"
         : string.IsNullOrEmpty(Usuario.RolNombre) ? "Por modo" : Usuario.RolNombre;
+    /// <summary>Cuenta del desarrollador (017): solo la ve otro Programador.</summary>
+    public bool EsCuentaProgramador => Usuario.RolNombre == Roles.Programador;
     public string EstadoTexto => Usuario.Activo ? "Activo" : "Inactivo";
     public string UltimoAccesoTexto => Usuario.LastLoginAtUtc is { } fecha
         ? FechaNegocio.AUtcLocal(fecha).ToString(Textos.FormatoFechaHora, Textos.CulturaRd)
@@ -89,13 +91,27 @@ public partial class UsuariosViewModel : ObservableObject
 
     /// <summary>Administrador global: entra a todo. Al marcarlo, los roles por modo se ignoran.</summary>
     [ObservableProperty] private bool _esAdministrador;
+
+    /// <summary>
+    /// Rol PROGRAMADOR (017): autoridad total e intocable. La casilla solo se
+    /// MUESTRA si quien está logueado ya es Programador; el servicio vuelve a
+    /// verificarlo, así que la UI es comodidad, no la barrera.
+    /// </summary>
+    [ObservableProperty] private bool _esProgramador;
+
+    /// <summary>Solo un Programador ve y marca la casilla de Programador.</summary>
+    public bool PuedeAsignarProgramador => SesionActual.EsProgramador;
+
     [ObservableProperty] private Opcion<int?>? _rolPrestSeleccionado;
     [ObservableProperty] private Opcion<int?>? _rolDealerSeleccionado;
     [ObservableProperty] private Opcion<int?>? _rolAutoSeleccionado;
 
-    /// <summary>True cuando NO es admin: habilita los selectores de rol por modo.</summary>
-    public bool RolesPorModoHabilitados => !EsAdministrador;
-    partial void OnEsAdministradorChanged(bool value)
+    /// <summary>True cuando NO es un rol global: habilita los selectores por modo.</summary>
+    public bool RolesPorModoHabilitados => !EsAdministrador && !EsProgramador;
+    partial void OnEsAdministradorChanged(bool value) => RefrescarHabilitados();
+    partial void OnEsProgramadorChanged(bool value) => RefrescarHabilitados();
+
+    private void RefrescarHabilitados()
     {
         OnPropertyChanged(nameof(RolesPorModoHabilitados));
         OnPropertyChanged(nameof(PermisosPrestHabilitados));
@@ -104,9 +120,9 @@ public partial class UsuariosViewModel : ObservableObject
     }
 
     // Los checkboxes de un modo se habilitan solo con un rol elegido (≠ Sin acceso)
-    public bool PermisosPrestHabilitados => !EsAdministrador && RolPrestSeleccionado?.Valor is not null;
-    public bool PermisosDealerHabilitados => !EsAdministrador && RolDealerSeleccionado?.Valor is not null;
-    public bool PermisosAutoHabilitados => !EsAdministrador && RolAutoSeleccionado?.Valor is not null;
+    public bool PermisosPrestHabilitados => RolesPorModoHabilitados && RolPrestSeleccionado?.Valor is not null;
+    public bool PermisosDealerHabilitados => RolesPorModoHabilitados && RolDealerSeleccionado?.Valor is not null;
+    public bool PermisosAutoHabilitados => RolesPorModoHabilitados && RolAutoSeleccionado?.Valor is not null;
 
     partial void OnRolPrestSeleccionadoChanged(Opcion<int?>? value)
     {
@@ -232,6 +248,7 @@ public partial class UsuariosViewModel : ObservableObject
         Activo = true;
         MensajeError = MensajeExito = string.Empty;
         EsAdministrador = false;
+        EsProgramador = false;
         RolPrestSeleccionado = RolesPrest.FirstOrDefault();
         RolDealerSeleccionado = RolesDealer.FirstOrDefault();
         RolAutoSeleccionado = RolesAuto.FirstOrDefault();
@@ -264,6 +281,7 @@ public partial class UsuariosViewModel : ObservableObject
             try
             {
                 EsAdministrador = roles.EsAdmin;
+                EsProgramador = roles.EsProgramador;
                 RolPrestSeleccionado = OpcionPara(RolesPrest, roles.RolPrestId);
                 RolDealerSeleccionado = OpcionPara(RolesDealer, roles.RolDealerId);
                 RolAutoSeleccionado = OpcionPara(RolesAuto, roles.RolAutoId);
@@ -327,7 +345,8 @@ public partial class UsuariosViewModel : ObservableObject
             RolPrestSeleccionado?.Valor,
             RolDealerSeleccionado?.Valor,
             RolAutoSeleccionado?.Valor,
-            permisosPorModo);
+            permisosPorModo,
+            EsProgramador);
 
         try
         {

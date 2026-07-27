@@ -116,6 +116,74 @@ public class UsuarioServiceTests : IDisposable
         SesionActual.EsAdmin.Should().BeFalse();
     }
 
+    // ---------- Rol PROGRAMADOR (017, cliente 2026-07-27) ----------
+
+    /// <summary>El Programador manda sobre todo: es admin y además intocable.</summary>
+    [Fact]
+    public void Programador_es_admin_y_se_distingue_del_admin()
+    {
+        IniciarComo(Roles.Programador);
+        SesionActual.EsProgramador.Should().BeTrue();
+        SesionActual.EsAdmin.Should().BeTrue();
+
+        IniciarComo(Roles.Admin);
+        SesionActual.EsProgramador.Should().BeFalse();
+        SesionActual.EsAdmin.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// La regla central del pedido: ni siquiera el Admin puede CREAR un
+    /// Programador. Corta antes de tocar la BD (repos null), así que si la
+    /// excepción no fuera UnauthorizedAccess el test explotaría con otra.
+    /// </summary>
+    [Fact]
+    public async Task Un_admin_no_puede_crear_un_programador()
+    {
+        IniciarComo(Roles.Admin);
+
+        var accion = () => _servicio.CrearAsync("dev", "Dev", null,
+            new RolesUsuario(false, null, null, null, null, EsProgramador: true), "password123");
+
+        await accion.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("*Programador*");
+    }
+
+    [Fact]
+    public async Task Un_admin_no_puede_promover_a_programador_editando()
+    {
+        IniciarComo(Roles.Admin);
+
+        var accion = () => _servicio.ActualizarAsync(2, "Dev", null,
+            new RolesUsuario(false, null, null, null, null, EsProgramador: true), activo: true);
+
+        await accion.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("*Programador*");
+    }
+
+    /// <summary>Otro Programador sí puede: la puerta se abre y falla más adelante (repos null).</summary>
+    [Fact]
+    public async Task Un_programador_si_puede_crear_otro_programador()
+    {
+        IniciarComo(Roles.Programador);
+
+        var accion = () => _servicio.CrearAsync("dev2", "Dev", null,
+            new RolesUsuario(false, null, null, null, null, EsProgramador: true), "password123");
+
+        await accion.Should().NotThrowAsync<UnauthorizedAccessException>();
+    }
+
+    /// <summary>Marcar solo Programador ya es acceso suficiente (no exige rol por modo).</summary>
+    [Fact]
+    public async Task Programador_no_necesita_rol_por_modo()
+    {
+        IniciarComo(Roles.Programador);
+
+        var accion = () => _servicio.CrearAsync("dev3", "Dev", null,
+            new RolesUsuario(false, null, null, null, null, EsProgramador: true), "password123");
+
+        await accion.Should().NotThrowAsync<ArgumentException>();
+    }
+
     [Fact]
     public void TienePermiso_solo_devuelve_los_otorgados()
     {

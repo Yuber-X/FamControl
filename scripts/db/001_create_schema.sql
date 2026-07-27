@@ -487,8 +487,12 @@ CREATE TABLE vehiculo_reparacion (
 -- aplicación no puede autenticar a nadie.
 -- =============================================================
 -- Roles POR MODO (011): Admin es global (modo NULL); los demás pertenecen a un modo.
+-- Programador (017) es global y blindado: solo otro Programador puede crearlo,
+-- editarlo o asignarlo. No se siembra ninguna cuenta con ese rol (se crea con
+-- el código 3 del launcher).
 INSERT INTO rol (nombre, modo, descripcion) VALUES
   ('Admin',      NULL,           'Control total de los tres modos'),
+  ('Programador', NULL,          'Autoridad total del sistema — reservado al desarrollador. Solo otro Programador puede crearlo o modificarlo.'),
   ('Supervisor', 'prestcontrol', 'Opera y supervisa la cartera de préstamos'),
   ('Cobrador',   'prestcontrol', 'Cobra en la calle: registra pagos y consulta su cartera'),
   ('Encargado',  'dealercontrol','Gestiona el dealer: inventario, ventas, alquileres y gastos'),
@@ -522,10 +526,10 @@ INSERT INTO permiso (codigo, nombre, descripcion) VALUES
   ('acceso_dealercontrol', 'Acceso a DealControl', 'Puede entrar a la estancia de inventario, ventas y alquiler de vehículos'),
   ('acceso_autocontrol',   'Acceso a AutoControl',   'Puede entrar a la estancia de ventas financiadas de vehículos');
 
--- Admin: todo
+-- Admin y Programador: todo
 INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
-WHERE r.nombre = 'Admin';
+WHERE r.nombre IN ('Admin', 'Programador') AND r.modo IS NULL;
 
 -- Supervisor (PrestControl): toda la operación de préstamos, sin admin
 INSERT INTO rol_permiso (rol_id, permiso_id)

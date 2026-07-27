@@ -647,8 +647,13 @@
     <Setter Property="CellStyle" Value="{StaticResource Tabla.Celda}" />
     <Setter Property="RowStyle" Value="{StaticResource Tabla.Fila}" />
     <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
-    <!-- Scroll horizontal: si las columnas no caben, se desplaza en vez de recortar -->
+    <!-- Scroll horizontal: si las columnas no caben, se desplaza en vez de recortar.
+         Pedido del cliente 2026-07-27: la fila mantiene su alto fijo (44) y el
+         grid se mueve de lado, así ninguna columna corta la información. Por eso
+         las columnas se miden por su CONTENIDO (Auto) y no en fracciones (*):
+         con * las columnas se encogen entre ellas y el texto se recorta. -->
     <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+    <Setter Property="ColumnWidth" Value="Auto" />
     <Setter Property="CanUserResizeColumns" Value="True" />
   </Style>
 

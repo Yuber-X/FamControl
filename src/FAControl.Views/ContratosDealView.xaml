@@ -30,21 +30,20 @@
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
           <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="110" />
-          <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*" MinWidth="150"
+          <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="Auto" MinWidth="150"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Vendió" Binding="{Binding VendedorNombre}" Width="140"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-          <DataGridTextColumn Header="Vehículo" Binding="{Binding VehiculoDescripcion}" Width="*" MinWidth="150"
+          <DataGridTextColumn Header="Vehículo" Binding="{Binding VehiculoDescripcion}" Width="Auto" MinWidth="150"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Matrícula" Binding="{Binding MatriculaTexto}" Width="110" />
           <DataGridTextColumn Header="Docs" Binding="{Binding CantidadDocumentos}" Width="60" />
           <DataGridTextColumn Header="Tipo" Binding="{Binding TipoTexto}" Width="100" />
           <DataGridTextColumn Header="Estado de pagos" Binding="{Binding EstadoPagosTexto}"
-                              Width="*" MinWidth="170"
+                              Width="Auto" MinWidth="170"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
             <DataGridTextColumn.ElementStyle>
               <Style TargetType="TextBlock">
-                <Setter Property="TextWrapping" Value="Wrap" />
                 <Style.Triggers>
                   <DataTrigger Binding="{Binding TieneAtrasos}" Value="True">
                     <Setter Property="Foreground" Value="{DynamicResource Brush.Destructivo}" />
