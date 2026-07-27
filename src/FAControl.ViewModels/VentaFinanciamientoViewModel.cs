@@ -60,12 +60,13 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     public event Action<ReciboSeparacionImpreso>? SeparacionSolicitada;
 
     public VentaFinanciamientoViewModel(VentaPlazoService plazos, VentaVehiculoService ventas,
-        AjustesLocales ajustes, IDialogService dialogos)
+        AjustesLocales ajustes, IDialogService dialogos, ExpedienteViewModel expediente)
     {
         _plazos = plazos;
         _ventas = ventas;
         _ajustes = ajustes;
         _dialogos = dialogos;
+        Expediente = expediente;
 
         Metodos =
         [
@@ -76,6 +77,12 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
         ];
         _metodoSeleccionado = Metodos[0];
     }
+
+    /// <summary>
+    /// Expediente digital de ESTE contrato (018, pedido 2026-07-27): las
+    /// facturas, documentos e imágenes que entregó el cliente para la compra.
+    /// </summary>
+    public ExpedienteViewModel Expediente { get; }
 
     public ObservableCollection<PlazoFila> Plazos { get; } = [];
     public ObservableCollection<AbonoFila> Abonos { get; } = [];
@@ -160,6 +167,8 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
             foreach (var abono in abonos)
                 Abonos.Add(new AbonoFila(abono));
             HayAbonos = Abonos.Count > 0;
+
+            await Expediente.CargarAsync(ventaId);
 
             ActualizarAviso(estado, hoy);
             MensajeCobro = string.Empty;

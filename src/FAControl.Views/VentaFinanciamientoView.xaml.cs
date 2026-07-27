@@ -1,8 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using FAControl.Models;
 using FAControl.Printing;
 using FAControl.ViewModels;
+using Microsoft.Win32;
 
 namespace FAControl.Views;
 
@@ -47,6 +49,65 @@ public partial class VentaFinanciamientoView : UserControl
         var ventana = new DocumentoDealWindow("Recibo de separación",
             $"Separacion_{recibo.Codigo}",
             () => DocumentosDealFactory.CrearReciboSeparacion(recibo))
+        { Owner = Window.GetWindow(this) };
+        ventana.ShowDialog();
+    }
+
+    // ---------- Expediente digital (018, pedido 2026-07-27) ----------
+    // Los diálogos de archivo son UI pura: la View los abre y le pasa las rutas
+    // al ViewModel, que es quien decide qué se puede guardar y qué no.
+
+    private async void SubirDocumentos_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm is null)
+            return;
+
+        var dialogo = new OpenFileDialog
+        {
+            Title = "Elegí los documentos del cliente",
+            Multiselect = true,     // pedido: poder subir varios de una vez
+            Filter = ExpedienteViewModel.FiltroArchivos
+        };
+        if (dialogo.ShowDialog(Window.GetWindow(this)) != true)
+            return;
+
+        await _vm.Expediente.AgregarArchivosAsync(dialogo.FileNames);
+    }
+
+    private async void ExportarExpediente_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm is null)
+            return;
+
+        var dialogo = new SaveFileDialog
+        {
+            Title = "¿Dónde guardo el ZIP del expediente?",
+            FileName = $"Expediente_{_vm.Codigo}.zip",
+            Filter = "Archivo comprimido (*.zip)|*.zip"
+        };
+        if (dialogo.ShowDialog(Window.GetWindow(this)) != true)
+            return;
+
+        await _vm.Expediente.ExportarZipAsync(dialogo.FileName);
+    }
+
+    private void Documento_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is DataGrid grid && grid.SelectedItem is DocumentoFila fila)
+            AbrirAcciones(fila);
+    }
+
+    private void AccionesDocumento_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is DocumentoFila fila)
+            AbrirAcciones(fila);
+    }
+
+    private void AbrirAcciones(DocumentoFila fila)
+    {
+        if (_vm is null)
+            return;
+        var ventana = new DocumentoAccionesWindow(_vm.Expediente, fila)
         { Owner = Window.GetWindow(this) };
         ventana.ShowDialog();
     }

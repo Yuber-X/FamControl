@@ -277,6 +277,7 @@ public partial class App : Application
         servicios.AddSingleton<NcfRepository>();
         servicios.AddSingleton<PanelDealRepository>();
         servicios.AddSingleton<ClienteDealRepository>();
+        servicios.AddSingleton<DocumentoVentaRepository>();
         servicios.AddSingleton<VehiculoReparacionRepository>();
         servicios.AddSingleton<VentaPlazoRepository>();
         servicios.AddSingleton<ReporteDealRepository>();
@@ -305,6 +306,7 @@ public partial class App : Application
         servicios.AddSingleton<NcfService>();
         servicios.AddSingleton<PanelDealService>();
         servicios.AddSingleton<ClienteDealService>();
+        servicios.AddSingleton<ExpedienteService>();
         servicios.AddSingleton<VentaPlazoService>();
         servicios.AddSingleton<ReporteDealService>();
         servicios.AddSingleton(sp =>
@@ -333,6 +335,7 @@ public partial class App : Application
         servicios.AddSingleton<ClienteFichaViewModel>();
         servicios.AddSingleton<ClienteFichaDealViewModel>();
         servicios.AddSingleton<CodigosViewModel>();
+        servicios.AddSingleton<ExpedienteViewModel>();
         servicios.AddSingleton<ClienteFormViewModel>();
         servicios.AddSingleton<PrestamosViewModel>();
         servicios.AddSingleton<PrestamoNuevoViewModel>();

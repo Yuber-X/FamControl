@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Windows;
 using Microsoft.Win32;
 using FAControl.Models;
 using FAControl.Printing;
+using FAControl.ViewModels;
 using Serilog;
 
 namespace FAControl.Views;
@@ -13,13 +15,82 @@ namespace FAControl.Views;
 public partial class FacturaVentaWindow : Window
 {
     private readonly FacturaVentaImpresa _factura;
+    private readonly long _ventaId;
+    private readonly ExpedienteViewModel _expediente;
+    private DocumentoFila? _firmada;
 
-    public FacturaVentaWindow(FacturaVentaImpresa factura)
+    public FacturaVentaWindow(FacturaVentaImpresa factura, long ventaId,
+        ExpedienteViewModel expediente)
     {
         InitializeComponent();
         ChromeVentana.OcultarBotones(this);
         _factura = factura;
+        _ventaId = ventaId;
+        _expediente = expediente;
         ContenedorFactura.Content = FacturaVentaVisualFactory.Crear(factura);
+        _ = MostrarFirmadaAsync();
+    }
+
+    /// <summary>Si ya hay una factura firmada escaneada, se avisa y se ofrece abrirla.</summary>
+    private async Task MostrarFirmadaAsync()
+    {
+        _firmada = await _expediente.ObtenerFacturaEscaneadaAsync(_ventaId);
+        if (_firmada is null)
+        {
+            BotonVerFirmada.Visibility = Visibility.Collapsed;
+            TextoFirmada.Text = string.Empty;
+            BotonEscanear.Content = "Reemplazar por la firmada…";
+            return;
+        }
+
+        BotonVerFirmada.Visibility = Visibility.Visible;
+        TextoFirmada.Text = $"Firmada: {_firmada.Nombre} ({_firmada.FechaTexto})";
+        BotonEscanear.Content = "Subir otra versión firmada…";
+    }
+
+    /// <summary>
+    /// Sube la factura firmada y escaneada al expediente del contrato
+    /// (pedido del cliente 2026-07-27). La del sistema no se borra.
+    /// </summary>
+    private async void BotonEscanear_Click(object sender, RoutedEventArgs e)
+    {
+        var dialogo = new OpenFileDialog
+        {
+            Title = "Elegí la factura firmada y escaneada",
+            Filter = ExpedienteViewModel.FiltroArchivos
+        };
+        if (dialogo.ShowDialog(this) != true)
+            return;
+
+        var subida = await _expediente.ReemplazarFacturaAsync(_ventaId, dialogo.FileName);
+        if (subida is null)
+            return;
+
+        await MostrarFirmadaAsync();
+        MessageBox.Show(this,
+            "La factura firmada quedó guardada en el expediente del contrato.\n\n" +
+            "Desde ahora aparece acá y en la sección Expediente del financiamiento.",
+            "Factura firmada", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void BotonVerFirmada_Click(object sender, RoutedEventArgs e)
+    {
+        if (_firmada is null)
+            return;
+
+        var ruta = _expediente.RutaParaAbrir(_firmada);
+        if (ruta is null)
+            return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(ruta) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error abriendo la factura firmada de la venta {Id}", _ventaId);
+            MessageBox.Show(this, $"Windows no pudo abrir el archivo.\n\n{ex.Message}",
+                "Ver factura firmada", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void BotonImprimir_Click(object sender, RoutedEventArgs e)

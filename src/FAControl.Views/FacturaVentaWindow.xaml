@@ -25,13 +25,29 @@
     </Border>
 
     <!-- Acciones -->
-    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-      <Button Content="Imprimir" Style="{DynamicResource Boton.Primario}" MinWidth="120"
-              Click="BotonImprimir_Click" />
-      <Button Content="Guardar PDF" Style="{DynamicResource Boton.Secundario}" MinWidth="120"
-              Margin="8,0,0,0" Click="BotonPdf_Click" />
-      <Button Content="Cerrar" Style="{DynamicResource Boton.Secundario}" MinWidth="120"
-              Margin="8,0,0,0" Click="BotonCerrar_Click" />
-    </StackPanel>
+    <DockPanel Grid.Row="1" Margin="0,16,0,0">
+      <!-- Factura firmada y escaneada (pedido del cliente 2026-07-27): la del
+           sistema se sigue pudiendo imprimir, pero la que vale para el
+           expediente pasa a ser la que sube el usuario. -->
+      <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+        <Button x:Name="BotonEscanear" Content="Reemplazar por la firmada…"
+                Style="{DynamicResource Boton.Secundario}" MinWidth="200"
+                Click="BotonEscanear_Click" />
+        <Button x:Name="BotonVerFirmada" Content="Ver la firmada"
+                Style="{DynamicResource Boton.Terciario}" Margin="8,0,0,0"
+                Visibility="Collapsed" Click="BotonVerFirmada_Click" />
+        <TextBlock x:Name="TextoFirmada" VerticalAlignment="Center" Margin="10,0,0,0"
+                   Style="{DynamicResource Texto.Caption}" />
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button Content="Imprimir" Style="{DynamicResource Boton.Primario}" MinWidth="120"
+                Click="BotonImprimir_Click" />
+        <Button Content="Guardar PDF" Style="{DynamicResource Boton.Secundario}" MinWidth="120"
+                Margin="8,0,0,0" Click="BotonPdf_Click" />
+        <Button Content="Cerrar" Style="{DynamicResource Boton.Secundario}" MinWidth="120"
+                Margin="8,0,0,0" Click="BotonCerrar_Click" />
+      </StackPanel>
+    </DockPanel>
   </Grid>
 </Window>

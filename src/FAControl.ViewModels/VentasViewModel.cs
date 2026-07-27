@@ -37,17 +37,26 @@ public partial class VentasViewModel : ObservableObject
     private readonly AjustesLocales _ajustes;
 
     public event Action? NuevoSolicitado;
-    /// <summary>La View abre la vista previa imprimible de la factura (2026-07-25).</summary>
-    public event Action<FacturaVentaImpresa>? FacturaSolicitada;
+    /// <summary>
+    /// La View abre la vista previa imprimible de la factura (2026-07-25).
+    /// Va con el id de la venta porque desde ahí se puede reemplazar por la
+    /// factura firmada y escaneada (2026-07-27).
+    /// </summary>
+    public event Action<FacturaVentaImpresa, long>? FacturaSolicitada;
     /// <summary>El shell abre la pantalla de plazos de una venta financiada (016).</summary>
     public event Action<long>? FinanciamientoSolicitado;
 
-    public VentasViewModel(VentaVehiculoService servicio, IDialogService dialogos, AjustesLocales ajustes)
+    public VentasViewModel(VentaVehiculoService servicio, IDialogService dialogos,
+        AjustesLocales ajustes, ExpedienteViewModel expediente)
     {
         _servicio = servicio;
         _dialogos = dialogos;
         _ajustes = ajustes;
+        Expediente = expediente;
     }
+
+    /// <summary>Expediente digital: desde la factura se sube la versión firmada.</summary>
+    public ExpedienteViewModel Expediente { get; }
 
     public ObservableCollection<VentaFila> Filas { get; } = [];
 
@@ -116,7 +125,7 @@ public partial class VentasViewModel : ObservableObject
                 Placa: d.Placa ?? "—",
                 Matricula: d.Matricula ?? "—",
                 Color: d.Color ?? "—",
-                AnioTexto: d.Anio?.ToString(Textos.CulturaRd) ?? "—"));
+                AnioTexto: d.Anio?.ToString(Textos.CulturaRd) ?? "—"), fila.Id);
         }
         catch (Exception ex)
         {

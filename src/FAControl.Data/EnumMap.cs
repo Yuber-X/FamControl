@@ -189,4 +189,24 @@ internal static class EnumMap
         "cancelado" => EstadoPlazo.Cancelado,
         _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Estado de plazo desconocido en BD.")
     };
+
+    // ---------- Expediente digital del contrato (018) ----------
+
+    public static string ADb(TipoDocumento t) => t switch
+    {
+        TipoDocumento.Otro => "otro",
+        TipoDocumento.FacturaEscaneada => "factura_escaneada",
+        TipoDocumento.Contrato => "contrato",
+        TipoDocumento.Identificacion => "identificacion",
+        _ => throw new ArgumentOutOfRangeException(nameof(t))
+    };
+
+    public static TipoDocumento TipoDocumentoDeDb(string valor) => valor switch
+    {
+        "otro" => TipoDocumento.Otro,
+        "factura_escaneada" => TipoDocumento.FacturaEscaneada,
+        "contrato" => TipoDocumento.Contrato,
+        "identificacion" => TipoDocumento.Identificacion,
+        _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Tipo de documento desconocido en BD.")
+    };
 }

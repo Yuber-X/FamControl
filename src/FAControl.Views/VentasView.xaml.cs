@@ -26,9 +26,12 @@ public partial class VentasView : UserControl
         };
     }
 
-    private void MostrarFactura(FacturaVentaImpresa factura)
+    private void MostrarFactura(FacturaVentaImpresa factura, long ventaId)
     {
-        var ventana = new FacturaVentaWindow(factura) { Owner = Window.GetWindow(this) };
+        if (_vm is null)
+            return;
+        var ventana = new FacturaVentaWindow(factura, ventaId, _vm.Expediente)
+        { Owner = Window.GetWindow(this) };
         ventana.ShowDialog();
     }
 }

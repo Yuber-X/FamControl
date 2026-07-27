@@ -83,6 +83,13 @@ public class AjustesLocales
     /// </summary>
     public decimal PorcentajeComisionVendedor { get; set; }
 
+    /// <summary>
+    /// Carpeta donde se guardan los archivos del expediente digital (018).
+    /// Vacío = junto al ejecutable (&lt;app&gt;\expedientes). Se puede apuntar a
+    /// otra unidad si el disco del sistema queda corto.
+    /// </summary>
+    public string CarpetaExpedientes { get; set; } = string.Empty;
+
     // ---------- Recordatorios por correo (Gmail) — cliente 2026-07-19 ----------
     public bool RecordatoriosActivos { get; set; }
     /// <summary>Cuenta Gmail que ENVÍA los recordatorios.</summary>

@@ -73,9 +73,16 @@ public class RespaldoService
                 $"FAControl_Respaldo_{DateTime.Now:yyyy-MM-dd_HHmm}.sql");
 
             await RespaldarAsync(ruta);
+
+            // Los papeles del expediente valen tanto como los datos, y el .sql
+            // no los trae (viven en disco). Van en su propio ZIP, al lado.
+            var expedientes = ExpedienteService.RespaldarTodoEnZip(
+                ExpedienteService.CarpetaRaiz(ajustes), ajustes.RespaldoAutomaticoCarpeta);
+
             ajustes.UltimoRespaldoUtc = DateTime.UtcNow;
             ajustes.Guardar();
-            Log.Information("Respaldo automático completado: {Ruta}", ruta);
+            Log.Information("Respaldo automático completado: {Ruta}{Expedientes}", ruta,
+                expedientes is null ? string.Empty : $" (+ expedientes en {expedientes})");
         }
         catch (Exception ex)
         {

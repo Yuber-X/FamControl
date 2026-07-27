@@ -481,6 +481,30 @@ CREATE TABLE vehiculo_reparacion (
     REFERENCES usuario (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+-- -------------------------------------------------------------
+-- documento_venta: expediente digital del contrato (018).
+-- El ARCHIVO vive en disco (<app>\expedientes\<venta_id>\); acá va su ficha.
+-- Ver 018_expediente_documentos.sql para el porqué del diseño.
+-- -------------------------------------------------------------
+CREATE TABLE documento_venta (
+  id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  venta_id       BIGINT UNSIGNED NOT NULL,
+  nombre         VARCHAR(255)  NOT NULL,
+  ruta_relativa  VARCHAR(400)  NOT NULL,
+  extension      VARCHAR(15)   NOT NULL,
+  tamano_bytes   BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  tipo           ENUM('otro','factura_escaneada','contrato','identificacion') NOT NULL DEFAULT 'otro',
+  notas          VARCHAR(300)  NULL,
+  created_at     DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  created_by     BIGINT UNSIGNED NULL,
+  deleted_at     DATETIME      NULL,
+  PRIMARY KEY (id),
+  KEY ix_docventa_venta (venta_id),
+  KEY ix_docventa_tipo (venta_id, tipo),
+  CONSTRAINT fk_docventa_venta   FOREIGN KEY (venta_id)   REFERENCES venta_vehiculo (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_docventa_usuario FOREIGN KEY (created_by) REFERENCES usuario (id)        ON DELETE SET NULL
+) ENGINE=InnoDB;
+
 -- =============================================================
 -- Catálogo de roles y permisos (multicuentas — cliente 2026-07-16)
 -- Va acá y no en el seed porque NO son datos de prueba: sin esto la

@@ -18,14 +18,16 @@ public record ContratoDealFila(
     int PlazosTotales,
     int PlazosPagados,
     int PlazosAtrasados,
-    decimal Pendiente)
+    decimal Pendiente,
+    /// <summary>Archivos guardados en el expediente digital de esta venta (018).</summary>
+    int DocumentosAdjuntos = 0)
 {
     /// <summary>
-    /// Documentos del expediente: en un dealer una venta acumula varios
-    /// (factura + contrato + conduce + descargo, y carta o separación según
-    /// cómo se pactó). Se cuenta lo que la app puede emitir hoy.
+    /// Documentos del expediente: los que EMITE la app (factura y, según cómo
+    /// se pactó, carta de compromiso o recibo de separación) más los que
+    /// SUBIÓ el usuario al expediente digital (018).
     /// </summary>
-    public int CantidadDocumentos => TipoVenta switch
+    public int CantidadDocumentos => DocumentosAdjuntos + TipoVenta switch
     {
         TipoVenta.Plazos => 2,        // factura + carta de compromiso
         TipoVenta.Separacion => 2,    // factura + recibo de separación
