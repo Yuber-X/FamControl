@@ -1,0 +1,118 @@
+<Window x:Class="FAControl.Views.CodigosWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Códigos de FAControl"
+        Width="520" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource Brush.FondoApp}">
+
+  <Border Margin="24" Style="{DynamicResource Card}">
+    <StackPanel>
+      <TextBlock Text="Códigos de FAControl" Style="{DynamicResource Texto.Titulo3}" />
+      <TextBlock Text="{Binding EstadoTexto}" Style="{DynamicResource Texto.Caption}"
+                 TextWrapping="Wrap" Margin="0,6,0,0" />
+
+      <!-- Ingreso del código -->
+      <TextBlock Text="Código" Style="{DynamicResource Input.Label}" Margin="0,16,0,0" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="8" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBox Grid.Column="0" Style="{DynamicResource Input.Texto}"
+                 FontFamily="{DynamicResource Fuente.Mono}"
+                 Text="{Binding Codigo, UpdateSourceTrigger=PropertyChanged}"
+                 KeyDown="Codigo_KeyDown" />
+        <Button Grid.Column="2" Content="Validar" Style="{DynamicResource Boton.Primario}"
+                Command="{Binding ValidarCommand}" />
+      </Grid>
+
+      <TextBlock Text="{Binding Mensaje}" TextWrapping="Wrap" Margin="0,12,0,0">
+        <TextBlock.Style>
+          <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Caption}">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding EsError}" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Destructivo}" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </TextBlock.Style>
+      </TextBlock>
+
+      <!-- ===== CÓDIGO 3: recuperar el acceso (no toca los datos) ===== -->
+      <StackPanel Margin="0,8,0,0"
+                  Visibility="{Binding ModoRecuperacion, Converter={StaticResource BoolAVisibilidad}}">
+        <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,8,0,12" />
+        <TextBlock Text="Recuperar acceso" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+
+        <TextBlock Text="Usuario" Style="{DynamicResource Input.Label}" Margin="0,10,0,0" />
+        <TextBox Style="{DynamicResource Input.Texto}"
+                 Text="{Binding UsuarioRecuperar, UpdateSourceTrigger=PropertyChanged}" />
+
+        <TextBlock Text="Contraseña nueva" Style="{DynamicResource Input.Label}" Margin="0,10,0,0" />
+        <PasswordBox x:Name="CajaPassword" Style="{DynamicResource Input.Password}"
+                     PasswordChanged="Password_Changed" />
+
+        <CheckBox Content="Crear esta cuenta como Programador (autoridad total del desarrollador)"
+                  FontSize="12" Margin="0,12,0,0" IsChecked="{Binding CrearComoProgramador}" />
+
+        <Grid Margin="0,16,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="8" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Button Grid.Column="0" Content="Restablecer acceso"
+                  Style="{DynamicResource Boton.Primario}"
+                  IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}"
+                  Command="{Binding RecuperarCommand}" />
+          <Button Grid.Column="2" Content="Cancelar" Style="{DynamicResource Boton.Secundario}"
+                  Command="{Binding CancelarCommand}" />
+        </Grid>
+      </StackPanel>
+
+      <!-- ===== CÓDIGO 4: restablecer todo (DESTRUCTIVO) ===== -->
+      <StackPanel Margin="0,8,0,0"
+                  Visibility="{Binding ModoRestablecer, Converter={StaticResource BoolAVisibilidad}}">
+        <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,8,0,12" />
+        <TextBlock Text="Restablecer todo desde el inicio"
+                   Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                   Foreground="{DynamicResource Brush.Destructivo}" />
+        <TextBlock TextWrapping="Wrap" Style="{DynamicResource Texto.Caption}" Margin="0,4,0,0"
+                   Text="Se borran clientes, préstamos, vehículos, ventas, cobros y usuarios. El respaldo previo es obligatorio: si falla, no se borra nada." />
+
+        <TextBlock Text="Carpeta del respaldo" Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="8" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBox Grid.Column="0" Style="{DynamicResource Input.Texto}" IsReadOnly="True"
+                   Text="{Binding CarpetaRespaldo}" />
+          <Button Grid.Column="2" Content="Elegir…" Style="{DynamicResource Boton.Secundario}"
+                  Click="ElegirCarpeta_Click" />
+        </Grid>
+
+        <Grid Margin="0,16,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="8" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Button Grid.Column="0" Content="Borrar todo y empezar de cero"
+                  Style="{DynamicResource Boton.Destructivo}"
+                  IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}"
+                  Command="{Binding RestablecerCommand}" />
+          <Button Grid.Column="2" Content="Cancelar" Style="{DynamicResource Boton.Secundario}"
+                  Command="{Binding CancelarCommand}" />
+        </Grid>
+      </StackPanel>
+
+      <Button Content="Cerrar" Style="{DynamicResource Boton.Terciario}" Margin="0,18,0,0"
+              HorizontalAlignment="Right" IsCancel="True" Click="Cerrar_Click" />
+    </StackPanel>
+  </Border>
+</Window>

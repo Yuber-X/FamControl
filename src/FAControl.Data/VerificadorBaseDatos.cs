@@ -101,6 +101,36 @@ public class VerificadorBaseDatos
     }
 
     /// <summary>
+    /// ⚠️ DESTRUCTIVO — borra la base entera y la vuelve a crear vacía.
+    /// Lo usa el CÓDIGO 4 del launcher ("restablecer todo desde el inicio",
+    /// pedido del cliente 2026-07-27). Quien lo llama es responsable de haber
+    /// hecho el respaldo antes: acá ya no hay vuelta atrás.
+    /// Requiere permiso DROP: root sí lo tiene, el usuario dedicado no.
+    /// </summary>
+    public async Task BorrarYRecrearAsync(CancellationToken ct = default)
+    {
+        var constructor = new MySqlConnectionStringBuilder(_cadenaConexion);
+        var nombreBd = constructor.Database;
+        if (string.IsNullOrEmpty(nombreBd) || !Regex.IsMatch(nombreBd, @"^[0-9A-Za-z$_]+$"))
+            throw new InvalidOperationException(
+                $"Nombre de base de datos no válido en la cadena de conexión: '{nombreBd}'.");
+
+        constructor.Database = string.Empty;
+        await using (var conexion = new MySqlConnection(constructor.ConnectionString))
+        {
+            await conexion.OpenAsync(ct);
+            await using var borrar = conexion.CreateCommand();
+            // DDL: el nombre no se puede parametrizar. Viene del App.config local
+            // y ya pasó la validación de arriba.
+            borrar.CommandText = $"DROP DATABASE IF EXISTS `{nombreBd}`;";
+            borrar.CommandTimeout = 120;
+            await borrar.ExecuteNonQueryAsync(ct);
+        }
+
+        await CrearEsquemaAsync(ct);
+    }
+
+    /// <summary>
     /// El script versionado crea y usa facontrol_db fijo; aquí el nombre lo
     /// decide la cadena de conexión, así que se retiran CREATE DATABASE y USE.
     /// </summary>

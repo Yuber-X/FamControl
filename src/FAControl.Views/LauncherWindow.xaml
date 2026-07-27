@@ -170,9 +170,38 @@
     <!-- ============ PIE ============ -->
     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center"
                 Margin="0,28,0,28">
-      <TextBlock Text="Elegí un modo para iniciar sesión."
+      <TextBlock x:Name="TextoLicencia"
                  FontSize="12" Foreground="{StaticResource Launcher.TextoSuave}"
                  VerticalAlignment="Center" Margin="0,0,18,0" />
+
+      <!-- Códigos del producto (pedido del cliente 2026-07-27): prueba,
+           activación, recuperación de acceso y restablecer todo -->
+      <Button Cursor="Hand" Click="BotonCodigos_Click" Margin="0,0,10,0">
+        <Button.Template>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Pildora" CornerRadius="20" Padding="18,9"
+                    Background="#161D2B"
+                    BorderBrush="#34405A" BorderThickness="1.2">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="Icono" Text="&#xE192;" FontFamily="Segoe MDL2 Assets"
+                           FontSize="13" VerticalAlignment="Center"
+                           Foreground="{StaticResource Launcher.TextoSuave}" />
+                <TextBlock x:Name="Texto" Text="Ingresar código" Margin="9,0,0,0"
+                           FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                           Foreground="{StaticResource Launcher.TextoSuave}" />
+              </StackPanel>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Pildora" Property="Background" Value="#1E2A3D" />
+                <Setter TargetName="Pildora" Property="BorderBrush" Value="#C9A15A" />
+                <Setter TargetName="Icono" Property="Foreground" Value="#C9A15A" />
+                <Setter TargetName="Texto" Property="Foreground" Value="#E4CE9C" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Button.Template>
+      </Button>
       <!-- Botón salir: pildora con borde visible en reposo (para que se note)
            y hover que se llena de rojo suave (salir = cerrar la app) -->
       <Button Cursor="Hand" Click="BotonSalir_Click">

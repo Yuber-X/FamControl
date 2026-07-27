@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using FAControl.Common;
+using FAControl.ViewModels;
 
 namespace FAControl.Views;
 
@@ -47,21 +48,55 @@ public record ModoTarjeta(IdentidadModo Identidad)
 /// </summary>
 public partial class LauncherWindow : Window
 {
+    private readonly CodigosViewModel _codigosVm;
+
     /// <summary>El modo elegido. Null si el usuario cerró sin elegir.</summary>
     public ModoApp? ModoElegido { get; private set; }
 
-    public LauncherWindow()
+    public LauncherWindow(CodigosViewModel codigosVm)
     {
         InitializeComponent();
+        _codigosVm = codigosVm;
         ChromeVentana.OcultarBotones(this);
         ListaModos.ItemsSource = IdentidadModo.Todos.Select(m => new ModoTarjeta(m)).ToList();
         ContenedorLogo.Content = new LogoFA { Width = 92, Height = 92 };
+        MostrarLicencia();
+    }
+
+    /// <summary>Leyenda del pie: prueba con días restantes, activado o bloqueado.</summary>
+    private void MostrarLicencia()
+    {
+        _codigosVm.RefrescarEstado();
+        TextoLicencia.Text = _codigosVm.PermiteUsar
+            ? $"Elegí un modo para iniciar sesión.  ·  {_codigosVm.EstadoTexto}"
+            : _codigosVm.EstadoTexto;
+    }
+
+    /// <summary>
+    /// Puerta de la licencia (pedido del cliente 2026-07-27): con la prueba
+    /// vencida o sin activar, el launcher se abre igual — hay que poder digitar
+    /// el código — pero no deja entrar a ningún modo.
+    /// </summary>
+    private void BotonCodigos_Click(object sender, RoutedEventArgs e)
+    {
+        var ventana = new CodigosWindow(_codigosVm) { Owner = this };
+        ventana.ShowDialog();
+        MostrarLicencia();
     }
 
     private void Modo_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).Tag is not ModoTarjeta tarjeta)
             return;
+
+        if (!_codigosVm.PermiteUsar)
+        {
+            MessageBox.Show(this,
+                $"{_codigosVm.EstadoTexto}.\n\n" +
+                "Usá el botón \"Ingresar código\" para activar el producto o iniciar la prueba.",
+                "FAControl no está activado", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
         if (!tarjeta.Disponible)
         {

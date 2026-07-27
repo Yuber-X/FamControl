@@ -47,6 +47,24 @@ public class UsuarioRepository
         return await reader.ReadAsync(ct) ? Mapear(reader) : null;
     }
 
+    /// <summary>
+    /// Busca por username SIN filtrar por activo. Solo para la RECUPERACIÓN DE
+    /// ACCESO (código 3 del launcher): si la cuenta quedó desactivada, igual hay
+    /// que poder devolverle el acceso al dueño. El login normal sigue usando
+    /// <see cref="ObtenerPorUsernameAsync"/>, que exige activo = 1.
+    /// </summary>
+    public async Task<Usuario?> ObtenerPorUsernameCualquierEstadoAsync(string username,
+        CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"SELECT {Columnas} {Desde} WHERE u.username = @username;";
+        cmd.Parameters.AddWithValue("@username", username);
+
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        return await reader.ReadAsync(ct) ? Mapear(reader) : null;
+    }
+
     public async Task<Usuario?> ObtenerPorIdAsync(long id, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);

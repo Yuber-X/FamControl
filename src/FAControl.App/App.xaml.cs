@@ -310,6 +310,10 @@ public partial class App : Application
         servicios.AddSingleton(sp =>
             new RespaldoService(sp.GetRequiredService<ConexionFactory>().CadenaConexion));
         servicios.AddSingleton(FAControl.Common.AjustesLocales.Cargar());
+        // Licencia de la instalación (4 códigos del launcher, 2026-07-27)
+        servicios.AddSingleton(FAControl.Common.LicenciaLocal.Cargar());
+        servicios.AddSingleton<LicenciaService>();
+        servicios.AddSingleton<RecuperacionService>();
         servicios.AddSingleton<FAControl.Common.IDialogService, DialogService>();
         servicios.AddSingleton<NotificadorVencidos>();
         // MISMA instancia: el guard "ya avisé hoy" vive en ella, y Configuración
@@ -328,6 +332,7 @@ public partial class App : Application
         servicios.AddSingleton<ClientesViewModel>();
         servicios.AddSingleton<ClienteFichaViewModel>();
         servicios.AddSingleton<ClienteFichaDealViewModel>();
+        servicios.AddSingleton<CodigosViewModel>();
         servicios.AddSingleton<ClienteFormViewModel>();
         servicios.AddSingleton<PrestamosViewModel>();
         servicios.AddSingleton<PrestamoNuevoViewModel>();
