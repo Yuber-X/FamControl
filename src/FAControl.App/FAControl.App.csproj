@@ -23,6 +23,11 @@
     <UseWPF>true</UseWPF>
     <!-- Ícono del ejecutable (Explorer, barra de tareas, ventanas) -->
     <ApplicationIcon>Assets\facontrol.ico</ApplicationIcon>
+    <!-- La ventana de Ayuda muestra esta versión, y Windows la usa en las
+         propiedades del .exe. Mantenerla igual a AppVersion del instalador. -->
+    <Version>1.6.0</Version>
+    <Company>Yuber Santana</Company>
+    <Product>FAControl</Product>
   </PropertyGroup>
 
 </Project>
