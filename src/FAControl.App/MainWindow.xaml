@@ -198,6 +198,51 @@
                                    ConverterParameter={x:Static vm:Pagina.Gastos}}"
                        Command="{Binding NavegarCommand}"
                        CommandParameter="{x:Static vm:Pagina.Gastos}" />
+          <!-- POS-500 (2026-07-30): el punto de venta. Panel, Clientes y
+               Reportes los comparte con el resto de la suite. -->
+          <RadioButton Content="Vender" Tag="&#xE7BF;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerVender, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Vender}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Vender}" />
+          <RadioButton Content="Productos" Tag="&#xE7B8;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerProductos, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Productos}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Productos}" />
+          <RadioButton Content="Almacén" Tag="&#xE821;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerAlmacen, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Almacen}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Almacen}" />
+          <RadioButton Content="Caducidad" Tag="&#xE823;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerCaducidad, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Caducidad}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Caducidad}" />
+          <RadioButton Content="Buscar comprobante" Tag="&#xE721;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerComprobantes, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Comprobantes}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Comprobantes}" />
+          <RadioButton Content="Cuadre de caja" Tag="&#xE8AC;" Style="{DynamicResource Sidebar.Item}"
+                       Visibility="{Binding PuedeVerCuadre, Converter={StaticResource BoolAVisibilidad}}"
+                       IsChecked="{Binding PaginaActual, Mode=OneWay,
+                                   Converter={StaticResource Igualdad},
+                                   ConverterParameter={x:Static vm:Pagina.Cuadre}}"
+                       Command="{Binding NavegarCommand}"
+                       CommandParameter="{x:Static vm:Pagina.Cuadre}" />
+
           <RadioButton Content="Historial" Tag="&#xE81C;" Style="{DynamicResource Sidebar.Item}"
                        Visibility="{Binding PuedeVerHistorial, Converter={StaticResource BoolAVisibilidad}}"
                        IsChecked="{Binding PaginaActual, Mode=OneWay,

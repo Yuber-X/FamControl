@@ -1,6 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:m="clr-namespace:FAControl.Models;assembly=FAControl.Models">
+                    xmlns:m="clr-namespace:FAControl.Models;assembly=FAControl.Models"
+                    xmlns:pos="clr-namespace:FAControl.Models.Pos;assembly=FAControl.Models">
 
   <!-- ============================================================
        Botones — DESIGN.md §8: radius 8, altura 40, hover -8% luz
@@ -766,6 +767,67 @@
     <Setter Property="HorizontalAlignment" Value="Left" />
     <Setter Property="MaxHeight" Value="38" />
     <Setter Property="Margin" Value="0,2,0,0" />
+  </Style>
+
+  <!-- ============================================================
+       Punto de venta (POS-500, 2026-07-30)
+       Reusan los mismos brushes del semáforo de cobros: verde/amarillo/
+       naranja/rojo ya estaban definidos para las cuotas, y significan lo
+       mismo acá — de más lejos a más urgente.
+       ============================================================ -->
+
+  <!-- Semáforo de caducidad de un producto -->
+  <Style x:Key="Pill.Caducidad" TargetType="Border" BasedOn="{StaticResource Pill}">
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Semaforo}" Value="{x:Static pos:SemaforoCaducidad.Verde}">
+        <Setter Property="Background" Value="{DynamicResource Brush.AlDia.Fondo}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Semaforo}" Value="{x:Static pos:SemaforoCaducidad.Amarillo}">
+        <Setter Property="Background" Value="{DynamicResource Brush.PorVencer.Fondo}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Semaforo}" Value="{x:Static pos:SemaforoCaducidad.Naranja}">
+        <Setter Property="Background" Value="{DynamicResource Brush.Vencido.Fondo}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Semaforo}" Value="{x:Static pos:SemaforoCaducidad.Rojo}">
+        <Setter Property="Background" Value="{DynamicResource Brush.EnMora.Fondo}" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style x:Key="Pill.Caducidad.Texto" TargetType="TextBlock" BasedOn="{StaticResource Pill.Texto}">
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Semaforo}" Value="{x:Static pos:SemaforoCaducidad.Verde}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.AlDia.Texto}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Semaforo}" Value="{x:Static pos:SemaforoCaducidad.Amarillo}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.PorVencer.Texto}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Semaforo}" Value="{x:Static pos:SemaforoCaducidad.Naranja}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Vencido.Texto}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Semaforo}" Value="{x:Static pos:SemaforoCaducidad.Rojo}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.EnMora.Texto}" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <!-- Estado de una factura: emitida / anulada -->
+  <Style x:Key="Pill.EstadoFactura" TargetType="Border" BasedOn="{StaticResource Pill}">
+    <Setter Property="Background" Value="{DynamicResource Brush.Pagado.Fondo}" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Estado}" Value="{x:Static pos:EstadoFactura.Anulada}">
+        <Setter Property="Background" Value="{DynamicResource Brush.EnMora.Fondo}" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style x:Key="Pill.EstadoFactura.Texto" TargetType="TextBlock" BasedOn="{StaticResource Pill.Texto}">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Pagado.Texto}" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Estado}" Value="{x:Static pos:EstadoFactura.Anulada}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.EnMora.Texto}" />
+      </DataTrigger>
+    </Style.Triggers>
   </Style>
 
 </ResourceDictionary>

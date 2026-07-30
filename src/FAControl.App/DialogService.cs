@@ -21,5 +21,18 @@ public class DialogService : IDialogService
         MessageBox.Show(Propietaria(), mensaje, titulo,
             MessageBoxButton.OK, MessageBoxImage.Error);
 
+    /// <summary>
+    /// Ventanita de una sola caja de texto (portada del POS-500). La usa el
+    /// motivo de anulación de una factura, que es obligatorio.
+    /// </summary>
+    public string? PedirTexto(string titulo, string mensaje, string textoInicial = "")
+    {
+        var ventana = new FAControl.Views.Pos.PedirTextoWindow(titulo, mensaje, textoInicial)
+        {
+            Owner = Propietaria()
+        };
+        return ventana.ShowDialog() == true ? ventana.Resultado : null;
+    }
+
     private static Window Propietaria() => Application.Current.MainWindow;
 }

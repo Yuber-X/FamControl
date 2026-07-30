@@ -2,7 +2,7 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
-## [1.7.0] — en curso · POS-500 se integra a la suite
+## [1.7.0] — 2026-07-30 · POS-500 integrado a la suite
 
 > Decisión con Yuber (2026-07-30): el punto de venta pasa a ser un modo más de
 > FAControl —mismo login, mismos usuarios y permisos— con sus DATOS en una base
@@ -33,13 +33,29 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hor
   pierden juntas. Verificado con una prueba que fuerza el fallo por falta de
   stock y comprueba que no queda ni factura ni rastro.
 
-### Falta
+### Pantallas
 
-- Las pantallas del POS (Panel, Vender, Clientes, Productos, Almacén, Caducidad,
-  Comprobantes, Cuadre, Reportes) dentro del shell de la suite.
-- Que el respaldo automático y el instalador contemplen las dos bases.
-- Mientras tanto la columna del launcher no deja entrar, a propósito: habilitarla
-  sin pantallas sería abrir un shell vacío.
+- Las **nueve pantallas del punto de venta dentro del shell de la suite**: Panel,
+  Vender, Clientes, Productos, Almacén, Caducidad, Buscar comprobante, Cuadre de
+  caja y Reportes — con el mismo sidebar, el mismo tema claro/oscuro y el mismo
+  tamaño de texto que el resto. Panel, Clientes y Reportes comparten página con
+  los otros modos y se resuelven según la estancia activa, igual que el panel del
+  dealer: nunca se mezclan los datos de un módulo con los de otro.
+- **Un solo login**: el cajero entra una vez y el POS usa ese usuario. Ya no hay
+  usuarios del punto de venta aparte.
+- El sidebar del POS **se arma con los permisos** del empleado: un Cajero ve
+  vender, clientes, sus comprobantes y su cuadre; un Supervisor ve todo el piso
+  de venta, incluidos los comprobantes y la caja de los demás.
+- **Tickets y cierres de caja**: la venta imprime directo (con un cliente
+  esperando no se pregunta nada) y cae en vista previa si la impresora falla; la
+  reimpresión desde Comprobantes siempre muestra la vista previa, y el cierre de
+  caja también. La factura ya está guardada antes de imprimir: nada de lo que
+  pase con el papel la afecta.
+- La base del punto de venta **se crea sola** la primera vez que se entra al modo.
+- **El respaldo automático saca las dos bases**: la de la suite y la del punto de
+  venta. Si el cliente no tiene el POS, ese respaldo simplemente no se hace y
+  queda anotado en el log — no rompe el principal.
+- **Instalador 1.7.0**.
 
 ## [1.6.0] — 2026-07-30 · Licencia por módulo, préstamo abierto y la cartera real del cliente
 

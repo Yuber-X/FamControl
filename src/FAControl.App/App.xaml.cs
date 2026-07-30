@@ -151,6 +151,11 @@ public partial class App : Application
         shell.AplicarEscala(ajustes.FactorEscala);
         shell.MostrarModo(IdentidadModo.De(modo));
 
+        // El punto de venta prepara su base la PRIMERA vez que se entra, y engancha
+        // la impresión de tickets y cierres (POS-500, 2026-07-30).
+        if (modo == ModoApp.Pos500)
+            await PrepararPuntoDeVentaAsync();
+
         var configuracionVm = servicios.GetRequiredService<ConfiguracionViewModel>();
         configuracionVm.EscalaCambiada += shell.AplicarEscala;
         configuracionVm.TemaCambiado += Tema.Aplicar;
@@ -239,6 +244,129 @@ public partial class App : Application
                 "ejecuta scripts\\db\\001_create_schema.sql como root (ver INSTALL.md).",
                 titulo, MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
+        }
+    }
+
+    // =================================================================
+    // Punto de venta (POS-500)
+    // =================================================================
+
+    private bool _posEnganchado;
+
+    /// <summary>
+    /// Deja el punto de venta listo: crea `pos500_db` si no existe y engancha la
+    /// impresión. Lo de enganchar se hace UNA sola vez por corrida — los
+    /// ViewModels son singleton y volver a suscribirse imprimiría el ticket dos
+    /// veces por cada entrada y salida del modo.
+    /// </summary>
+    private async Task PrepararPuntoDeVentaAsync()
+    {
+        var servicios = _servicios!;
+        try
+        {
+            await servicios.GetRequiredService<VerificadorPos500>().PrepararAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "No se pudo preparar la base del punto de venta");
+            MessageBox.Show(
+                "No se pudo preparar la base de datos del punto de venta.\n\n" + ex.Message,
+                "FAControl — POS-500", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        if (_posEnganchado)
+            return;
+        _posEnganchado = true;
+
+        var vender = servicios.GetRequiredService<FAControl.ViewModels.Pos.VenderViewModel>();
+        var comprobantes = servicios.GetRequiredService<FAControl.ViewModels.Pos.ComprobantesViewModel>();
+        var cuadre = servicios.GetRequiredService<FAControl.ViewModels.Pos.CuadreViewModel>();
+
+        // La venta YA está persistida cuando llega acá: nada de lo que pase con
+        // la impresión puede afectarla.
+        vender.VentaRegistrada += factura => MostrarTicket(factura, esReimpresion: false);
+        // Reimprimir usa EL MISMO ticket que la venta original: el papel sale idéntico
+        comprobantes.ReimpresionSolicitada += factura => MostrarTicket(factura, esReimpresion: true);
+        cuadre.ImpresionSolicitada += MostrarCierre;
+
+        // Cambiar el ITBIS o los datos del negocio se ve enseguida en Vender
+        servicios.GetRequiredService<FAControl.Services.Pos.ConfiguracionNegocioService>().Cambiada +=
+            () => _ = vender.RefrescarAsync();
+    }
+
+    /// <summary>
+    /// Genera el ticket y lo imprime. Camino ÚNICO para la venta recién cobrada
+    /// y para la reimpresión: el papel sale igual. Por defecto imprime directo,
+    /// sin preguntar (pedido de Yuber 2026-07-12); la vista previa es opcional y
+    /// actúa de plan B si la impresora falla.
+    /// </summary>
+    private void MostrarTicket(FAControl.Models.Pos.VentaResultado factura, bool esReimpresion)
+    {
+        var servicios = _servicios!;
+        var descripcion = (esReimpresion ? "Reimpresión " : "Ticket ") + factura.NumeroFactura;
+        try
+        {
+            var negocio = servicios.GetRequiredService<FAControl.Services.Pos.ConfiguracionNegocioService>().Actual;
+            var ajustes = servicios.GetRequiredService<AjustesLocales>();
+            var visual = FAControl.Printing.Pos.TicketVisualFactory.Crear(
+                factura, negocio, SesionActual.Nombre, ajustes.TicketEncabezado, ajustes.TicketPie);
+
+            // Al reimprimir siempre se muestra la vista previa: el cajero está
+            // buscando ese comprobante, no cobrándole a alguien que espera.
+            if (esReimpresion || ajustes.MostrarVistaPreviaTicket)
+            {
+                new FAControl.Views.Pos.TicketWindow(visual, descripcion, ajustes.CopiasTicket)
+                { Owner = MainWindow }.ShowDialog();
+                return;
+            }
+
+            try
+            {
+                FAControl.Printing.Pos.ImpresoraTickets.ImprimirDirecto(
+                    visual, descripcion, ajustes.CopiasTicket, ajustes.ImpresoraPredeterminada);
+            }
+            catch (Exception exImpresion)
+            {
+                Log.Warning(exImpresion, "Falló la impresión directa de {Descripcion}", descripcion);
+                new FAControl.Views.Pos.TicketWindow(visual, descripcion, ajustes.CopiasTicket)
+                { Owner = MainWindow }.ShowDialog();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error generando el ticket {Numero}", factura.NumeroFactura);
+            MessageBox.Show(
+                $"La factura {factura.NumeroFactura} está registrada, pero no se pudo " +
+                $"generar el ticket.\n\n{ex.Message}", "FAControl — POS-500",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>
+    /// Vista previa imprimible del cierre de caja. A diferencia del ticket, el
+    /// cierre SIEMPRE se muestra antes de imprimir (pedido de Yuber) y respeta el
+    /// tamaño de papel elegido.
+    /// </summary>
+    private void MostrarCierre(FAControl.Models.Pos.CuadreGeneral cierre,
+        FAControl.Models.Pos.TamanoImpresion tamano)
+    {
+        try
+        {
+            var negocio = _servicios!.GetRequiredService<FAControl.Services.Pos.ConfiguracionNegocioService>().Actual;
+            var visual = FAControl.Printing.Pos.CierreVisualFactory.Crear(
+                cierre, negocio, SesionActual.Nombre, tamano);
+
+            new FAControl.Views.Pos.VistaPreviaWindow(visual,
+                $"Cierre de caja — {cierre.Fecha:dd/MM/yyyy}",
+                $"Cierre {cierre.Fecha:yyyy-MM-dd}")
+            { Owner = MainWindow }.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error generando el cierre de caja");
+            MessageBox.Show($"No se pudo generar el cierre.\n\n{ex.Message}",
+                "FAControl — POS-500", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -356,8 +484,11 @@ public partial class App : Application
         servicios.AddSingleton<FAControl.Services.Pos.AnaliticaService>();
         servicios.AddSingleton<FAControl.Services.Pos.ConfiguracionNegocioService>();
         servicios.AddSingleton<FAControl.Services.Pos.ExportacionService>();
-        servicios.AddSingleton(sp =>
-            new RespaldoService(sp.GetRequiredService<ConexionFactory>().CadenaConexion));
+        // El respaldo automático saca las DOS bases: la de la suite y la del
+        // punto de venta, que guarda sus ventas aparte.
+        servicios.AddSingleton(sp => new RespaldoService(
+            sp.GetRequiredService<ConexionFactory>().CadenaConexion,
+            sp.GetRequiredService<ConexionPos500>().CadenaConexion));
         servicios.AddSingleton(FAControl.Common.AjustesLocales.Cargar());
         // Licencia de la instalación (4 códigos del launcher, 2026-07-27)
         servicios.AddSingleton(FAControl.Common.LicenciaLocal.Cargar());
@@ -404,6 +535,21 @@ public partial class App : Application
         servicios.AddSingleton<AlquileresViewModel>();
         servicios.AddSingleton<AlquilerNuevoViewModel>();
         servicios.AddSingleton<GastosViewModel>();
+        // Páginas del punto de venta. Van agrupadas en PaginasPos para no
+        // sumarle nueve parámetros más al constructor del shell.
+        servicios.AddSingleton<FAControl.ViewModels.Pos.PanelViewModel>();
+        servicios.AddSingleton<FAControl.ViewModels.Pos.VenderViewModel>();
+        servicios.AddSingleton<FAControl.ViewModels.Pos.ClientesViewModel>();
+        servicios.AddSingleton<FAControl.ViewModels.Pos.ClienteFormViewModel>();
+        servicios.AddSingleton<FAControl.ViewModels.Pos.ProductosViewModel>();
+        servicios.AddSingleton<FAControl.ViewModels.Pos.ProductoFormViewModel>();
+        servicios.AddSingleton<FAControl.ViewModels.Pos.AlmacenViewModel>();
+        servicios.AddSingleton<FAControl.ViewModels.Pos.CaducidadViewModel>();
+        servicios.AddSingleton<FAControl.ViewModels.Pos.ComprobantesViewModel>();
+        servicios.AddSingleton<FAControl.ViewModels.Pos.CuadreViewModel>();
+        servicios.AddSingleton<FAControl.ViewModels.Pos.ReportesViewModel>();
+        servicios.AddSingleton<FAControl.ViewModels.Pos.PaginasPos>();
+
         servicios.AddSingleton<MainViewModel>();
 
         // Views

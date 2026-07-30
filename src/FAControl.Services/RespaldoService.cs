@@ -19,7 +19,14 @@ public class RespaldoService
     private readonly string _password;
     private readonly string _baseDatos;
 
-    public RespaldoService(string cadenaConexion)
+    /// <summary>
+    /// Base del punto de venta (POS-500, 2026-07-30). El respaldo automático
+    /// saca las DOS: el .sql de la suite no incluye las ventas del mostrador,
+    /// que viven en otra base. Null = esta instalación no usa el POS.
+    /// </summary>
+    private readonly string? _baseDatosPos;
+
+    public RespaldoService(string cadenaConexion, string? cadenaPos = null)
     {
         var builder = new MySqlConnectionStringBuilder(cadenaConexion);
         _servidor = builder.Server;
@@ -27,15 +34,24 @@ public class RespaldoService
         _usuario = builder.UserID;
         _password = builder.Password;
         _baseDatos = builder.Database;
+
+        // Mismo servidor y credenciales; solo cambia el nombre de la base
+        _baseDatosPos = string.IsNullOrWhiteSpace(cadenaPos)
+            ? null
+            : new MySqlConnectionStringBuilder(cadenaPos).Database;
     }
 
     /// <summary>Genera el respaldo .sql completo en la ruta indicada.</summary>
-    public async Task RespaldarAsync(string rutaDestino, CancellationToken ct = default)
+    public Task RespaldarAsync(string rutaDestino, CancellationToken ct = default) =>
+        RespaldarBaseAsync(_baseDatos, rutaDestino, ct);
+
+    private async Task RespaldarBaseAsync(string baseDatos, string rutaDestino,
+        CancellationToken ct = default)
     {
         var mysqldump = BuscarHerramienta("mysqldump.exe");
         var info = CrearProceso(mysqldump,
             $"--host={_servidor} --port={_puerto} --user={_usuario} " +
-            $"--single-transaction --routines --add-drop-table {_baseDatos}");
+            $"--single-transaction --routines --add-drop-table {baseDatos}");
 
         using var proceso = Process.Start(info)
             ?? throw new InvalidOperationException("No se pudo iniciar mysqldump.");
@@ -74,6 +90,10 @@ public class RespaldoService
 
             await RespaldarAsync(ruta);
 
+            // El punto de venta guarda sus ventas en OTRA base: si no se respalda
+            // aparte, un restore deja el negocio sin las facturas del mostrador.
+            var rutaPos = await RespaldarPuntoDeVentaSiHayAsync(ajustes.RespaldoAutomaticoCarpeta);
+
             // Los papeles del expediente valen tanto como los datos, y el .sql
             // no los trae (viven en disco). Van en su propio ZIP, al lado.
             var expedientes = ExpedienteService.RespaldarTodoEnZip(
@@ -81,12 +101,37 @@ public class RespaldoService
 
             ajustes.UltimoRespaldoUtc = DateTime.UtcNow;
             ajustes.Guardar();
-            Log.Information("Respaldo automático completado: {Ruta}{Expedientes}", ruta,
+            Log.Information("Respaldo automático completado: {Ruta}{Pos}{Expedientes}", ruta,
+                rutaPos is null ? string.Empty : $" (+ punto de venta en {rutaPos})",
                 expedientes is null ? string.Empty : $" (+ expedientes en {expedientes})");
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Falló el respaldo automático");
+        }
+    }
+
+    /// <summary>
+    /// Respalda la base del punto de venta, si esta instalación la tiene. No
+    /// tumba el respaldo principal: si el POS falla o ni siquiera está creado,
+    /// queda anotado y se sigue. Devuelve la ruta, o null si no había nada.
+    /// </summary>
+    private async Task<string?> RespaldarPuntoDeVentaSiHayAsync(string carpeta)
+    {
+        if (_baseDatosPos is null)
+            return null;
+
+        try
+        {
+            var ruta = Path.Combine(carpeta, $"POS500_Respaldo_{DateTime.Now:yyyy-MM-dd_HHmm}.sql");
+            await RespaldarBaseAsync(_baseDatosPos, ruta);
+            return ruta;
+        }
+        catch (Exception ex)
+        {
+            // Lo más común: el cliente no compró el POS y la base no existe
+            Log.Warning(ex, "No se respaldó la base del punto de venta ({Base})", _baseDatosPos);
+            return null;
         }
     }
 

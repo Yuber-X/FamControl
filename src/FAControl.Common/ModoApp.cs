@@ -85,12 +85,8 @@ public record IdentidadModo(
             // Azul acero + glow azul vivo para que resalte como el dorado
             "#3D5A80", "#5B90D4", Disponible: true),
 
-        // Disponible: false hasta que terminen de portarse sus pantallas. Los
-        // cimientos (modo, licencia, permisos, roles y su base pos500_db) ya
-        // están; lo que falta es mudar las pantallas al shell de la suite.
-        // Cuando eso esté, esto pasa a true y no hay que tocar nada más.
         new(ModoApp.Pos500, Pos500.Nombre, Pos500.Etiqueta, Pos500.Descripcion,
-            Pos500.ColorHex, Pos500.ColorBrilloHex, Disponible: false)
+            Pos500.ColorHex, Pos500.ColorBrilloHex, Disponible: true)
     ];
 
     /// <summary>

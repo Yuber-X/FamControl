@@ -12,4 +12,11 @@ public interface IDialogService
     void Informar(string titulo, string mensaje);
 
     void MostrarError(string titulo, string mensaje);
+
+    /// <summary>
+    /// Pide un texto corto al usuario. Devuelve null si canceló.
+    /// Viene del POS-500 (2026-07-30): lo usa el motivo de anulación de una
+    /// factura, que es obligatorio y queda en el historial.
+    /// </summary>
+    string? PedirTexto(string titulo, string mensaje, string textoInicial = "");
 }

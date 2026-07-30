@@ -11,7 +11,7 @@
 ; =============================================================
 
 #define AppNombre "FAControl"
-#define AppVersion "1.6.0"
+#define AppVersion "1.7.0"
 #define AppEditor "Yuber Santana"
 #define AppExe "FAControl.App.exe"
 #define AppTelefono "849-438-0242"
@@ -82,6 +82,9 @@ Source: "..\publish\FAControl.App.dll.config"; DestDir: "{app}"; \
 ; embebido, pero actualizar la base que ya tiene el cliente necesita correrlas.
 ; Se excluyen a propósito: 999_rollback.sql (BORRA la base entera — no tiene
 ; nada que hacer en la máquina del cliente) y los seeds de datos de prueba.
+; Incluye pos500_001_create_schema.sql, el esquema del punto de venta: la app lo
+; ejecuta sola desde su recurso embebido la primera vez que se entra al modo
+; POS-500, pero el archivo viaja igual por si hay que correrlo a mano.
 Source: "..\scripts\db\*.sql"; DestDir: "{app}\scripts\db"; \
   Excludes: "999_rollback.sql,002_seed_data.sql,seed_*.sql"; \
   Flags: ignoreversion

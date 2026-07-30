@@ -100,3 +100,13 @@ public record Opcion<T>(T Valor, string Texto)
 {
     public override string ToString() => Texto;
 }
+
+/// <summary>
+/// Pagina que recarga sus datos cuando se navega hacia ella. Viene del POS-500
+/// (2026-07-30): sus pantallas se refrescan solas al entrar, en vez de que el
+/// shell tenga que saber a que llamarle a cada una.
+/// </summary>
+public interface IPaginaAsincrona
+{
+    Task RefrescarAsync();
+}

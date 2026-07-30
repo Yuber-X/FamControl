@@ -121,6 +121,12 @@ public class AjustesLocales
     /// <summary>Impresora del ticket. Vacío = la predeterminada de Windows.</summary>
     public string? ImpresoraPredeterminada { get; set; }
     public int CopiasTicket { get; set; } = 1;
+    /// <summary>
+    /// Mostrar la vista previa antes de imprimir el ticket. Apagado por pedido
+    /// de Yuber (2026-07-12): con un cliente esperando, el ticket sale directo.
+    /// Al REIMPRIMIR desde Comprobantes siempre se muestra, sin importar esto.
+    /// </summary>
+    public bool MostrarVistaPreviaTicket { get; set; }
     public string? TicketEncabezado { get; set; }
     public string? TicketPie { get; set; } = "Gracias por su compra";
 

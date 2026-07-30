@@ -4,6 +4,8 @@
              xmlns:conv="clr-namespace:FAControl.Common.Converters;assembly=FAControl.Common"
              xmlns:vm="clr-namespace:FAControl.ViewModels;assembly=FAControl.ViewModels"
              xmlns:views="clr-namespace:FAControl.Views;assembly=FAControl.Views"
+             xmlns:vmpos="clr-namespace:FAControl.ViewModels.Pos;assembly=FAControl.ViewModels"
+             xmlns:pos="clr-namespace:FAControl.Views.Pos;assembly=FAControl.Views"
              ShutdownMode="OnExplicitShutdown">
   <!-- Sin StartupUri: el arranque lo controla App.xaml.cs (login → shell) -->
   <Application.Resources>
@@ -109,6 +111,42 @@
                        HorizontalAlignment="Center" Margin="0,6,0,0" />
           </StackPanel>
         </Border>
+      </DataTemplate>
+
+      <!-- Punto de venta (POS-500, 2026-07-30). Mismos nombres de clase que
+           las de la suite, distinto namespace: por eso el prefijo pos: -->
+      <DataTemplate DataType="{x:Type vmpos:PanelViewModel}">
+        <pos:PanelView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vmpos:VenderViewModel}">
+        <pos:VenderView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vmpos:ClientesViewModel}">
+        <pos:ClientesListView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vmpos:ClienteFormViewModel}">
+        <pos:ClienteFormView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vmpos:ProductosViewModel}">
+        <pos:ProductosListView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vmpos:ProductoFormViewModel}">
+        <pos:ProductoFormView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vmpos:AlmacenViewModel}">
+        <pos:AlmacenView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vmpos:CaducidadViewModel}">
+        <pos:CaducidadView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vmpos:ComprobantesViewModel}">
+        <pos:ComprobantesView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vmpos:CuadreViewModel}">
+        <pos:CuadreView />
+      </DataTemplate>
+      <DataTemplate DataType="{x:Type vmpos:ReportesViewModel}">
+        <pos:ReportesView />
       </DataTemplate>
     </ResourceDictionary>
   </Application.Resources>

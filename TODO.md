@@ -1,6 +1,23 @@
 # TODO.md — FAControl
 
-> Actualizado: 2026-07-30 (licencia por módulo + préstamo abierto + cartera real del cliente)
+> Actualizado: 2026-07-30 (POS-500 integrado a la suite)
+
+## POS-500 integrado a la suite (2026-07-30)
+
+- [x] `ModoApp.Pos500` como cuarto modo, habilitado con el código 5 de la licencia
+- [x] Base propia `pos500_db`, creada sola al entrar al modo por primera vez
+- [x] 022: permisos y roles del punto de venta dentro de la base compartida
+- [x] 023: la auditoría acepta la acción `anular`
+- [x] Models, Data, Services e impresión portados a `FAControl.*.Pos`
+- [x] La auditoría de una venta entra en la misma transacción aunque viva en otra base
+- [x] Las 9 pantallas dentro del shell, con un solo login y los permisos de la suite
+- [x] Tickets, reimpresión y cierre de caja enganchados
+- [x] Respaldo automático de las dos bases
+- [x] Instalador 1.7.0
+
+### Pendiente de probar a mano
+- [ ] Recorrer el punto de venta con el guion de pruebas (vender, anular, cuadrar, imprimir)
+- [ ] Confirmar que un Cajero ve solo lo suyo y un Supervisor ve todo
 
 ## Pedidos del cliente 2026-07-29
 

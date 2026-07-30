@@ -22,7 +22,15 @@ public enum Pagina
     Vehiculos,
     Ventas,
     Alquileres,
-    Gastos
+    Gastos,
+    // POS-500 (2026-07-30). Panel, Clientes y Reportes se reusan de arriba:
+    // son la misma pagina conceptual, resuelta segun el modo activo.
+    Vender,
+    Productos,
+    Almacen,
+    Caducidad,
+    Comprobantes,
+    Cuadre
 }
 
 /// <summary>
@@ -57,6 +65,8 @@ public partial class MainViewModel : ObservableObject
     private readonly ContratosDealViewModel _contratosDealVm;
     private readonly ReportesDealViewModel _reportesDealVm;
     private readonly ClienteFichaDealViewModel _fichaDealVm;
+    /// <summary>Las paginas del punto de venta, agrupadas (POS-500, 2026-07-30).</summary>
+    private readonly Pos.PaginasPos _pos;
 
     public MainViewModel(PrestamosViewModel prestamosVm, PrestamoNuevoViewModel nuevoVm,
         PrestamoDetalleViewModel detalleVm, CobrosViewModel cobrosVm,
@@ -69,7 +79,7 @@ public partial class MainViewModel : ObservableObject
         PanelDealViewModel panelDealVm, VehiculoFichaViewModel fichaVehiculoVm,
         VentaFinanciamientoViewModel financiamientoVm,
         ContratosDealViewModel contratosDealVm, ReportesDealViewModel reportesDealVm,
-        ClienteFichaDealViewModel fichaDealVm)
+        ClienteFichaDealViewModel fichaDealVm, Pos.PaginasPos pos)
     {
         _panelVm = panelVm;
         _panelDealVm = panelDealVm;
@@ -141,6 +151,47 @@ public partial class MainViewModel : ObservableObject
         _alquileresVm.NuevoSolicitado += () => _ = AbrirAlquilerNuevoAsync();
         _alquilerNuevoVm.Registrado += () => _ = NavegarAsync(Pagina.Alquileres);
         _alquilerNuevoVm.Cancelado += () => _ = NavegarAsync(Pagina.Alquileres);
+
+        // Punto de venta: listas → formulario → vuelta a la lista
+        _pos = pos;
+        _pos.Clientes.NuevoSolicitado += AbrirClientePosNuevo;
+        _pos.Clientes.EdicionSolicitada += id => _ = AbrirClientePosAsync(id);
+        _pos.ClienteForm.Guardado += id => _ = NavegarAsync(Pagina.Clientes);
+        _pos.ClienteForm.Cancelado += () => _ = NavegarAsync(Pagina.Clientes);
+        _pos.Productos.NuevoSolicitado += AbrirProductoPosNuevo;
+        _pos.Productos.EdicionSolicitada += id => _ = AbrirProductoPosAsync(id);
+        _pos.ProductoForm.Guardado += id => _ = NavegarAsync(Pagina.Productos);
+        _pos.ProductoForm.Cancelado += () => _ = NavegarAsync(Pagina.Productos);
+    }
+
+    // ---------- Punto de venta ----------
+
+    private void AbrirClientePosNuevo()
+    {
+        _pos.ClienteForm.PrepararNuevo();
+        TituloPagina = "Nuevo cliente";
+        PaginaActualVm = _pos.ClienteForm;
+    }
+
+    private void AbrirProductoPosNuevo()
+    {
+        _pos.ProductoForm.PrepararNuevo();
+        TituloPagina = "Nuevo producto";
+        PaginaActualVm = _pos.ProductoForm;
+    }
+
+    private async Task AbrirClientePosAsync(long id)
+    {
+        await _pos.ClienteForm.PrepararEdicionAsync(id);
+        TituloPagina = "Editar cliente";
+        PaginaActualVm = _pos.ClienteForm;
+    }
+
+    private async Task AbrirProductoPosAsync(long id)
+    {
+        await _pos.ProductoForm.PrepararEdicionAsync(id);
+        TituloPagina = "Editar producto";
+        PaginaActualVm = _pos.ProductoForm;
     }
 
     [ObservableProperty]
@@ -159,6 +210,8 @@ public partial class MainViewModel : ObservableObject
     public ModoApp Modo { get; private set; } = ModoApp.PrestControl;
     public bool EsPrestControl => Modo == ModoApp.PrestControl;
     public bool EsDealerControl => Modo == ModoApp.DealerControl;
+    /// <summary>Punto de venta (POS-500, 2026-07-30): su propia base y sus propias pantallas.</summary>
+    public bool EsPos500 => Modo == ModoApp.Pos500;
     public bool EsAutoControl => Modo == ModoApp.AutoControl;
     /// <summary>Clientes, cobros, contratos y reportes son compartidos por los modos de crédito.</summary>
     private bool EsCredito => EsPrestControl || EsAutoControl;
@@ -200,6 +253,14 @@ public partial class MainViewModel : ObservableObject
     public bool PuedeVerVentas => EsDealerControl && SesionActual.TienePermiso(Permisos.Ventas);
     public bool PuedeVerAlquileres => EsDealerControl && SesionActual.TienePermiso(Permisos.Alquileres);
     public bool PuedeVerGastos => EsDealerControl && SesionActual.TienePermiso(Permisos.Gastos);
+
+    // ---- Punto de venta ----
+    public bool PuedeVerVender => EsPos500 && SesionActual.TienePermiso(Permisos.Vender);
+    public bool PuedeVerProductos => EsPos500 && SesionActual.TienePermiso(Permisos.Productos);
+    public bool PuedeVerAlmacen => EsPos500 && SesionActual.TienePermiso(Permisos.Almacen);
+    public bool PuedeVerCaducidad => EsPos500 && SesionActual.TienePermiso(Permisos.Caducidad);
+    public bool PuedeVerComprobantes => EsPos500 && SesionActual.TienePermiso(Permisos.Comprobantes);
+    public bool PuedeVerCuadre => EsPos500 && SesionActual.TienePermiso(Permisos.Cuadre);
     public bool PuedeVerHistorial => SesionActual.TienePermiso(Permisos.Historial);
     public bool PuedeVerUsuarios => SesionActual.TienePermiso(Permisos.Usuarios);
     /// <summary>Configuración es EXCLUSIVA de Admin (regla del cliente).</summary>
@@ -221,6 +282,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(EsPrestControl));
         OnPropertyChanged(nameof(EsDealerControl));
         OnPropertyChanged(nameof(EsAutoControl));
+        OnPropertyChanged(nameof(EsPos500));
         RefrescarPermisos();
     }
 
@@ -245,6 +307,12 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(PuedeVerVentas));
         OnPropertyChanged(nameof(PuedeVerAlquileres));
         OnPropertyChanged(nameof(PuedeVerGastos));
+        OnPropertyChanged(nameof(PuedeVerVender));
+        OnPropertyChanged(nameof(PuedeVerProductos));
+        OnPropertyChanged(nameof(PuedeVerAlmacen));
+        OnPropertyChanged(nameof(PuedeVerCaducidad));
+        OnPropertyChanged(nameof(PuedeVerComprobantes));
+        OnPropertyChanged(nameof(PuedeVerCuadre));
         OnPropertyChanged(nameof(PuedeVerHistorial));
         OnPropertyChanged(nameof(PuedeVerUsuarios));
         OnPropertyChanged(nameof(PuedeVerConfiguracion));
@@ -268,10 +336,19 @@ public partial class MainViewModel : ObservableObject
     /// Carga inicial del shell: aterriza en la página principal del modo activo
     /// (Panel en PrestControl, Vehículos en DealerControl).
     /// </summary>
-    public Task InicializarAsync() =>
-        NavegarAsync(EsDealerControl ? (PuedeVerPanel ? Pagina.Panel : Pagina.Vehiculos)
-                   : EsAutoControl ? Pagina.Prestamos          // ventas financiadas
-                   : Pagina.Panel);
+    public async Task InicializarAsync()
+    {
+        // El punto de venta necesita su configuracion (ITBIS, moneda, numeracion
+        // de facturas) antes de mostrar nada: sin eso no puede facturar.
+        if (EsPos500)
+            await _pos.PrepararAsync();
+
+        await NavegarAsync(
+            EsPos500 ? (PuedeVerVender ? Pagina.Vender : Pagina.Panel)
+          : EsDealerControl ? (PuedeVerPanel ? Pagina.Panel : Pagina.Vehiculos)
+          : EsAutoControl ? Pagina.Prestamos          // ventas financiadas
+          : Pagina.Panel);
+    }
 
     [RelayCommand]
     private async Task NavegarAsync(Pagina destino)
@@ -288,9 +365,17 @@ public partial class MainViewModel : ObservableObject
                     await _panelDealVm.CargarAsync();
                     PaginaActualVm = _panelDealVm;
                     break;
+                case Pagina.Panel when EsPos500:
+                    await _pos.Panel.RefrescarAsync();
+                    PaginaActualVm = _pos.Panel;
+                    break;
                 case Pagina.Panel:
                     await _panelVm.CargarAsync();
                     PaginaActualVm = _panelVm;
+                    break;
+                case Pagina.Clientes when EsPos500:
+                    await _pos.Clientes.RefrescarAsync();
+                    PaginaActualVm = _pos.Clientes;
                     break;
                 case Pagina.Clientes:
                     await _clientesVm.CargarAsync();
@@ -307,6 +392,10 @@ public partial class MainViewModel : ObservableObject
                 case Pagina.Cobros:
                     await _cobrosVm.CargarAsync();
                     PaginaActualVm = _cobrosVm;
+                    break;
+                case Pagina.Reportes when EsPos500:
+                    await _pos.Reportes.RefrescarAsync();
+                    PaginaActualVm = _pos.Reportes;
                     break;
                 case Pagina.Reportes when EsDealerControl:
                     // Reportes PROPIOS del dealer (2026-07-25): nunca datos de Prest
@@ -349,6 +438,34 @@ public partial class MainViewModel : ObservableObject
                 case Pagina.Gastos:
                     await _gastosVm.CargarAsync();
                     PaginaActualVm = _gastosVm;
+                    break;
+
+                // ---- Punto de venta. Panel, Clientes y Reportes comparten
+                // pagina con la suite y se resuelven por modo, como el Panel del
+                // dealer: nunca se mezclan los datos de una estancia con otra.
+                case Pagina.Vender:
+                    await _pos.Vender.RefrescarAsync();
+                    PaginaActualVm = _pos.Vender;
+                    break;
+                case Pagina.Productos:
+                    await _pos.Productos.RefrescarAsync();
+                    PaginaActualVm = _pos.Productos;
+                    break;
+                case Pagina.Almacen:
+                    await _pos.Almacen.RefrescarAsync();
+                    PaginaActualVm = _pos.Almacen;
+                    break;
+                case Pagina.Caducidad:
+                    await _pos.Caducidad.RefrescarAsync();
+                    PaginaActualVm = _pos.Caducidad;
+                    break;
+                case Pagina.Comprobantes:
+                    await _pos.Comprobantes.RefrescarAsync();
+                    PaginaActualVm = _pos.Comprobantes;
+                    break;
+                case Pagina.Cuadre:
+                    await _pos.Cuadre.RefrescarAsync();
+                    PaginaActualVm = _pos.Cuadre;
                     break;
                 case Pagina.Configuracion:
                     PaginaActualVm = _configuracionVm;
@@ -519,7 +636,7 @@ public partial class MainViewModel : ObservableObject
 
     private string TituloDe(Pagina pagina) => pagina switch
     {
-        Pagina.Panel => "Panel de control",
+        Pagina.Panel => EsPos500 ? "Panel del punto de venta" : "Panel de control",
         Pagina.Clientes => "Clientes",
         // En AutoControl los préstamos son ventas financiadas de vehículos.
         Pagina.Prestamos => EsAutoControl ? "Ventas financiadas" : "Préstamos",
@@ -527,7 +644,7 @@ public partial class MainViewModel : ObservableObject
         Pagina.Cobros => "Cobros",
         // En DealControl el contrato es el expediente de la venta, no el pagaré
         Pagina.Contratos => EsDealerControl ? "Contratos del dealer" : "Almacén de contratos",
-        Pagina.Reportes => EsDealerControl ? "Reportes del dealer" : "Reportes",
+        Pagina.Reportes => EsDealerControl ? "Reportes del dealer" : EsPos500 ? "Reportes de ventas" : "Reportes",
         Pagina.Ventas when EsDealerControl => "Ventas",
         Pagina.Historial => "Historial",
         Pagina.Usuarios => "Usuarios",
@@ -536,6 +653,13 @@ public partial class MainViewModel : ObservableObject
         Pagina.Ventas => "Ventas al contado",
         Pagina.Alquileres => "Alquileres (rent a car)",
         Pagina.Gastos => "Gestión de importación",
+        // Punto de venta
+        Pagina.Vender => "Vender",
+        Pagina.Productos => "Productos",
+        Pagina.Almacen => "Almacén",
+        Pagina.Caducidad => "Control de caducidad",
+        Pagina.Comprobantes => "Buscar comprobante",
+        Pagina.Cuadre => "Cuadre de caja",
         _ => string.Empty
     };
 }
