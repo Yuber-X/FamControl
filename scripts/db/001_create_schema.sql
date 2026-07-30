@@ -296,6 +296,9 @@ CREATE TABLE pago (
 CREATE TABLE auditoria (
   id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   usuario_id  BIGINT UNSIGNED NOT NULL,
+  -- Estancia donde se hizo la operacion (025). NULL = linea anterior a esa
+  -- migracion; se muestra como "—" y nunca se reescribe.
+  modo        ENUM('prestcontrol','dealercontrol','autocontrol','pos500') NULL,
   entidad     VARCHAR(50)  NOT NULL,              -- 'cliente', 'prestamo', 'cuota', 'pago', 'usuario'
   entidad_id  BIGINT UNSIGNED NULL,
   accion      ENUM('crear','modificar','eliminar','consultar','login','logout','anular') NOT NULL,
@@ -305,6 +308,7 @@ CREATE TABLE auditoria (
   PRIMARY KEY (id),
   KEY ix_auditoria_entidad (entidad, entidad_id),
   KEY ix_auditoria_timestamp (timestamp),
+  KEY ix_auditoria_modo (modo, id),
   CONSTRAINT fk_auditoria_usuario FOREIGN KEY (usuario_id)
     REFERENCES usuario (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
@@ -631,6 +635,150 @@ INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Vendedor' AND r.modo = 'pos500'
   AND p.codigo IN ('vender','clientes','clientes_editar','comprobantes','acceso_pos500');
+
+
+-- =============================================================
+-- PUNTO DE VENTA (POS-500, integrado a la suite el 2026-07-30 — ver 024)
+--
+-- Van en ESTA base, con prefijo pos_, para que el negocio tenga UN solo
+-- respaldo. El cliente del mostrador es otra cosa que el de prestamos:
+-- cedula opcional y sin apellido, porque en retail casi nadie se registra.
+-- =============================================================
+
+-- -------------------------------------------------------------
+-- pos_cliente: cliente del mostrador. Cédula OPCIONAL, sin apellido.
+-- -------------------------------------------------------------
+CREATE TABLE pos_cliente (
+  id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  cedula     VARCHAR(20)  NULL,
+  nombre     VARCHAR(150) NOT NULL,
+  telefono   VARCHAR(20)  NULL,
+  direccion  VARCHAR(250) NULL,
+  notas      TEXT         NULL,
+  created_at DATETIME     NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  updated_at DATETIME     NULL,
+  deleted_at DATETIME     NULL,                  -- soft delete
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_pos_cliente_cedula (cedula)      -- múltiples NULL permitidos
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- pos_producto: inventario con caducidad (el semáforo se calcula, no se guarda)
+-- -------------------------------------------------------------
+CREATE TABLE pos_producto (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  codigo          VARCHAR(50)   NULL,            -- código de barras / interno
+  nombre          VARCHAR(150)  NOT NULL,
+  precio          DECIMAL(15,2) NOT NULL,
+  cantidad        INT           NOT NULL DEFAULT 0,
+  descripcion     TEXT          NULL,
+  fecha_caducidad DATE          NULL,
+  created_at      DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  updated_at      DATETIME      NULL,
+  deleted_at      DATETIME      NULL,            -- soft delete
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_pos_producto_codigo (codigo),    -- múltiples NULL permitidos
+  KEY ix_pos_producto_nombre (nombre),
+  KEY ix_pos_producto_caducidad (fecha_caducidad)
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- pos_factura: NUNCA se elimina, solo se anula. Totales persistidos + la tasa
+-- de ITBIS aplicada (el histórico no cambia si mañana cambia la tasa).
+-- cliente_id NULL = consumidor final.
+-- usuario_id: AHORA sí con clave foránea, porque el usuario vive en esta misma
+-- base. Era justo lo que fallaba con la base separada.
+-- -------------------------------------------------------------
+CREATE TABLE pos_factura (
+  id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  numero_factura    VARCHAR(30)   NOT NULL,
+  cliente_id        BIGINT UNSIGNED NULL,
+  usuario_id        BIGINT UNSIGNED NOT NULL,
+  fecha_emision     DATETIME      NOT NULL,      -- UTC
+  subtotal          DECIMAL(15,2) NOT NULL,
+  itbis_tasa        DECIMAL(5,2)  NOT NULL,      -- 18.00 al día de hoy
+  itbis             DECIMAL(15,2) NOT NULL,
+  total             DECIMAL(15,2) NOT NULL,
+  metodo_pago       ENUM('efectivo','tarjeta','transferencia','mixto') NOT NULL,
+  efectivo_recibido DECIMAL(15,2) NULL,          -- solo efectivo/mixto
+  cambio            DECIMAL(15,2) NULL,
+  estado            ENUM('emitida','anulada') NOT NULL DEFAULT 'emitida',
+  anulada_at        DATETIME      NULL,
+  anulada_motivo    VARCHAR(250)  NULL,
+  created_at        DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_pos_factura_numero (numero_factura),
+  KEY ix_pos_factura_fecha (fecha_emision),
+  KEY ix_pos_factura_usuario (usuario_id, fecha_emision),
+  CONSTRAINT fk_pos_factura_cliente FOREIGN KEY (cliente_id)
+    REFERENCES pos_cliente (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_pos_factura_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuario (id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- pos_detalle: líneas de factura (RESTRICT: las facturas no se borran)
+-- -------------------------------------------------------------
+CREATE TABLE pos_detalle (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  factura_id      BIGINT UNSIGNED NOT NULL,
+  producto_id     BIGINT UNSIGNED NOT NULL,
+  cantidad        INT           NOT NULL,
+  precio_unitario DECIMAL(15,2) NOT NULL,        -- precio al momento de la venta
+  subtotal        DECIMAL(15,2) NOT NULL,
+  PRIMARY KEY (id),
+  KEY ix_pos_detalle_factura (factura_id),
+  KEY ix_pos_detalle_producto (producto_id),
+  CONSTRAINT fk_pos_detalle_factura FOREIGN KEY (factura_id)
+    REFERENCES pos_factura (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_pos_detalle_producto FOREIGN KEY (producto_id)
+    REFERENCES pos_producto (id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- pos_cuadre_caja: cierre por cajero y día de negocio; inmutable tras crearse
+-- -------------------------------------------------------------
+CREATE TABLE pos_cuadre_caja (
+  id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  usuario_id             BIGINT UNSIGNED NOT NULL,
+  fecha                  DATE          NOT NULL,  -- día de negocio (UTC-4)
+  total_facturas         INT           NOT NULL,
+  total_vendido          DECIMAL(15,2) NOT NULL,
+  tiempo_activo_segundos INT           NOT NULL DEFAULT 0,
+  created_at             DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_pos_cuadre_usuario_fecha (usuario_id, fecha),
+  CONSTRAINT fk_pos_cuadre_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuario (id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- pos_configuracion: UNA sola fila (id fijo = 1). ITBIS, moneda, numeración de
+-- facturas y lo que sale en el ticket.
+-- -------------------------------------------------------------
+CREATE TABLE pos_configuracion (
+  id                       TINYINT UNSIGNED NOT NULL,
+  nombre_negocio           VARCHAR(150)  NOT NULL DEFAULT 'Mi Negocio',
+  rnc                      VARCHAR(20)   NULL,
+  direccion                VARCHAR(250)  NULL,
+  telefono                 VARCHAR(20)   NULL,
+  email                    VARCHAR(150)  NULL,
+  logo_ruta                VARCHAR(500)  NULL,
+  itbis_activo             TINYINT(1)    NOT NULL DEFAULT 1,
+  itbis_tasa               DECIMAL(5,2)  NOT NULL DEFAULT 18.00,
+  redondeo                 ENUM('centavo','peso','arriba') NOT NULL DEFAULT 'centavo',
+  moneda_simbolo           VARCHAR(10)   NOT NULL DEFAULT 'RD$',
+  formato_miles            ENUM('coma','punto') NOT NULL DEFAULT 'coma',
+  factura_prefijo          VARCHAR(10)   NOT NULL DEFAULT 'F-',
+  factura_siguiente        BIGINT UNSIGNED NOT NULL DEFAULT 1,  -- SELECT ... FOR UPDATE al emitir
+  factura_formato          ENUM('simple','con_anio') NOT NULL DEFAULT 'simple',
+  mostrar_cliente_en_venta TINYINT(1)    NOT NULL DEFAULT 1,
+  updated_at               DATETIME      NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT ck_pos_config_unica CHECK (id = 1)
+) ENGINE=InnoDB;
+
+INSERT INTO pos_configuracion (id) VALUES (1);
 
 -- =============================================================
 -- TRIGGERS: sincronizan usuario_permiso con el rol (patrón POS-400/POS-500).

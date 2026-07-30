@@ -1,6 +1,6 @@
 // Portado de POS-500 el 2026-07-30 al integrar el punto de venta a la suite.
-// Cambios respecto del original: usa ConexionPos500 (base pos500_db, aparte de
-// facontrol_db) y el SesionActual / la auditoria compartidos de FAControl.
+// Cambios respecto del original: sus tablas llevan prefijo pos_ dentro de
+// facontrol_db (024), y usa el SesionActual y la auditoria de la suite.
 using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models.Pos;
@@ -14,19 +14,12 @@ namespace FAControl.Data.Pos;
 /// </summary>
 public class FacturaRepository
 {
-    private readonly ConexionPos500 _factory;
+    private readonly ConexionFactory _factory;
 
-    public FacturaRepository(ConexionPos500 factory) => _factory = factory;
+    public FacturaRepository(ConexionFactory factory) => _factory = factory;
 
     public async Task<MySqlConnection> AbrirConexionAsync(CancellationToken ct = default) =>
         await _factory.AbrirAsync(ct);
-
-    /// <summary>
-    /// Base de la suite (facontrol_db). La necesitan los services del POS para
-    /// escribir la auditoría —que es compartida y vive allá— dentro de la MISMA
-    /// transacción de la venta.
-    /// </summary>
-    public string EsquemaSuite => _factory.EsquemaSuite;
 
     // ------------------------------------------------------------------
     // Lectura (Buscar comprobante)
@@ -41,15 +34,10 @@ public class FacturaRepository
         TRIM(CONCAT(u.nombre, ' ', COALESCE(u.apellido, ''))) AS cajero_nombre
         """;
 
-    /// <summary>
-    /// Propiedad y no constante: `usuario` vive en la base de la SUITE, y su
-    /// nombre sale de la cadena de conexión. Las facturas y los clientes del
-    /// mostrador sí están en la base del POS, por eso van sin calificar.
-    /// </summary>
-    private string FromResumen => $"""
-        FROM factura f
-        LEFT JOIN cliente c ON c.id = f.cliente_id
-        JOIN {_factory.EsquemaSuite}.usuario u ON u.id = f.usuario_id
+    private const string FromResumen = $"""
+        FROM {DbNamesPos.Factura} f
+        LEFT JOIN {DbNamesPos.Cliente} c ON c.id = f.cliente_id
+        JOIN {DbNames.Usuario} u ON u.id = f.usuario_id
         """;
 
     /// <summary>

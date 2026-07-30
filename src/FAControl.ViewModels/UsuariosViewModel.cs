@@ -70,10 +70,13 @@ public partial class UsuariosViewModel : ObservableObject
     public ObservableCollection<Opcion<int?>> RolesPrest { get; } = [];
     public ObservableCollection<Opcion<int?>> RolesDealer { get; } = [];
     public ObservableCollection<Opcion<int?>> RolesAuto { get; } = [];
+    /// <summary>Punto de venta (024): su propio rol y sus propios permisos.</summary>
+    public ObservableCollection<Opcion<int?>> RolesPos { get; } = [];
     // Permisos por pantalla de cada modo (013): catálogo fijo, se marca/desmarca
     public ObservableCollection<PermisoCheck> PermisosPrest { get; } = [];
     public ObservableCollection<PermisoCheck> PermisosDealer { get; } = [];
     public ObservableCollection<PermisoCheck> PermisosAuto { get; } = [];
+    public ObservableCollection<PermisoCheck> PermisosPos { get; } = [];
 
     /// <summary>Evita recargar defaults del rol mientras se abre un usuario existente.</summary>
     private bool _cargandoUsuario;
@@ -105,6 +108,7 @@ public partial class UsuariosViewModel : ObservableObject
     [ObservableProperty] private Opcion<int?>? _rolPrestSeleccionado;
     [ObservableProperty] private Opcion<int?>? _rolDealerSeleccionado;
     [ObservableProperty] private Opcion<int?>? _rolAutoSeleccionado;
+    [ObservableProperty] private Opcion<int?>? _rolPosSeleccionado;
 
     /// <summary>True cuando NO es un rol global: habilita los selectores por modo.</summary>
     public bool RolesPorModoHabilitados => !EsAdministrador && !EsProgramador;
@@ -117,12 +121,14 @@ public partial class UsuariosViewModel : ObservableObject
         OnPropertyChanged(nameof(PermisosPrestHabilitados));
         OnPropertyChanged(nameof(PermisosDealerHabilitados));
         OnPropertyChanged(nameof(PermisosAutoHabilitados));
+        OnPropertyChanged(nameof(PermisosPosHabilitados));
     }
 
     // Los checkboxes de un modo se habilitan solo con un rol elegido (≠ Sin acceso)
     public bool PermisosPrestHabilitados => RolesPorModoHabilitados && RolPrestSeleccionado?.Valor is not null;
     public bool PermisosDealerHabilitados => RolesPorModoHabilitados && RolDealerSeleccionado?.Valor is not null;
     public bool PermisosAutoHabilitados => RolesPorModoHabilitados && RolAutoSeleccionado?.Valor is not null;
+    public bool PermisosPosHabilitados => RolesPorModoHabilitados && RolPosSeleccionado?.Valor is not null;
 
     partial void OnRolPrestSeleccionadoChanged(Opcion<int?>? value)
     {
@@ -136,6 +142,13 @@ public partial class UsuariosViewModel : ObservableObject
         OnPropertyChanged(nameof(PermisosDealerHabilitados));
         if (!_cargandoUsuario)
             _ = PrecargarPermisosDeRolAsync(PermisosDealer, value?.Valor);
+    }
+
+    partial void OnRolPosSeleccionadoChanged(Opcion<int?>? value)
+    {
+        OnPropertyChanged(nameof(PermisosPosHabilitados));
+        if (!_cargandoUsuario)
+            _ = PrecargarPermisosDeRolAsync(PermisosPos, value?.Valor);
     }
 
     partial void OnRolAutoSeleccionadoChanged(Opcion<int?>? value)
@@ -214,10 +227,12 @@ public partial class UsuariosViewModel : ObservableObject
         LlenarCombo(RolesPrest, roles, "prestcontrol");
         LlenarCombo(RolesDealer, roles, "dealercontrol");
         LlenarCombo(RolesAuto, roles, "autocontrol");
+        LlenarCombo(RolesPos, roles, "pos500");
         // Catálogo de permisos por pantalla de cada modo (013): fijo por sesión
         await LlenarPermisosAsync(PermisosPrest, "prestcontrol");
         await LlenarPermisosAsync(PermisosDealer, "dealercontrol");
         await LlenarPermisosAsync(PermisosAuto, "autocontrol");
+        await LlenarPermisosAsync(PermisosPos, "pos500");
     }
 
     private async Task LlenarPermisosAsync(ObservableCollection<PermisoCheck> destino, string modo)
@@ -252,8 +267,9 @@ public partial class UsuariosViewModel : ObservableObject
         RolPrestSeleccionado = RolesPrest.FirstOrDefault();
         RolDealerSeleccionado = RolesDealer.FirstOrDefault();
         RolAutoSeleccionado = RolesAuto.FirstOrDefault();
+        RolPosSeleccionado = RolesPos.FirstOrDefault();
         // Alta nueva: sin rol elegido, todos los checkboxes desmarcados
-        foreach (var p in PermisosPrest.Concat(PermisosDealer).Concat(PermisosAuto))
+        foreach (var p in PermisosPrest.Concat(PermisosDealer).Concat(PermisosAuto).Concat(PermisosPos))
             p.Marcado = false;
         FormularioVisible = true;
     }
@@ -285,11 +301,13 @@ public partial class UsuariosViewModel : ObservableObject
                 RolPrestSeleccionado = OpcionPara(RolesPrest, roles.RolPrestId);
                 RolDealerSeleccionado = OpcionPara(RolesDealer, roles.RolDealerId);
                 RolAutoSeleccionado = OpcionPara(RolesAuto, roles.RolAutoId);
+                RolPosSeleccionado = OpcionPara(RolesPos, roles.RolPosId);
 
                 // Checkboxes: el set guardado (013) o, si nunca se guardó, los del rol
                 await CargarPermisosGuardadosAsync(PermisosPrest, fila.Id, "prestcontrol", roles.RolPrestId);
                 await CargarPermisosGuardadosAsync(PermisosDealer, fila.Id, "dealercontrol", roles.RolDealerId);
                 await CargarPermisosGuardadosAsync(PermisosAuto, fila.Id, "autocontrol", roles.RolAutoId);
+                await CargarPermisosGuardadosAsync(PermisosPos, fila.Id, "pos500", roles.RolPosId);
             }
             finally
             {
@@ -339,12 +357,15 @@ public partial class UsuariosViewModel : ObservableObject
             permisosPorModo["dealercontrol"] = [.. PermisosDealer.Where(p => p.Marcado).Select(p => p.Id)];
         if (RolAutoSeleccionado?.Valor is not null)
             permisosPorModo["autocontrol"] = [.. PermisosAuto.Where(p => p.Marcado).Select(p => p.Id)];
+        if (RolPosSeleccionado?.Valor is not null)
+            permisosPorModo["pos500"] = [.. PermisosPos.Where(p => p.Marcado).Select(p => p.Id)];
 
         var roles = new RolesUsuario(
             EsAdministrador,
             RolPrestSeleccionado?.Valor,
             RolDealerSeleccionado?.Valor,
             RolAutoSeleccionado?.Valor,
+            RolPosSeleccionado?.Valor,
             permisosPorModo,
             EsProgramador);
 

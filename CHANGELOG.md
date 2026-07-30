@@ -2,6 +2,39 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [1.7.1] — 2026-07-30 · Correcciones tras la primera prueba del POS
+
+### Corregido
+
+- **No se podía vender.** Fallaba con "foreign key constraint fails
+  `fk_factura_usuario`": la base separada del punto de venta conservaba su
+  propia tabla `usuario` vacía, del POS-500 independiente, y la factura apuntaba
+  ahí en vez de a los usuarios de la suite. Se resolvió unificando las bases.
+- **Panel y Reportes no aparecían en el punto de venta** aunque las pantallas
+  estaban: las dos condiciones del sidebar no contemplaban el modo nuevo.
+
+### Cambiado
+
+- **Una sola base de datos.** Las tablas del punto de venta pasan a `facontrol_db`
+  con prefijo `pos_` (024). El motivo lo puso el cliente: **dos respaldos
+  confunden al usuario** — veía dos `.sql` en la carpeta y no sabía cuál era el
+  bueno. Ahora hay un solo archivo y no se puede restaurar media empresa. De paso
+  la factura vuelve a tener una clave foránea real contra el usuario que la emitió.
+- **El Historial distingue por módulo** (025): cada línea guarda en qué estancia
+  se hizo, el historial arranca filtrado por la estancia donde estás parado, y
+  desde el filtro se puede abrir a todos los módulos. Las líneas anteriores a
+  este cambio se muestran con guion: la auditoría no se reescribe.
+- **Detalle del préstamo**: el comprobante fiscal se movió a la derecha y la nota
+  usa todo el ancho, así deja de dominar la pantalla. Sin notas, esa sección ni
+  aparece.
+
+### Agregado
+
+- **Roles y permisos del POS-500 en la pantalla de Usuarios**, con su rol por
+  estancia y sus permisos por pantalla, igual que PrestControl y DealControl.
+- La acción **anular** entró al filtro de acciones del Historial, y las tablas
+  del punto de venta al de entidades.
+
 ## [1.7.0] — 2026-07-30 · POS-500 integrado a la suite
 
 > Decisión con Yuber (2026-07-30): el punto de venta pasa a ser un modo más de

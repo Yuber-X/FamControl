@@ -10,30 +10,24 @@ using FAControl.Services.Pos;
 namespace FAControl.Data.Tests;
 
 /// <summary>
-/// El punto de venta trabajando con las DOS bases a la vez, que es lo nuevo y
-/// lo que puede romperse: los datos del POS van a `pos500_db` y la auditoría a
-/// `facontrol_db`, dentro de la MISMA transacción.
+/// El punto de venta de punta a punta. Desde el 2026-07-30 sus tablas viven en
+/// la MISMA base que el resto de la suite, con prefijo `pos_` (024).
 ///
 /// Lo que se verifica:
 ///  * una venta descuenta stock, numera la factura y deja su línea en el
-///    historial compartido;
+///    historial —que es el mismo del resto de la suite—;
 ///  * anular devuelve el stock y queda como acción 'anular' en ese historial;
-///  * si la venta falla, no queda ni la factura ni la línea de auditoría —
-///    que es justamente lo que se ganó calificando el esquema en vez de
-///    auditar después del commit.
+///  * si la venta falla, no queda ni la factura ni la línea de auditoría.
 ///
-/// Requiere MySQL local (root/root). Recrea sus dos bases en cada corrida.
+/// Requiere MySQL local (root/root). Recrea su base en cada corrida.
 /// </summary>
 [Collection(ColeccionSesionData.Nombre)]   // SesionActual es global
 public class VentaPosTests : IAsyncLifetime
 {
     private const string CadenaServidor = "Server=localhost;Port=3306;Uid=root;Pwd=root;";
-    private const string BdSuite = "facontrol_pos_suite_test";
-    private const string BdPos = "pos500_venta_test";
-    private const string CadenaSuite = CadenaServidor + $"Database={BdSuite};";
-    private const string CadenaPos = CadenaServidor + $"Database={BdPos};";
+    private const string Bd = "facontrol_pos_venta_test";
+    private const string Cadena = CadenaServidor + $"Database={Bd};";
 
-    private ConexionPos500 _conexionPos = null!;
     private VentaService _ventas = null!;
     private FacturaService _facturas = null!;
     private ProductoService _productos = null!;
@@ -42,31 +36,29 @@ public class VentaPosTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        // Base de la suite: usuarios, roles, permisos y auditoría
-        await new VerificadorBaseDatos(CadenaSuite).CrearEsquemaAsync();
-        // Base del punto de venta: productos, facturas, caja
-        _conexionPos = new ConexionPos500(CadenaPos, BdSuite);
-        await new VerificadorPos500(CadenaPos).PrepararAsync();
+        // Una sola base para todo: usuarios y auditoría de la suite, y las
+        // tablas pos_* del punto de venta
+        await new VerificadorBaseDatos(Cadena).CrearEsquemaAsync();
 
-        var suite = new ConexionFactory(CadenaSuite);
+        var suite = new ConexionFactory(Cadena);
         _auditoria = new AuditoriaService(new AuditoriaRepository(suite),
             new SesionRepository(suite), new UsuarioRepository(suite));
 
-        var facturaRepo = new FacturaRepository(_conexionPos);
-        var productoRepo = new ProductoRepository(_conexionPos);
+        var facturaRepo = new FacturaRepository(suite);
+        var productoRepo = new ProductoRepository(suite);
         var config = new ConfiguracionNegocioService(
-            new ConfiguracionNegocioRepository(_conexionPos), _auditoria);
+            new ConfiguracionNegocioRepository(suite), _auditoria);
         await config.CargarAsync();
 
         // Cliente del MOSTRADOR: el del POS, no el de préstamos (mismo nombre de
         // clase en distinto namespace, por eso el calificado)
         _ventas = new VentaService(facturaRepo,
-            new FAControl.Data.Pos.ClienteRepository(_conexionPos), config, _auditoria);
+            new FAControl.Data.Pos.ClienteRepository(suite), config, _auditoria);
         _facturas = new FacturaService(facturaRepo, _auditoria);
         _productos = new ProductoService(productoRepo, _auditoria);
 
-        // Usuario de la SUITE: el cajero es un usuario de FAControl, no del POS
-        await using var conexion = new MySqlConnection(CadenaSuite);
+        // El cajero es un usuario de FAControl, no del punto de venta
+        await using var conexion = new MySqlConnection(Cadena);
         await conexion.OpenAsync();
         await using var cmd = conexion.CreateCommand();
         cmd.CommandText = """
@@ -88,36 +80,33 @@ public class VentaPosTests : IAsyncLifetime
         SesionActual.Cerrar();
         await using var conexion = new MySqlConnection(CadenaServidor);
         await conexion.OpenAsync();
-        foreach (var bd in new[] { BdSuite, BdPos })
-        {
-            await using var cmd = conexion.CreateCommand();
-            cmd.CommandText = $"DROP DATABASE IF EXISTS {bd};";
-            await cmd.ExecuteNonQueryAsync();
-        }
+        await using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"DROP DATABASE IF EXISTS {Bd};";
+        await cmd.ExecuteNonQueryAsync();
     }
 
     private async Task<int> ContarAuditoriaAsync(string accion)
     {
-        await using var conexion = new MySqlConnection(CadenaSuite);
+        await using var conexion = new MySqlConnection(Cadena);
         await conexion.OpenAsync();
         await using var cmd = conexion.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM auditoria WHERE accion = @accion AND entidad = 'factura';";
+        cmd.CommandText = "SELECT COUNT(*) FROM auditoria WHERE accion = @accion AND entidad = 'pos_factura';";
         cmd.Parameters.AddWithValue("@accion", accion);
         return Convert.ToInt32(await cmd.ExecuteScalarAsync());
     }
 
     private async Task<int> StockAsync()
     {
-        await using var conexion = new MySqlConnection(CadenaPos);
+        await using var conexion = new MySqlConnection(Cadena);
         await conexion.OpenAsync();
         await using var cmd = conexion.CreateCommand();
-        cmd.CommandText = "SELECT cantidad FROM producto WHERE id = @id;";
+        cmd.CommandText = "SELECT cantidad FROM pos_producto WHERE id = @id;";
         cmd.Parameters.AddWithValue("@id", _productoId);
         return Convert.ToInt32(await cmd.ExecuteScalarAsync());
     }
 
     [Fact]
-    public async Task UnaVenta_DescuentaStock_YSuHistorialQuedaEnLaBaseDeLaSuite()
+    public async Task UnaVenta_DescuentaStock_YDejaSuLineaEnElHistorial()
     {
         var resultado = await _ventas.RegistrarVentaAsync(new VentaSolicitud(
             [new VentaLinea(_productoId, "Agua 1L", Cantidad: 3, PrecioUnitario: 50m)],
@@ -132,7 +121,7 @@ public class VentaPosTests : IAsyncLifetime
 
         (await StockAsync()).Should().Be(97, "se vendieron 3 de 100");
 
-        // La línea del historial quedó en la base de la SUITE, no en la del POS
+        // El historial es el mismo del resto de la suite
         (await ContarAuditoriaAsync("crear")).Should().Be(1);
     }
 
@@ -169,10 +158,10 @@ public class VentaPosTests : IAsyncLifetime
         (await StockAsync()).Should().Be(100, "no se tocó el inventario");
         (await ContarAuditoriaAsync("crear")).Should().Be(0, "no hay venta que auditar");
 
-        await using var conexion = new MySqlConnection(CadenaPos);
+        await using var conexion = new MySqlConnection(Cadena);
         await conexion.OpenAsync();
         await using var cmd = conexion.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM factura;";
+        cmd.CommandText = "SELECT COUNT(*) FROM pos_factura;";
         Convert.ToInt32(await cmd.ExecuteScalarAsync()).Should().Be(0);
     }
 }

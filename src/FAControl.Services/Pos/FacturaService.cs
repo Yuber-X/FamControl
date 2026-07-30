@@ -1,6 +1,6 @@
 // Portado de POS-500 el 2026-07-30 al integrar el punto de venta a la suite.
-// Cambios respecto del original: usa ConexionPos500 (base pos500_db, aparte de
-// facontrol_db) y el SesionActual / la auditoria compartidos de FAControl.
+// Cambios respecto del original: sus tablas llevan prefijo pos_ dentro de
+// facontrol_db (024), y usa el SesionActual y la auditoria de la suite.
 using FAControl.Common;
 using FAControl.Data.Pos;
 // Solo el enum de la auditoria compartida: importar todo FAControl.Models
@@ -97,13 +97,13 @@ public class FacturaService
 
             await FacturaRepository.DevolverStockAsync(conexion, transaccion, facturaId, ct);
 
-            // Igual que en la venta: el historial vive en la base de la suite y
-            // entra en esta transacción (ver AuditoriaRepository.InsertarAsync).
-            await _auditoria.RegistrarEnTransaccionDeOtraBaseAsync(
+            // Igual que en la venta: la anulación y su línea en el historial
+            // entran en la misma transacción.
+            await _auditoria.RegistrarEnTransaccionAsync(
                 AccionAuditoria.Anular, DbNamesPos.Factura, facturaId,
                 $"Factura {factura.Resumen.NumeroFactura} ANULADA (total {factura.Totales.Total:0.00}). " +
                 $"Motivo: {motivo.Trim()}. Stock devuelto: {factura.Lineas.Count} producto(s).",
-                conexion, transaccion, _facturas.EsquemaSuite, ct);
+                conexion, transaccion, ct);
 
             await transaccion.CommitAsync(ct);
         }

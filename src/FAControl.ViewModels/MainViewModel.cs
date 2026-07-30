@@ -224,7 +224,8 @@ public partial class MainViewModel : ObservableObject
     //   Historial / Usuarios / Configuración son transversales a los modos.
     // ------------------------------------------------------------------
     /// <summary>PrestControl: panel de cartera. DealControl: panel del dealer (2026-07-25) — el Vendedor no lo ve.</summary>
-    public bool PuedeVerPanel => (EsPrestControl || EsDealerControl) && SesionActual.TienePermiso(Permisos.Panel);
+    public bool PuedeVerPanel => (EsPrestControl || EsDealerControl || EsPos500)
+                                 && SesionActual.TienePermiso(Permisos.Panel);
     /// <summary>
     /// Clientes existe en los TRES modos, pero cada estancia ve solo LOS SUYOS
     /// (aislamiento por ámbito, 2026-07-18). Así Dealer/Auto registran sus
@@ -246,7 +247,7 @@ public partial class MainViewModel : ObservableObject
         ? SesionActual.TienePermiso(Permisos.Ventas)
         : EsCredito && SesionActual.TienePermiso(Permisos.Prestamos);
     /// <summary>Reportes: cada estancia tiene los suyos, nunca datos cruzados.</summary>
-    public bool PuedeVerReportes => (EsCredito || EsDealerControl)
+    public bool PuedeVerReportes => (EsCredito || EsDealerControl || EsPos500)
         && SesionActual.TienePermiso(Permisos.Reportes);
     /// <summary>Inventario, ventas, alquileres y gastos: exclusivos de DealControl, con permisos FINOS (roles por modo).</summary>
     public bool PuedeVerVehiculos => EsDealerControl && SesionActual.TienePermiso(Permisos.Inventario);
@@ -278,6 +279,8 @@ public partial class MainViewModel : ObservableObject
         _configuracionVm.SincronizarTema();
         // Y la casilla de arranque directo, la estancia que quedó fijada.
         _configuracionVm.SincronizarArranque();
+        // Y el historial arranca acotado a esta estancia (025).
+        _historialVm.SincronizarModo();
         OnPropertyChanged(nameof(Modo));
         OnPropertyChanged(nameof(EsPrestControl));
         OnPropertyChanged(nameof(EsDealerControl));

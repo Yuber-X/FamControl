@@ -28,6 +28,15 @@ public record AuditoriaFila(Auditoria Entrada)
         AccionAuditoria.Logout => "Cierre de sesión",
         _ => Entrada.Accion.ToString()
     };
+    /// <summary>
+    /// Estancia donde se hizo (025). Las lineas anteriores a esa migracion no la
+    /// tienen: se muestran con guion en vez de inventarles una.
+    /// </summary>
+    public string ModoTexto => Entrada.Modo is { } clave
+        && IdentidadModo.Todos.FirstOrDefault(m => m.Modo.ClaveDb() == clave) is { } identidad
+            ? identidad.Nombre
+            : "—";
+
     public string EntidadTexto => Entrada.Entidad;
     public string EntidadIdTexto => Entrada.EntidadId?.ToString() ?? "—";
     public string DescripcionTexto => Entrada.Descripcion ?? "—";
@@ -72,7 +81,19 @@ public partial class HistorialViewModel : ObservableObject
             new Opcion<string?>(DbNames.Prestamo, "Préstamos"),
             new Opcion<string?>(DbNames.Cuota, "Cuotas"),
             new Opcion<string?>(DbNames.Pago, "Pagos"),
-            new Opcion<string?>(DbNames.Usuario, "Usuario")
+            new Opcion<string?>(DbNames.Usuario, "Usuario"),
+            // Punto de venta (024): sus tablas van con prefijo pos_
+            new Opcion<string?>(DbNamesPos.Producto, "Productos (POS)"),
+            new Opcion<string?>(DbNamesPos.Factura, "Facturas (POS)"),
+            new Opcion<string?>(DbNamesPos.CuadreCaja, "Cuadre de caja (POS)")
+        ];
+        // Estancias (025). El historial arranca acotado a la estancia activa
+        // —que es lo que el usuario está mirando— y desde acá se puede abrir
+        // a todas cuando hace falta ver el conjunto.
+        Modos =
+        [
+            new Opcion<string?>(null, "Todos los modos"),
+            .. IdentidadModo.Todos.Select(m => new Opcion<string?>(m.Modo.ClaveDb(), m.Nombre))
         ];
         Acciones =
         [
@@ -81,12 +102,25 @@ public partial class HistorialViewModel : ObservableObject
             new Opcion<AccionAuditoria?>(AccionAuditoria.Modificar, "Modificar"),
             new Opcion<AccionAuditoria?>(AccionAuditoria.Eliminar, "Eliminar"),
             new Opcion<AccionAuditoria?>(AccionAuditoria.Login, "Inicio de sesión"),
-            new Opcion<AccionAuditoria?>(AccionAuditoria.Logout, "Cierre de sesión")
+            new Opcion<AccionAuditoria?>(AccionAuditoria.Logout, "Cierre de sesión"),
+            new Opcion<AccionAuditoria?>(AccionAuditoria.Anular, "Anular")
         ];
         _entidadSeleccionada = Entidades[0];
+        _modoSeleccionado = Modos[0];
         _accionSeleccionada = Acciones[0];
         _usuarioSeleccionado = new Opcion<long?>(null, "Todos los usuarios");
         Usuarios.Add(_usuarioSeleccionado);
+    }
+
+    /// <summary>
+    /// Acota el historial a la estancia activa. Lo llama el shell al entrar al
+    /// modo: lo primero que el usuario ve es lo que pasó DONDE está parado, y si
+    /// quiere el conjunto lo abre desde el filtro.
+    /// </summary>
+    public void SincronizarModo()
+    {
+        var clave = SesionActual.Modo.ClaveDb();
+        ModoSeleccionado = Modos.FirstOrDefault(m => m.Valor == clave) ?? Modos[0];
     }
 
     public ObservableCollection<AuditoriaFila> Filas { get; } = [];
@@ -95,18 +129,21 @@ public partial class HistorialViewModel : ObservableObject
     public ObservableCollection<Opcion<long?>> Usuarios { get; } = [];
     public IReadOnlyList<Opcion<string?>> Entidades { get; }
     public IReadOnlyList<Opcion<AccionAuditoria?>> Acciones { get; }
+    public IReadOnlyList<Opcion<string?>> Modos { get; }
 
     [ObservableProperty] private DateTime? _desde;
     [ObservableProperty] private DateTime? _hasta;
     [ObservableProperty] private Opcion<string?> _entidadSeleccionada;
     [ObservableProperty] private Opcion<AccionAuditoria?> _accionSeleccionada;
     [ObservableProperty] private Opcion<long?> _usuarioSeleccionado;
+    [ObservableProperty] private Opcion<string?> _modoSeleccionado;
     [ObservableProperty] private string _contadorTexto = string.Empty;
     [ObservableProperty] private string _actividadTexto = string.Empty;
 
     partial void OnEntidadSeleccionadaChanged(Opcion<string?> value) => _ = BuscarAsync();
     partial void OnAccionSeleccionadaChanged(Opcion<AccionAuditoria?> value) => _ = BuscarAsync();
     partial void OnUsuarioSeleccionadoChanged(Opcion<long?> value) => _ = BuscarAsync();
+    partial void OnModoSeleccionadoChanged(Opcion<string?> value) => _ = BuscarAsync();
     partial void OnDesdeChanged(DateTime? value) => _ = BuscarAsync();
     partial void OnHastaChanged(DateTime? value) => _ = BuscarAsync();
 
@@ -143,7 +180,8 @@ public partial class HistorialViewModel : ObservableObject
             var hasta = Hasta is { } h ? DateOnly.FromDateTime(h) : (DateOnly?)null;
 
             var filtro = new FiltroAuditoria(desde, hasta,
-                EntidadSeleccionada.Valor, AccionSeleccionada.Valor, UsuarioSeleccionado.Valor);
+                EntidadSeleccionada.Valor, AccionSeleccionada.Valor, UsuarioSeleccionado.Valor,
+                ModoSeleccionado.Valor);
 
             var entradas = await _auditoria.BuscarAsync(filtro);
             Filas.Clear();
@@ -195,6 +233,7 @@ public partial class HistorialViewModel : ObservableObject
         Desde = null;
         Hasta = null;
         EntidadSeleccionada = Entidades[0];
+        SincronizarModo();
         AccionSeleccionada = Acciones[0];
         UsuarioSeleccionado = Usuarios[0];
     }

@@ -152,6 +152,26 @@
                  El ViewModel SÍ sigue cargando y guardando lo que había: quitarlo
                  de ahí le borraría el rol de autocontrol a los usuarios viejos la
                  primera vez que alguien los editara. -->
+
+            <!-- Punto de venta (024) -->
+            <TextBlock Text="POS-500 (punto de venta)" Style="{DynamicResource Input.Label}" Margin="0,8,0,0" />
+            <ComboBox Height="38" FontSize="13" ItemsSource="{Binding RolesPos}"
+                      SelectedItem="{Binding RolPosSeleccionado}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Texto}" /></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+            <ItemsControl ItemsSource="{Binding PermisosPos}" Margin="8,6,0,0"
+                          IsEnabled="{Binding PermisosPosHabilitados}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <CheckBox Content="{Binding Nombre}" ToolTip="{Binding Descripcion}"
+                            FontSize="12" Margin="0,2,14,2"
+                            IsChecked="{Binding Marcado, Mode=TwoWay}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </StackPanel>
 
           <TextBlock Text="Contraseña" Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />

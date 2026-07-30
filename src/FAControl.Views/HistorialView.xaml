@@ -29,6 +29,13 @@
                     ItemsSource="{Binding Usuarios}"
                     SelectedItem="{Binding UsuarioSeleccionado}" />
         </StackPanel>
+        <!-- Estancia (025): arranca en la del modo activo -->
+        <StackPanel Margin="0,0,12,6">
+          <TextBlock Text="Módulo" Style="{DynamicResource Input.Label}" />
+          <ComboBox Width="150" Height="40" FontSize="13"
+                    ItemsSource="{Binding Modos}"
+                    SelectedItem="{Binding ModoSeleccionado}" />
+        </StackPanel>
         <StackPanel Margin="0,0,12,6">
           <TextBlock Text="Entidad" Style="{DynamicResource Input.Label}" />
           <ComboBox Width="170" Height="40" FontSize="13"
@@ -67,6 +74,9 @@
                                 HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
             <DataGridTextColumn Header="Acción" Binding="{Binding AccionTexto}"
                                 Width="130" MinWidth="130"
+                                HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+            <DataGridTextColumn Header="Módulo" Binding="{Binding ModoTexto}"
+                                Width="110" MinWidth="110"
                                 HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
             <DataGridTextColumn Header="Entidad" Binding="{Binding EntidadTexto}"
                                 Width="100" MinWidth="100"

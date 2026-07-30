@@ -20,30 +20,18 @@ public class AuditoriaRepository
     /// <summary>
     /// Variante para participar en una transacción existente (venta de préstamo,
     /// registro de pago, etc. — la auditoría entra en la MISMA transacción atómica).
-    ///
-    /// <paramref name="esquema"/> es para el punto de venta: su conexión apunta a
-    /// `pos500_db`, donde NO existe la tabla auditoria (es compartida y vive en
-    /// facontrol_db). Calificando el nombre, el INSERT va a la base correcta y
-    /// —esto es lo importante— sigue dentro de la MISMA transacción, porque la
-    /// transacción es de la conexión, no de la base. Así una venta y su registro
-    /// en el historial se guardan o se pierden juntos.
     /// </summary>
     public async Task InsertarAsync(Auditoria entrada, MySqlConnection conexion,
-        MySqlTransaction? transaccion, CancellationToken ct = default, string? esquema = null)
+        MySqlTransaction? transaccion, CancellationToken ct = default)
     {
-        // El esquema NO se puede parametrizar (es parte del nombre del objeto).
-        // Viene de la cadena de conexión local y se valida antes de usarlo.
-        var tabla = string.IsNullOrWhiteSpace(esquema)
-            ? DbNames.Auditoria
-            : $"`{Validar(esquema)}`.{DbNames.Auditoria}";
-
         using var cmd = conexion.CreateCommand();
         cmd.Transaction = transaccion;
         cmd.CommandText = $"""
-            INSERT INTO {tabla} (usuario_id, entidad, entidad_id, accion, descripcion, ip_local, timestamp)
-            VALUES (@usuarioId, @entidad, @entidadId, @accion, @descripcion, @ipLocal, @timestamp);
+            INSERT INTO {DbNames.Auditoria} (usuario_id, modo, entidad, entidad_id, accion, descripcion, ip_local, timestamp)
+            VALUES (@usuarioId, @modo, @entidad, @entidadId, @accion, @descripcion, @ipLocal, @timestamp);
             """;
         cmd.Parameters.AddWithValue("@usuarioId", entrada.UsuarioId);
+        cmd.Parameters.AddWithValue("@modo", (object?)entrada.Modo ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@entidad", entrada.Entidad);
         cmd.Parameters.AddWithValue("@entidadId", (object?)entrada.EntidadId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@accion", AccionADb(entrada.Accion));
@@ -63,7 +51,7 @@ public class AuditoriaRepository
         // historial, que es justo lo que la auditoría existe para impedir.
         cmd.CommandText = $"""
             SELECT a.id, a.usuario_id, COALESCE(u.nombre, '(usuario eliminado)') AS usuario_nombre,
-                   a.entidad, a.entidad_id, a.accion, a.descripcion, a.ip_local, a.timestamp
+                   a.modo, a.entidad, a.entidad_id, a.accion, a.descripcion, a.ip_local, a.timestamp
             FROM {DbNames.Auditoria} a
             LEFT JOIN {DbNames.Usuario} u ON u.id = a.usuario_id
             WHERE (@desde IS NULL OR a.timestamp >= @desde)
@@ -71,6 +59,7 @@ public class AuditoriaRepository
               AND (@entidad IS NULL OR a.entidad = @entidad)
               AND (@accion IS NULL OR a.accion = @accion)
               AND (@usuarioId IS NULL OR a.usuario_id = @usuarioId)
+              AND (@modo IS NULL OR a.modo = @modo)
             ORDER BY a.id DESC
             LIMIT @limite;
             """;
@@ -80,6 +69,7 @@ public class AuditoriaRepository
         cmd.Parameters.AddWithValue("@entidad", (object?)filtro.Entidad ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@accion", filtro.Accion is null ? DBNull.Value : AccionADb(filtro.Accion.Value));
         cmd.Parameters.AddWithValue("@usuarioId", (object?)filtro.UsuarioId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@modo", (object?)filtro.Modo ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@limite", filtro.Limite);
 
         var entradas = new List<Auditoria>();
@@ -91,6 +81,7 @@ public class AuditoriaRepository
                 Id = reader.GetInt64("id"),
                 UsuarioId = reader.GetInt64("usuario_id"),
                 UsuarioNombre = reader.GetString("usuario_nombre"),
+                Modo = reader.IsDBNull(reader.GetOrdinal("modo")) ? null : reader.GetString("modo"),
                 Entidad = reader.GetString("entidad"),
                 EntidadId = reader.IsDBNull(reader.GetOrdinal("entidad_id")) ? null : reader.GetInt64("entidad_id"),
                 Accion = AccionDeDb(reader.GetString("accion")),
@@ -105,12 +96,6 @@ public class AuditoriaRepository
     /// <summary>Fecha de negocio RD (UTC-4) → instante UTC del inicio de ese día.</summary>
     private static DateTime? ADateTimeUtc(DateOnly? fecha) =>
         fecha?.ToDateTime(TimeOnly.MinValue).AddHours(4);
-
-    /// <summary>Nombre de esquema seguro para interpolar (no se puede parametrizar).</summary>
-    private static string Validar(string esquema) =>
-        System.Text.RegularExpressions.Regex.IsMatch(esquema, @"^[0-9A-Za-z$_]+$")
-            ? esquema
-            : throw new ArgumentException($"Nombre de base de datos no válido: '{esquema}'.", nameof(esquema));
 
     private static AccionAuditoria AccionDeDb(string valor) => valor switch
     {

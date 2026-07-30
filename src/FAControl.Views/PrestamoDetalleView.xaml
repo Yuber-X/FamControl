@@ -102,44 +102,62 @@
       </Border>
     </UniformGrid>
 
-    <!-- Datos del contrato -->
+    <!-- Datos del contrato.
+         Dos columnas (pedido de Yuber 2026-07-30, con captura): a la izquierda
+         los datos y la NOTA, que necesita ancho para no volverse una columna
+         angosta y larguísima; a la derecha, fijo, el comprobante fiscal. Antes
+         el NCF iba dentro del mismo WrapPanel y le comía el espacio a la nota. -->
     <Border Grid.Row="2" Style="{DynamicResource Card}" Margin="0,0,0,12" Padding="20,14">
-      <WrapPanel>
-        <StackPanel Margin="0,0,32,0">
-          <TextBlock Text="TASA" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding TasaTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0">
+          <WrapPanel>
+            <StackPanel Margin="0,0,32,0">
+              <TextBlock Text="TASA" Style="{DynamicResource Texto.MicroLabel}" />
+              <TextBlock Text="{Binding TasaTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,32,0">
+              <TextBlock Text="MODALIDAD" Style="{DynamicResource Texto.MicroLabel}" />
+              <TextBlock Text="{Binding ModalidadTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,32,0">
+              <TextBlock Text="MÉTODO" Style="{DynamicResource Texto.MicroLabel}" />
+              <TextBlock Text="{Binding MetodoTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,32,0">
+              <TextBlock Text="PRIMER PAGO" Style="{DynamicResource Texto.MicroLabel}" />
+              <TextBlock Text="{Binding FechaInicioTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,32,0">
+              <TextBlock Text="PROGRESO" Style="{DynamicResource Texto.MicroLabel}" />
+              <TextBlock Text="{Binding ProgresoTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+            </StackPanel>
+            <StackPanel>
+              <TextBlock Text="GARANTÍA" Style="{DynamicResource Texto.MicroLabel}" />
+              <TextBlock Text="{Binding GarantiaTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+            </StackPanel>
+          </WrapPanel>
+
+          <!-- La nota usa todo el ancho de la columna: así ocupa pocas líneas
+               en vez de una tira angosta -->
+          <StackPanel Margin="0,12,24,0"
+                      Visibility="{Binding TieneNotas, Converter={StaticResource BoolAVisibilidad}}">
+            <TextBlock Text="NOTAS" Style="{DynamicResource Texto.MicroLabel}" />
+            <TextBlock Text="{Binding NotasTexto}" Style="{DynamicResource Texto.Cuerpo}"
+                       TextWrapping="Wrap" />
+          </StackPanel>
         </StackPanel>
-        <StackPanel Margin="0,0,32,0">
-          <TextBlock Text="MODALIDAD" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding ModalidadTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
-        </StackPanel>
-        <StackPanel Margin="0,0,32,0">
-          <TextBlock Text="MÉTODO" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding MetodoTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
-        </StackPanel>
-        <StackPanel Margin="0,0,32,0">
-          <TextBlock Text="PRIMER PAGO" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding FechaInicioTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
-        </StackPanel>
-        <StackPanel Margin="0,0,32,0">
-          <TextBlock Text="PROGRESO" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding ProgresoTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
-        </StackPanel>
-        <StackPanel Margin="0,0,32,0">
-          <TextBlock Text="GARANTÍA" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding GarantiaTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}" />
-        </StackPanel>
-        <StackPanel>
-          <TextBlock Text="NOTAS" Style="{DynamicResource Texto.MicroLabel}" />
-          <TextBlock Text="{Binding NotasTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}"
-                     TextWrapping="Wrap" MaxWidth="360" />
-        </StackPanel>
-        <!-- Comprobante fiscal (pedido 2026-07-25) -->
-        <StackPanel Margin="32,0,0,0">
+
+        <!-- Comprobante fiscal (2026-07-25), a la derecha desde el 2026-07-30 -->
+        <StackPanel Grid.Column="1" MinWidth="240" VerticalAlignment="Top">
           <TextBlock Text="COMPROBANTE FISCAL (NCF)" Style="{DynamicResource Texto.MicroLabel}" />
           <TextBlock Text="{Binding NcfTexto}" Style="{DynamicResource Texto.CuerpoEnfatizado}"
                      Visibility="{Binding TieneNcf, Converter={StaticResource BoolAVisibilidad}}" />
-          <StackPanel Orientation="Horizontal">
+          <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
             <StackPanel.Style>
               <Style TargetType="StackPanel">
                 <Setter Property="Visibility" Value="Visible" />
@@ -150,14 +168,14 @@
                 </Style.Triggers>
               </Style>
             </StackPanel.Style>
-            <TextBox Width="170" Height="30" Style="{DynamicResource Input.Texto}"
+            <TextBox Width="160" Height="30" Style="{DynamicResource Input.Texto}"
                      ToolTip="Pegá el e-NCF del Facturador Gratuito DGII, o dejalo vacío para tomar el siguiente de la secuencia"
                      Text="{Binding NcfManual, UpdateSourceTrigger=PropertyChanged}" />
             <Button Content="Asignar" Style="{DynamicResource Boton.Terciario}" Margin="6,0,0,0"
                     Command="{Binding AsignarNcfCommand}" />
           </StackPanel>
         </StackPanel>
-      </WrapPanel>
+      </Grid>
     </Border>
 
     <!-- Tabla de cuotas -->

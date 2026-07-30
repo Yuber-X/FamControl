@@ -37,6 +37,8 @@ public record FiltroAuditoria(
     AccionAuditoria? Accion,
     /// <summary>null = todos los usuarios.</summary>
     long? UsuarioId = null,
+    /// <summary>Clave de BD de la estancia ('prestcontrol'...). Null = todas (025).</summary>
+    string? Modo = null,
     int Limite = 300);
 
 /// <summary>

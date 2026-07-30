@@ -1,6 +1,6 @@
 // Portado de POS-500 el 2026-07-30 al integrar el punto de venta a la suite.
-// Cambios respecto del original: usa ConexionPos500 (base pos500_db, aparte de
-// facontrol_db) y el SesionActual / la auditoria compartidos de FAControl.
+// Cambios respecto del original: sus tablas llevan prefijo pos_ dentro de
+// facontrol_db (024), y usa el SesionActual y la auditoria de la suite.
 using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models.Pos;
@@ -16,9 +16,9 @@ namespace FAControl.Data.Pos;
 /// </summary>
 public class AnaliticaRepository
 {
-    private readonly ConexionPos500 _factory;
+    private readonly ConexionFactory _factory;
 
-    public AnaliticaRepository(ConexionPos500 factory) => _factory = factory;
+    public AnaliticaRepository(ConexionFactory factory) => _factory = factory;
 
     /// <summary>Expresión del día de negocio de una factura.</summary>
     private const string DiaNegocio = "DATE(DATE_SUB(f.fecha_emision, INTERVAL 4 HOUR))";
@@ -169,7 +169,7 @@ public class AnaliticaRepository
                    COUNT(*) AS facturas,
                    COALESCE(SUM(f.total), 0.00) AS total
             FROM {DbNamesPos.Factura} f
-            JOIN {_factory.EsquemaSuite}.usuario u ON u.id = f.usuario_id
+            JOIN usuario u ON u.id = f.usuario_id
             WHERE f.estado = 'emitida'
               AND {DiaNegocio} BETWEEN @desde AND @hasta
             GROUP BY f.usuario_id, nombre

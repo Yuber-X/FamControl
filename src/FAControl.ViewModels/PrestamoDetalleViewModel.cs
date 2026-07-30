@@ -61,6 +61,7 @@ public partial class PrestamoDetalleViewModel : ObservableObject
     // Comprobante fiscal (pedido 2026-07-25)
     [ObservableProperty] private string _ncfTexto = "—";
     [ObservableProperty] private bool _tieneNcf;
+    [ObservableProperty] private bool _tieneNotas;
     [ObservableProperty] private string _ncfManual = string.Empty;
 
     public async Task CargarAsync(long prestamoId)
@@ -86,7 +87,10 @@ public partial class PrestamoDetalleViewModel : ObservableObject
             MetodoTexto = Textos.De(prestamo.MetodoAmortizacion);
             FechaInicioTexto = prestamo.FechaInicio.ToString(Textos.FormatoFecha, Textos.CulturaRd);
             GarantiaTexto = string.IsNullOrWhiteSpace(prestamo.Garantia) ? "—" : prestamo.Garantia;
-            NotasTexto = string.IsNullOrWhiteSpace(prestamo.Notas) ? "—" : prestamo.Notas;
+            // Sin notas la sección entera se oculta: no vale la pena gastar
+            // alto de pantalla en un guion.
+            TieneNotas = !string.IsNullOrWhiteSpace(prestamo.Notas);
+            NotasTexto = prestamo.Notas ?? string.Empty;
             TieneNcf = !string.IsNullOrWhiteSpace(prestamo.Ncf);
             NcfTexto = TieneNcf ? prestamo.Ncf! : "—";
             NcfManual = string.Empty;

@@ -182,7 +182,7 @@ public class UsuarioRepository
     public async Task<RolesUsuario> ObtenerRolesDeUsuarioAsync(long usuarioId, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
-        int? prest = null, dealer = null, auto = null;
+        int? prest = null, dealer = null, auto = null, pos = null;
         using (var cmd = conexion.CreateCommand())
         {
             cmd.CommandText = $"SELECT modo, rol_id FROM {DbNames.UsuarioModoRol} WHERE usuario_id = @id;";
@@ -196,6 +196,7 @@ public class UsuarioRepository
                     case "prestcontrol": prest = rolId; break;
                     case "dealercontrol": dealer = rolId; break;
                     case "autocontrol": auto = rolId; break;
+                    case "pos500": pos = rolId; break;
                 }
             }
         }
@@ -210,7 +211,7 @@ public class UsuarioRepository
             cmd.Parameters.AddWithValue("@id", usuarioId);
             rolGlobal = (await cmd.ExecuteScalarAsync(ct)) as string ?? string.Empty;
         }
-        return new RolesUsuario(rolGlobal == Roles.Admin, prest, dealer, auto,
+        return new RolesUsuario(rolGlobal == Roles.Admin, prest, dealer, auto, pos,
             EsProgramador: rolGlobal == Roles.Programador);
     }
 
@@ -306,7 +307,8 @@ public class UsuarioRepository
             if (!esGlobal)
             {
                 foreach (var (modo, rolId) in new[]
-                    { ("prestcontrol", roles.RolPrestId), ("dealercontrol", roles.RolDealerId), ("autocontrol", roles.RolAutoId) })
+                    { ("prestcontrol", roles.RolPrestId), ("dealercontrol", roles.RolDealerId),
+                      ("autocontrol", roles.RolAutoId), ("pos500", roles.RolPosId) })
                 {
                     if (rolId is not { } rid) continue;
                     using var cmd = conexion.CreateCommand();
@@ -333,7 +335,8 @@ public class UsuarioRepository
             if (!esGlobal)
             {
                 foreach (var (modo, rolId) in new[]
-                    { ("prestcontrol", roles.RolPrestId), ("dealercontrol", roles.RolDealerId), ("autocontrol", roles.RolAutoId) })
+                    { ("prestcontrol", roles.RolPrestId), ("dealercontrol", roles.RolDealerId),
+                      ("autocontrol", roles.RolAutoId), ("pos500", roles.RolPosId) })
                 {
                     if (rolId is not { } rid) continue;
 

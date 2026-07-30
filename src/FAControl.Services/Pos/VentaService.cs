@@ -1,6 +1,6 @@
 // Portado de POS-500 el 2026-07-30 al integrar el punto de venta a la suite.
-// Cambios respecto del original: usa ConexionPos500 (base pos500_db, aparte de
-// facontrol_db) y el SesionActual / la auditoria compartidos de FAControl.
+// Cambios respecto del original: sus tablas llevan prefijo pos_ dentro de
+// facontrol_db (024), y usa el SesionActual y la auditoria de la suite.
 using MySqlConnector;
 using FAControl.Common;
 using FAControl.Data.Pos;
@@ -129,13 +129,12 @@ public class VentaService
             foreach (var linea in solicitud.Lineas)
                 await FacturaRepository.InsertarDetalleAsync(conexion, transaccion, facturaId, linea, ct);
 
-            // La auditoría es la de la SUITE (facontrol_db) aunque estemos en la
-            // conexión del POS: se califica el esquema para que entre en esta misma
-            // transacción. Venta y registro en el historial se guardan juntos.
-            await _auditoria.RegistrarEnTransaccionDeOtraBaseAsync(
+            // La auditoría entra en la MISMA transacción de la venta: si algo
+            // falla, no queda ni la factura ni su línea en el historial.
+            await _auditoria.RegistrarEnTransaccionAsync(
                 AccionAuditoria.Crear, DbNamesPos.Factura, facturaId,
                 $"Factura {numeroFactura} emitida: {solicitud.Lineas.Count} líneas, total {totales.Total:0.00}",
-                conexion, transaccion, _facturas.EsquemaSuite, ct);
+                conexion, transaccion, ct);
 
             await transaccion.CommitAsync(ct);
 

@@ -1,24 +1,23 @@
 namespace FAControl.Common;
 
 /// <summary>
-/// Nombres de tablas de la base del PUNTO DE VENTA (`pos500_db`), que es una
-/// base distinta a la de la suite.
+/// Tablas del PUNTO DE VENTA. Viven en `facontrol_db`, junto al resto de la
+/// suite, con prefijo `pos_` (024).
 ///
-/// Va aparte de <see cref="DbNames"/> a propósito, aunque algunos nombres se
-/// repitan: `cliente` acá es el cliente del mostrador y no tiene nada que ver
-/// con el de préstamos. Tenerlos separados evita que alguien escriba una consulta
-/// del POS contra la base equivocada sin darse cuenta.
+/// El prefijo no es decoración: varias se llamaban igual que las de la suite
+/// —`cliente` sobre todo— y el cliente del mostrador es otra cosa que el de
+/// préstamos (cédula opcional, sin apellido, sin ámbito). Tenerlas separadas y
+/// marcadas evita que alguien escriba una consulta contra la tabla equivocada.
 ///
-/// Lo que NO está acá —usuario, rol, permiso, sesion, auditoria— vive en
-/// facontrol_db y se referencia con <see cref="DbNames"/>: es compartido por
-/// todos los modos de la suite.
+/// Los usuarios, roles, permisos, sesiones y la auditoría son los de
+/// <see cref="DbNames"/>: compartidos por todos los modos.
 /// </summary>
 public static class DbNamesPos
 {
-    public const string Cliente = "cliente";
-    public const string Producto = "producto";
-    public const string Factura = "factura";
-    public const string Detalle = "detalle";
-    public const string CuadreCaja = "cuadre_caja";
-    public const string ConfiguracionNegocio = "configuracion_negocio";
+    public const string Cliente = "pos_cliente";
+    public const string Producto = "pos_producto";
+    public const string Factura = "pos_factura";
+    public const string Detalle = "pos_detalle";
+    public const string CuadreCaja = "pos_cuadre_caja";
+    public const string ConfiguracionNegocio = "pos_configuracion";
 }

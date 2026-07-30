@@ -35,6 +35,8 @@ public class Rol
 /// RolPrestId/RolDealerId/RolAutoId = rol elegido en cada modo (null = sin acceso).
 /// </summary>
 public record RolesUsuario(bool EsAdmin, int? RolPrestId, int? RolDealerId, int? RolAutoId,
+    /// <summary>Rol del punto de venta (024). Null = sin acceso al POS.</summary>
+    int? RolPosId = null,
     /// <summary>
     /// Permisos por pantalla MARCADOS por modo (013): clave = modo en texto de BD
     /// ('prestcontrol'...), valor = ids de permiso. Null = usar los del rol.
@@ -158,6 +160,8 @@ public class Auditoria
     /// Multiusuario: el Historial debe decir QUIÉN, no solo qué.
     /// </summary>
     public string UsuarioNombre { get; set; } = string.Empty;
+    /// <summary>Estancia donde se hizo (025). Null = linea anterior a esa migracion.</summary>
+    public string? Modo { get; set; }
     public string Entidad { get; set; } = string.Empty;
     public long? EntidadId { get; set; }
     public AccionAuditoria Accion { get; set; }

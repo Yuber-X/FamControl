@@ -1,40 +1,38 @@
 -- =============================================================
--- FAControl — Esquema del punto de venta (POS-500)
--- Script: pos500_001_create_schema.sql
--- Base:   pos500_db  ·  InnoDB · utf8mb4_unicode_ci
+-- FAControl — El punto de venta pasa a la base de la suite
+-- Script: 024_pos500_en_facontrol_db.sql
 --
--- POR QUÉ UNA BASE APARTE (decisión con Yuber, 2026-07-30): el POS-500 se vende
--- por separado de FAControl. Con sus datos en su propia base, el día que un
--- cliente compre solo el punto de venta se le lleva `pos500_db` y listo, sin
--- tener que desenredar tablas de préstamos y vehículos.
+-- CAMBIO DE CRITERIO (Yuber, 2026-07-30, después de probarlo): el POS-500
+-- guardaba sus datos en `pos500_db`, aparte. Se unifica todo en `facontrol_db`
+-- porque **dos respaldos confunden al usuario**: el cliente veía dos .sql en la
+-- carpeta y no sabía cuál era "el bueno". Con una sola base hay un solo archivo
+-- y no hay forma de restaurar la mitad del negocio.
 --
--- QUÉ **NO** ESTÁ ACÁ, a propósito:
---   usuario · rol · permiso · rol_permiso · usuario_permiso · sesion · auditoria
--- Todo eso vive en `facontrol_db` y es COMPARTIDO por los tres modos de la
--- suite, que es la regla que el cliente repitió: "lo único que podrán compartir
--- son los usuarios + roles (por respectivos modos) + permisos otorgados".
+-- DE PASO ARREGLA UN ERROR REAL: al vender fallaba con
+--   "Cannot add or update a child row: fk_factura_usuario ... REFERENCES usuario"
+-- porque `pos500_db` conservaba su tabla `usuario` vacía (era del POS-500
+-- independiente) y la factura apuntaba ahí, no a los usuarios de la suite. Con
+-- todo en la misma base, la clave foránea vuelve a ser real y correcta.
 --
--- CONSECUENCIA TÉCNICA: MySQL no admite claves foráneas entre bases distintas,
--- así que `usuario_id` queda como columna simple (sin FK). La integridad la
--- garantiza la aplicación, que es la única que escribe acá. Está anotado en cada
--- tabla donde pasa.
+-- PREFIJO `pos_`: las tablas del punto de venta conviven con las de préstamos y
+-- dealer, y varias se llamaban igual (`cliente`). El prefijo las agrupa de un
+-- vistazo y evita tocar las reglas del `cliente` de la suite, que tiene ámbito,
+-- cédula obligatoria y apellido.
 --
--- Este script lo ejecuta sola la aplicación en el primer arranque del modo
--- POS-500 (viaja embebido en FAControl.Data). No hace falta correrlo a mano.
+-- EL CLIENTE DEL MOSTRADOR ES OTRA COSA: en retail casi nadie se registra, por
+-- eso `pos_cliente` admite cédula nula y no pide apellido. No se mezcla con el
+-- cliente de préstamos ni con el del dealer.
+--
+-- MIGRACION para bases existentes; las nuevas reciben lo mismo desde 001.
+-- Idempotente.
 -- =============================================================
 SET NAMES utf8mb4;
-
-CREATE DATABASE IF NOT EXISTS pos500_db
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE pos500_db;
+USE facontrol_db;
 
 -- -------------------------------------------------------------
--- cliente: opcional en la venta (regla Yuber 2026-07-11).
--- Es el cliente DEL MOSTRADOR y no tiene nada que ver con el cliente de
--- préstamos ni con el del dealer: en retail casi nadie se registra, y la cédula
--- es opcional.
+-- pos_cliente: cliente del mostrador. Cédula OPCIONAL, sin apellido.
 -- -------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS cliente (
+CREATE TABLE IF NOT EXISTS pos_cliente (
   id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   cedula     VARCHAR(20)  NULL,
   nombre     VARCHAR(150) NOT NULL,
@@ -45,13 +43,13 @@ CREATE TABLE IF NOT EXISTS cliente (
   updated_at DATETIME     NULL,
   deleted_at DATETIME     NULL,                  -- soft delete
   PRIMARY KEY (id),
-  UNIQUE KEY uq_cliente_cedula (cedula)          -- múltiples NULL permitidos
+  UNIQUE KEY uq_pos_cliente_cedula (cedula)      -- múltiples NULL permitidos
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
--- producto: inventario con caducidad (el semáforo se calcula, no se persiste)
+-- pos_producto: inventario con caducidad (el semáforo se calcula, no se guarda)
 -- -------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS producto (
+CREATE TABLE IF NOT EXISTS pos_producto (
   id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   codigo          VARCHAR(50)   NULL,            -- código de barras / interno
   nombre          VARCHAR(150)  NOT NULL,
@@ -63,20 +61,19 @@ CREATE TABLE IF NOT EXISTS producto (
   updated_at      DATETIME      NULL,
   deleted_at      DATETIME      NULL,            -- soft delete
   PRIMARY KEY (id),
-  UNIQUE KEY uq_producto_codigo (codigo),        -- múltiples NULL permitidos
-  KEY ix_producto_nombre (nombre),
-  KEY ix_producto_caducidad (fecha_caducidad)
+  UNIQUE KEY uq_pos_producto_codigo (codigo),    -- múltiples NULL permitidos
+  KEY ix_pos_producto_nombre (nombre),
+  KEY ix_pos_producto_caducidad (fecha_caducidad)
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
--- factura: NUNCA se elimina, solo se anula. Totales persistidos + la tasa de
--- ITBIS aplicada (para que el histórico no cambie si mañana cambia la tasa).
--- cliente_id NULL = venta sin cliente / consumidor final.
---
--- usuario_id: quién facturó. SIN clave foránea — el usuario vive en
--- facontrol_db (ver el encabezado).
+-- pos_factura: NUNCA se elimina, solo se anula. Totales persistidos + la tasa
+-- de ITBIS aplicada (el histórico no cambia si mañana cambia la tasa).
+-- cliente_id NULL = consumidor final.
+-- usuario_id: AHORA sí con clave foránea, porque el usuario vive en esta misma
+-- base. Era justo lo que fallaba con la base separada.
 -- -------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS factura (
+CREATE TABLE IF NOT EXISTS pos_factura (
   id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   numero_factura    VARCHAR(30)   NOT NULL,
   cliente_id        BIGINT UNSIGNED NULL,
@@ -94,37 +91,38 @@ CREATE TABLE IF NOT EXISTS factura (
   anulada_motivo    VARCHAR(250)  NULL,
   created_at        DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
   PRIMARY KEY (id),
-  UNIQUE KEY uq_factura_numero (numero_factura),
-  KEY ix_factura_fecha (fecha_emision),
-  KEY ix_factura_usuario (usuario_id, fecha_emision),
-  CONSTRAINT fk_factura_cliente FOREIGN KEY (cliente_id)
-    REFERENCES cliente (id) ON DELETE RESTRICT
+  UNIQUE KEY uq_pos_factura_numero (numero_factura),
+  KEY ix_pos_factura_fecha (fecha_emision),
+  KEY ix_pos_factura_usuario (usuario_id, fecha_emision),
+  CONSTRAINT fk_pos_factura_cliente FOREIGN KEY (cliente_id)
+    REFERENCES pos_cliente (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_pos_factura_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuario (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
--- detalle: líneas de factura (RESTRICT: las facturas no se borran)
+-- pos_detalle: líneas de factura (RESTRICT: las facturas no se borran)
 -- -------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS detalle (
+CREATE TABLE IF NOT EXISTS pos_detalle (
   id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   factura_id      BIGINT UNSIGNED NOT NULL,
   producto_id     BIGINT UNSIGNED NOT NULL,
   cantidad        INT           NOT NULL,
   precio_unitario DECIMAL(15,2) NOT NULL,        -- precio al momento de la venta
-  subtotal        DECIMAL(15,2) NOT NULL,        -- cantidad * precio_unitario
+  subtotal        DECIMAL(15,2) NOT NULL,
   PRIMARY KEY (id),
-  KEY ix_detalle_factura (factura_id),
-  KEY ix_detalle_producto (producto_id),
-  CONSTRAINT fk_detalle_factura FOREIGN KEY (factura_id)
-    REFERENCES factura (id) ON DELETE RESTRICT,
-  CONSTRAINT fk_detalle_producto FOREIGN KEY (producto_id)
-    REFERENCES producto (id) ON DELETE RESTRICT
+  KEY ix_pos_detalle_factura (factura_id),
+  KEY ix_pos_detalle_producto (producto_id),
+  CONSTRAINT fk_pos_detalle_factura FOREIGN KEY (factura_id)
+    REFERENCES pos_factura (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_pos_detalle_producto FOREIGN KEY (producto_id)
+    REFERENCES pos_producto (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
--- cuadre_caja: cierre por usuario y día de negocio; inmutable tras crearse.
--- usuario_id sin FK, por lo mismo que factura.
+-- pos_cuadre_caja: cierre por cajero y día de negocio; inmutable tras crearse
 -- -------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS cuadre_caja (
+CREATE TABLE IF NOT EXISTS pos_cuadre_caja (
   id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   usuario_id             BIGINT UNSIGNED NOT NULL,
   fecha                  DATE          NOT NULL,  -- día de negocio (UTC-4)
@@ -133,17 +131,16 @@ CREATE TABLE IF NOT EXISTS cuadre_caja (
   tiempo_activo_segundos INT           NOT NULL DEFAULT 0,
   created_at             DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
   PRIMARY KEY (id),
-  UNIQUE KEY uq_cuadre_usuario_fecha (usuario_id, fecha)
+  UNIQUE KEY uq_pos_cuadre_usuario_fecha (usuario_id, fecha),
+  CONSTRAINT fk_pos_cuadre_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuario (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
--- configuracion_negocio: UNA sola fila (id fijo = 1).
--- Es la configuración del PUNTO DE VENTA: ITBIS, moneda, numeración de
--- facturas y datos que salen en el ticket. Los datos del negocio de la suite
--- (nombre, RNC, teléfono) se siguen editando en Configuración de FAControl;
--- acá viven los que solo le importan al POS.
+-- pos_configuracion: UNA sola fila (id fijo = 1). ITBIS, moneda, numeración de
+-- facturas y lo que sale en el ticket.
 -- -------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS configuracion_negocio (
+CREATE TABLE IF NOT EXISTS pos_configuracion (
   id                       TINYINT UNSIGNED NOT NULL,
   nombre_negocio           VARCHAR(150)  NOT NULL DEFAULT 'Mi Negocio',
   rnc                      VARCHAR(20)   NULL,
@@ -151,7 +148,7 @@ CREATE TABLE IF NOT EXISTS configuracion_negocio (
   telefono                 VARCHAR(20)   NULL,
   email                    VARCHAR(150)  NULL,
   logo_ruta                VARCHAR(500)  NULL,
-  itbis_activo             TINYINT(1)    NOT NULL DEFAULT 1,   -- OFF: sin ITBIS en venta/ticket
+  itbis_activo             TINYINT(1)    NOT NULL DEFAULT 1,
   itbis_tasa               DECIMAL(5,2)  NOT NULL DEFAULT 18.00,
   redondeo                 ENUM('centavo','peso','arriba') NOT NULL DEFAULT 'centavo',
   moneda_simbolo           VARCHAR(10)   NOT NULL DEFAULT 'RD$',
@@ -162,7 +159,21 @@ CREATE TABLE IF NOT EXISTS configuracion_negocio (
   mostrar_cliente_en_venta TINYINT(1)    NOT NULL DEFAULT 1,
   updated_at               DATETIME      NULL,
   PRIMARY KEY (id),
-  CONSTRAINT ck_config_unica CHECK (id = 1)
+  CONSTRAINT ck_pos_config_unica CHECK (id = 1)
 ) ENGINE=InnoDB;
 
-INSERT IGNORE INTO configuracion_negocio (id) VALUES (1);
+INSERT IGNORE INTO pos_configuracion (id) VALUES (1);
+
+-- -------------------------------------------------------------
+-- Verificación (informativa al correr el script a mano)
+-- -------------------------------------------------------------
+SELECT TABLE_NAME, TABLE_ROWS
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'pos\\_%'
+ORDER BY TABLE_NAME;
+
+-- NOTA sobre la base vieja: si existe `pos500_db` de las pruebas, se puede
+-- borrar a mano cuando se confirme que el punto de venta funciona acá:
+--   DROP DATABASE pos500_db;
+-- No se hace desde este script a propósito — un script de migración no debería
+-- borrar bases por su cuenta.

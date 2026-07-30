@@ -151,10 +151,10 @@ public partial class App : Application
         shell.AplicarEscala(ajustes.FactorEscala);
         shell.MostrarModo(IdentidadModo.De(modo));
 
-        // El punto de venta prepara su base la PRIMERA vez que se entra, y engancha
-        // la impresión de tickets y cierres (POS-500, 2026-07-30).
+        // El punto de venta engancha su impresión la primera vez que se entra
+        // (POS-500, 2026-07-30). Sus tablas ya están en la base de la suite.
         if (modo == ModoApp.Pos500)
-            await PrepararPuntoDeVentaAsync();
+            PrepararPuntoDeVenta();
 
         var configuracionVm = servicios.GetRequiredService<ConfiguracionViewModel>();
         configuracionVm.EscalaCambiada += shell.AplicarEscala;
@@ -254,27 +254,13 @@ public partial class App : Application
     private bool _posEnganchado;
 
     /// <summary>
-    /// Deja el punto de venta listo: crea `pos500_db` si no existe y engancha la
-    /// impresión. Lo de enganchar se hace UNA sola vez por corrida — los
-    /// ViewModels son singleton y volver a suscribirse imprimiría el ticket dos
-    /// veces por cada entrada y salida del modo.
+    /// Engancha la impresión del punto de venta. Se hace UNA sola vez por
+    /// corrida: los ViewModels son singleton y volver a suscribirse imprimiría
+    /// el ticket dos veces por cada entrada y salida del modo.
     /// </summary>
-    private async Task PrepararPuntoDeVentaAsync()
+    private void PrepararPuntoDeVenta()
     {
         var servicios = _servicios!;
-        try
-        {
-            await servicios.GetRequiredService<VerificadorPos500>().PrepararAsync();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "No se pudo preparar la base del punto de venta");
-            MessageBox.Show(
-                "No se pudo preparar la base de datos del punto de venta.\n\n" + ex.Message,
-                "FAControl — POS-500", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
         if (_posEnganchado)
             return;
         _posEnganchado = true;
@@ -433,10 +419,8 @@ public partial class App : Application
         servicios.AddSingleton<ReporteDealRepository>();
 
         // ---- Punto de venta (POS-500) ----
-        // Su propia base: ConexionPos500 es un tipo distinto justamente para que
-        // el contenedor no le pase por error la conexión de préstamos.
-        servicios.AddSingleton<ConexionPos500>();
-        servicios.AddSingleton<VerificadorPos500>();
+        // Sus tablas viven en facontrol_db con prefijo pos_ (024): misma conexión
+        // que el resto de la suite, y por lo tanto un solo respaldo.
         servicios.AddSingleton<FAControl.Data.Pos.ClienteRepository>();
         servicios.AddSingleton<FAControl.Data.Pos.ProductoRepository>();
         servicios.AddSingleton<FAControl.Data.Pos.FacturaRepository>();
@@ -484,11 +468,8 @@ public partial class App : Application
         servicios.AddSingleton<FAControl.Services.Pos.AnaliticaService>();
         servicios.AddSingleton<FAControl.Services.Pos.ConfiguracionNegocioService>();
         servicios.AddSingleton<FAControl.Services.Pos.ExportacionService>();
-        // El respaldo automático saca las DOS bases: la de la suite y la del
-        // punto de venta, que guarda sus ventas aparte.
-        servicios.AddSingleton(sp => new RespaldoService(
-            sp.GetRequiredService<ConexionFactory>().CadenaConexion,
-            sp.GetRequiredService<ConexionPos500>().CadenaConexion));
+        servicios.AddSingleton(sp =>
+            new RespaldoService(sp.GetRequiredService<ConexionFactory>().CadenaConexion));
         servicios.AddSingleton(FAControl.Common.AjustesLocales.Cargar());
         // Licencia de la instalación (4 códigos del launcher, 2026-07-27)
         servicios.AddSingleton(FAControl.Common.LicenciaLocal.Cargar());

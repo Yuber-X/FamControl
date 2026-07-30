@@ -1,6 +1,6 @@
 // Portado de POS-500 el 2026-07-30 al integrar el punto de venta a la suite.
-// Cambios respecto del original: usa ConexionPos500 (base pos500_db, aparte de
-// facontrol_db) y el SesionActual / la auditoria compartidos de FAControl.
+// Cambios respecto del original: sus tablas llevan prefijo pos_ dentro de
+// facontrol_db (024), y usa el SesionActual y la auditoria de la suite.
 using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models.Pos;
@@ -10,9 +10,9 @@ namespace FAControl.Data.Pos;
 /// <summary>CRUD de clientes. Soft delete siempre; lecturas filtran deleted_at.</summary>
 public class ClienteRepository
 {
-    private readonly ConexionPos500 _factory;
+    private readonly ConexionFactory _factory;
 
-    public ClienteRepository(ConexionPos500 factory) => _factory = factory;
+    public ClienteRepository(ConexionFactory factory) => _factory = factory;
 
     public async Task<List<Cliente>> ObtenerTodosAsync(CancellationToken ct = default)
     {

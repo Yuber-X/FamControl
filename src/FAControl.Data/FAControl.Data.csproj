@@ -16,11 +16,6 @@
     <EmbeddedResource Include="..\..\scripts\db\001_create_schema.sql"
                       Link="001_create_schema.sql"
                       LogicalName="FAControl.Data.001_create_schema.sql" />
-    <!-- Esquema del punto de venta: base APARTE (pos500_db), se crea sola la
-         primera vez que se entra al modo POS-500 -->
-    <EmbeddedResource Include="..\..\scripts\db\pos500_001_create_schema.sql"
-                      Link="pos500_001_create_schema.sql"
-                      LogicalName="FAControl.Data.pos500_001_create_schema.sql" />
   </ItemGroup>
 
   <PropertyGroup>

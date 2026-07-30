@@ -37,18 +37,6 @@ public class AuditoriaService
         CancellationToken ct = default) =>
         _repositorio.InsertarAsync(Construir(accion, entidad, entidadId, descripcion), conexion, transaccion, ct);
 
-    /// <summary>
-    /// Igual que la anterior, pero para el PUNTO DE VENTA: su conexión apunta a
-    /// `pos500_db` y la tabla de auditoría vive en la base de la suite. Se
-    /// califica el nombre para escribir donde corresponde sin salirse de la
-    /// transacción — el historial del cliente sigue siendo uno solo.
-    /// </summary>
-    public Task RegistrarEnTransaccionDeOtraBaseAsync(AccionAuditoria accion, string entidad,
-        long? entidadId, string? descripcion, MySqlConnection conexion, MySqlTransaction transaccion,
-        string esquemaAuditoria, CancellationToken ct = default) =>
-        _repositorio.InsertarAsync(Construir(accion, entidad, entidadId, descripcion),
-            conexion, transaccion, ct, esquemaAuditoria);
-
     /// <summary>Visor del Historial (solo lectura, con filtros).</summary>
     public Task<IReadOnlyList<Auditoria>> BuscarAsync(FiltroAuditoria filtro, CancellationToken ct = default) =>
         _repositorio.BuscarAsync(filtro, ct);
@@ -82,6 +70,8 @@ public class AuditoriaService
         return new Auditoria
         {
             UsuarioId = SesionActual.Id,
+            // Estancia donde se hizo: el Historial arranca filtrado por ella (025)
+            Modo = SesionActual.Modo.ClaveDb(),
             Entidad = entidad,
             EntidadId = entidadId,
             Accion = accion,

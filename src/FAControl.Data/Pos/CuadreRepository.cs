@@ -1,6 +1,6 @@
 // Portado de POS-500 el 2026-07-30 al integrar el punto de venta a la suite.
-// Cambios respecto del original: usa ConexionPos500 (base pos500_db, aparte de
-// facontrol_db) y el SesionActual / la auditoria compartidos de FAControl.
+// Cambios respecto del original: sus tablas llevan prefijo pos_ dentro de
+// facontrol_db (024), y usa el SesionActual y la auditoria de la suite.
 using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models.Pos;
@@ -15,9 +15,9 @@ namespace FAControl.Data.Pos;
 /// </summary>
 public class CuadreRepository
 {
-    private readonly ConexionPos500 _factory;
+    private readonly ConexionFactory _factory;
 
-    public CuadreRepository(ConexionPos500 factory) => _factory = factory;
+    public CuadreRepository(ConexionFactory factory) => _factory = factory;
 
     /// <summary>Calcula el cuadre en vivo (no lo persiste).</summary>
     public async Task<CuadreResumen> CalcularAsync(long usuarioId, DateOnly fecha, CancellationToken ct = default)
@@ -28,7 +28,7 @@ public class CuadreRepository
         using (var cmd = conexion.CreateCommand())
         {
             cmd.CommandText =
-                $"SELECT TRIM(CONCAT(nombre, ' ', COALESCE(apellido, ''))) FROM {_factory.EsquemaSuite}.usuario WHERE id = @id;";
+                $"SELECT TRIM(CONCAT(nombre, ' ', COALESCE(apellido, ''))) FROM {DbNames.Usuario} WHERE id = @id;";
             cmd.Parameters.AddWithValue("@id", usuarioId);
             nombreCajero = (await cmd.ExecuteScalarAsync(ct))?.ToString() ?? "—";
         }
@@ -85,12 +85,12 @@ public class CuadreRepository
         MySqlConnection conexion, long usuarioId, DateOnly fecha, CancellationToken ct)
     {
         using var cmd = conexion.CreateCommand();
-        // `sesion` vive en la base de la suite: el POS cruza de base para saber
-        // cuánto estuvo trabajando el cajero.
+        // El tiempo activo sale de `sesion`, que es de la suite: el cajero es un
+        // usuario de FAControl, no del punto de venta.
         cmd.CommandText = $"""
             SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, login_at,
                        COALESCE(logout_at, UTC_TIMESTAMP()))), 0)
-            FROM {_factory.EsquemaSuite}.sesion
+            FROM {DbNames.Sesion}
             WHERE usuario_id = @usuarioId
               AND DATE(DATE_SUB(login_at, INTERVAL 4 HOUR)) = @fecha;
             """;
@@ -184,7 +184,7 @@ public class CuadreRepository
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT id, TRIM(CONCAT(nombre, ' ', COALESCE(apellido, ''))) AS nombre_completo
-            FROM {_factory.EsquemaSuite}.usuario
+            FROM {DbNames.Usuario}
             WHERE activo = 1
             ORDER BY nombre;
             """;

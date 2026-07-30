@@ -1,6 +1,6 @@
 // Portado de POS-500 el 2026-07-30 al integrar el punto de venta a la suite.
-// Cambios respecto del original: usa ConexionPos500 (base pos500_db, aparte de
-// facontrol_db) y el SesionActual / la auditoria compartidos de FAControl.
+// Cambios respecto del original: sus tablas llevan prefijo pos_ dentro de
+// facontrol_db (024), y usa el SesionActual y la auditoria de la suite.
 using MySqlConnector;
 using FAControl.Common;
 
@@ -16,9 +16,9 @@ public record TablaExportada(string Nombre, IReadOnlyList<string> Encabezados, I
 /// </summary>
 public class ExportacionRepository
 {
-    private readonly ConexionPos500 _factory;
+    private readonly ConexionFactory _factory;
 
-    public ExportacionRepository(ConexionPos500 factory) => _factory = factory;
+    public ExportacionRepository(ConexionFactory factory) => _factory = factory;
 
     public async Task<IReadOnlyList<TablaExportada>> ObtenerTodoAsync(CancellationToken ct = default)
     {
@@ -42,7 +42,7 @@ public class ExportacionRepository
                        f.efectivo_recibido, f.cambio, f.estado, f.anulada_at, f.anulada_motivo
                 FROM {DbNamesPos.Factura} f
                 LEFT JOIN {DbNamesPos.Cliente} c ON c.id = f.cliente_id
-                JOIN {_factory.EsquemaSuite}.usuario u ON u.id = f.usuario_id
+                JOIN {DbNames.Usuario} u ON u.id = f.usuario_id
                 ORDER BY f.id;
                 """, ct),
             await LeerAsync(conexion, "Detalle de facturas", $"""
@@ -58,22 +58,22 @@ public class ExportacionRepository
                        cc.fecha, cc.total_facturas, cc.total_vendido,
                        cc.tiempo_activo_segundos, cc.created_at
                 FROM {DbNamesPos.CuadreCaja} cc
-                JOIN {_factory.EsquemaSuite}.usuario u ON u.id = cc.usuario_id
+                JOIN {DbNames.Usuario} u ON u.id = cc.usuario_id
                 ORDER BY cc.fecha DESC, cajero;
                 """, ct),
             // Sin password_hash: jamás sale de la base de datos
             await LeerAsync(conexion, "Usuarios", $"""
                 SELECT u.id, u.username, u.nombre, u.apellido, r.nombre AS rol,
                        u.activo, u.created_at, u.last_login_at
-                FROM {_factory.EsquemaSuite}.usuario u
-                LEFT JOIN {_factory.EsquemaSuite}.rol r ON r.id = u.rol_id
+                FROM usuario u
+                LEFT JOIN {DbNames.Rol} r ON r.id = u.rol_id
                 ORDER BY u.id;
                 """, ct),
             await LeerAsync(conexion, "Auditoría", $"""
                 SELECT a.id, TRIM(CONCAT(u.nombre, ' ', COALESCE(u.apellido, ''))) AS usuario,
                        a.entidad, a.entidad_id, a.accion, a.descripcion, a.timestamp
-                FROM {_factory.EsquemaSuite}.auditoria a
-                JOIN {_factory.EsquemaSuite}.usuario u ON u.id = a.usuario_id
+                FROM {DbNames.Auditoria} a
+                JOIN {DbNames.Usuario} u ON u.id = a.usuario_id
                 ORDER BY a.id;
                 """, ct)
         ];
