@@ -10,9 +10,9 @@ namespace FAControl.Views;
 /// Una columna del launcher, ya en el lenguaje del XAML (Brushes y Colors).
 /// Vive en Views porque es mapeo de PRESENTACION: Common no conoce WPF.
 ///
-/// Sirve para las dos cosas que muestra el launcher:
-///  * una ESTANCIA de la suite (Modo con valor), que se abre al tocarla;
-///  * la oferta de POS-500 (Modo en null), que no se abre aca.
+/// Una por estancia de la suite. El POS-500 es una estancia mas desde el
+/// 2026-07-30; lo unico distinto es que, sin comprar, la columna ofrece el
+/// producto en vez de mostrar un candado.
 /// </summary>
 public record TarjetaLanzador(
     string Nombre,
@@ -32,7 +32,11 @@ public record TarjetaLanzador(
     /// <summary>Color del glow al pasar el mouse: el propio, mas oscuro.</summary>
     public Color ColorGlow => Convertir(ColorBrilloHex);
 
-    /// <summary>Columna de una estancia. Habilitado lo decide la licencia.</summary>
+    /// <summary>
+    /// Columna de una estancia. <c>habilitado</c> lo decide la licencia.
+    /// POS-500 se muestra distinto cuando no esta comprado: no es que "falte un
+    /// codigo", es que todavia no se compro — la columna lo ofrece.
+    /// </summary>
     public static TarjetaLanzador DeModo(IdentidadModo identidad, bool habilitado) =>
         new(identidad.Nombre, identidad.Etiqueta, identidad.Descripcion,
             identidad.ColorHex, identidad.ColorBrilloHex,
@@ -40,29 +44,23 @@ public record TarjetaLanzador(
             {
                 ModoApp.PrestControl => "",     // billete
                 ModoApp.DealerControl => "",    // vehiculo
+                ModoApp.Pos500 => "",           // etiqueta de precio
                 _ => ""
             },
             EstadoTexto: !identidad.Disponible ? "EN DESARROLLO"
                 : habilitado ? "DISPONIBLE"
+                : identidad.Modo == ModoApp.Pos500 ? "EN VENTA"
                 : "REQUIERE CODIGO",
             Modo: identidad.Modo);
-
-    /// <summary>Columna de POS-500: no se abre, se ofrece (cliente 2026-07-29).</summary>
-    public static TarjetaLanzador DePos500(bool comprado) =>
-        new(Pos500.Nombre, Pos500.Etiqueta, Pos500.Descripcion,
-            Pos500.ColorHex, Pos500.ColorBrilloHex,
-            Icono: "",                          // etiqueta de precio
-            EstadoTexto: comprado ? "ADQUIRIDO" : "EN VENTA",
-            Modo: null);
 
     private static Color Convertir(string hex) => (Color)ColorConverter.ConvertFromString(hex);
 }
 
 /// <summary>
-/// Puerta de entrada de la suite (pedido del cliente 2026-07-16): tres columnas.
-/// Desde el 2026-07-29 son DOS estancias — PrestControl y DealControl — más la
-/// oferta de POS-500, que es un producto aparte y no se abre desde acá.
-/// Al elegir una estancia se abre el login de ESE modo.
+/// Puerta de entrada de la suite (pedido del cliente 2026-07-16): tres columnas,
+/// una por estancia — PrestControl, DealControl y POS-500. Al elegir una se abre
+/// el login de ESE modo. La que la licencia no habilite no entra; el POS-500 sin
+/// comprar muestra la oferta en vez del candado.
 ///
 /// No sigue el tema claro/oscuro a propósito: es la cara de la marca Familia
 /// Almonte y siempre va en navy.
@@ -100,13 +98,9 @@ public partial class LauncherWindow : Window
             ? $"Elegí un modo para iniciar sesión.  ·  {_codigosVm.EstadoTexto}"
             : _codigosVm.EstadoTexto;
 
-        List<TarjetaLanzador> tarjetas =
-        [
-            .. IdentidadModo.Todos.Select(m =>
-                TarjetaLanzador.DeModo(m, _codigosVm.PermiteModo(m.Modo))),
-            TarjetaLanzador.DePos500(_codigosVm.Pos500Comprado)
-        ];
-        ListaModos.ItemsSource = tarjetas;
+        ListaModos.ItemsSource = IdentidadModo.Todos
+            .Select(m => TarjetaLanzador.DeModo(m, _codigosVm.PermiteModo(m.Modo)))
+            .ToList();
     }
 
     /// <summary>
@@ -130,11 +124,20 @@ public partial class LauncherWindow : Window
         if (((FrameworkElement)sender).Tag is not TarjetaLanzador tarjeta)
             return;
 
-        // POS-500 no es una estancia de FAControl: es un producto aparte que se
-        // ofrece desde acá (cliente 2026-07-29). Tocarlo informa, no abre nada.
         if (tarjeta.Modo is not { } modo)
+            return;
+
+        // Módulo que todavía no se puede abrir: honesto en vez de un login que
+        // no lleva a ningún lado.
+        if (!IdentidadModo.De(modo).Disponible)
         {
-            MostrarOfertaPos500();
+            MessageBox.Show(this,
+                modo == ModoApp.Pos500
+                    ? $"{Pos500.Descripcion}\n\nYa viene instalado con FAControl y se está " +
+                      "terminando de integrar a la suite. En cuanto esté, se habilita con su " +
+                      $"código, sin reinstalar nada.\n\nConsultas al {Soporte.Telefono}."
+                    : $"{tarjeta.Nombre} todavía está en desarrollo.\n\n{tarjeta.Descripcion}",
+                $"{tarjeta.Nombre}", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -142,6 +145,14 @@ public partial class LauncherWindow : Window
         // al terminar, cada estancia pide SU código.
         if (!_codigosVm.PermiteModo(modo))
         {
+            // El POS-500 se vende aparte: sin comprar no es "te falta un código",
+            // es una oferta. Los otros dos son módulos que el cliente ya tiene.
+            if (modo == ModoApp.Pos500)
+            {
+                MostrarOfertaPos500();
+                return;
+            }
+
             MessageBox.Show(this,
                 $"{tarjeta.Nombre} no está activado en esta computadora.\n\n" +
                 $"{_codigosVm.EstadoTexto}.\n\n" +
@@ -162,22 +173,16 @@ public partial class LauncherWindow : Window
     }
 
     /// <summary>
-    /// POS-500 a la venta. Si el cliente ya lo compró (código 5) el mensaje
-    /// cambia: la instalación la hace el desarrollador, no se abre desde acá.
+    /// POS-500 a la venta: ya viene instalado con FAControl, solo hay que
+    /// comprarlo. Se habilita con el código 5, sin volver a instalar nada.
     /// </summary>
-    private void MostrarOfertaPos500()
-    {
-        var texto = _codigosVm.Pos500Comprado
-            ? $"{Pos500.Nombre} ya figura como adquirido en esta computadora.\n\n" +
-              $"Se instala aparte de FAControl. Escribí al {Soporte.Telefono} para coordinar " +
-              "la instalación."
-            : $"{Pos500.Descripcion}\n\n" +
-              $"No viene incluido en FAControl. Para cotizarlo o verlo funcionando, escribí " +
-              $"al {Soporte.Telefono}.";
-
-        MessageBox.Show(this, texto, $"{Pos500.Nombre} — {Pos500.Etiqueta}",
+    private void MostrarOfertaPos500() =>
+        MessageBox.Show(this,
+            $"{Pos500.Descripcion}\n\n" +
+            "Ya viene instalado con FAControl: para usarlo solo hace falta el código de " +
+            $"activación.\n\nPara cotizarlo o verlo funcionando, escribí al {Soporte.Telefono}.",
+            $"{Pos500.Nombre} — {Pos500.Etiqueta}",
             MessageBoxButton.OK, MessageBoxImage.Information);
-    }
 
     private void BotonSalir_Click(object sender, RoutedEventArgs e)
     {

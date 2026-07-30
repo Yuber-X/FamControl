@@ -174,6 +174,29 @@ public class NcfAutorizacionRealTests : IAsyncLifetime
         secuencia!.Proxima.Should().Be(1);   // sigue disponible
     }
 
+    /// <summary>
+    /// El último eslabón: el comprobante tiene que llegar al RECIBO que se le
+    /// entrega al cliente. Si se queda en la base no sirve de nada ante la DGII.
+    /// </summary>
+    [Fact]
+    public async Task El_comprobante_sale_impreso_en_el_recibo_del_cobro()
+    {
+        var (prestamoId, _) = await CrearPrestamoConComprobanteAsync();
+
+        var pagos = new PagoService(_factory, new PrestamoRepository(_factory),
+            new PagoRepository(_factory), new ClienteRepository(_factory),
+            new ContadorRepository(),
+            new AuditoriaService(new AuditoriaRepository(_factory),
+                new SesionRepository(_factory), new UsuarioRepository(_factory)),
+            new AjustesLocales());
+
+        // Cuota de 20,000 al 3% × 6 = 3,333.33 capital + 600 interés
+        var resultado = await pagos.RegistrarPagoAsync(new SolicitudPago(
+            prestamoId, 3_933.33m, MetodoPago.Efectivo, "Prueba de comprobante"));
+
+        resultado.Recibo.Ncf.Should().Be("B0100000001");
+    }
+
     /// <summary>Vencida la autorización, la app no emite aunque queden números.</summary>
     [Fact]
     public async Task VencidaLaAutorizacion_NoSeEmiteAunqueQuedenNumeros()

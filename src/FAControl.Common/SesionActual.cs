@@ -100,6 +100,8 @@ public static class Roles
     // entre DealControl y AutoControl (únicos por nombre+modo en la BD).
     public const string Encargado = "Encargado";
     public const string Vendedor = "Vendedor";
+    /// <summary>Rol propio del POS-500 (022): vende y cuadra su caja.</summary>
+    public const string Cajero = "Cajero";
 }
 
 /// <summary>
@@ -130,11 +132,27 @@ public static class Permisos
     public const string Alquileres = "alquileres";
     public const string Gastos = "gastos";
 
+    // POS-500 (022): punto de venta integrado a la suite. `panel`, `clientes`,
+    // `clientes_editar` y `reportes` se reutilizan de los de arriba — son las
+    // mismas pantallas conceptuales, filtradas por el modo activo.
+    public const string Vender = "vender";
+    public const string Productos = "productos";
+    public const string Almacen = "almacen";
+    public const string Caducidad = "caducidad";
+    public const string Comprobantes = "comprobantes";
+    /// <summary>Ver los comprobantes de TODOS los cajeros, no solo los propios.</summary>
+    public const string ComprobantesTodos = "comprobantes_todos";
+    public const string Cuadre = "cuadre";
+    /// <summary>Ver el cuadre de caja de TODOS los cajeros.</summary>
+    public const string CuadreTodos = "cuadre_todos";
+    public const string FacturasAnular = "facturas_anular";
+
     // Acceso por modo/estancia (aislamiento — cliente 2026-07-18).
     // El Admin entra a todos sin necesitarlos; estos gobiernan a los demás.
     public const string AccesoPrestControl = "acceso_prestcontrol";
     public const string AccesoDealerControl = "acceso_dealercontrol";
     public const string AccesoAutoControl = "acceso_autocontrol";
+    public const string AccesoPos500 = "acceso_pos500";
 
     /// <summary>Permiso de acceso correspondiente a un modo.</summary>
     public static string AccesoDe(ModoApp modo) => modo switch
@@ -142,6 +160,7 @@ public static class Permisos
         ModoApp.PrestControl => AccesoPrestControl,
         ModoApp.DealerControl => AccesoDealerControl,
         ModoApp.AutoControl => AccesoAutoControl,
+        ModoApp.Pos500 => AccesoPos500,
         _ => throw new ArgumentOutOfRangeException(nameof(modo), modo, "Modo desconocido")
     };
 
@@ -152,6 +171,8 @@ public static class Permisos
         PrestamosCancelar, Cobros, Reportes, Historial, Usuarios, Configuracion,
         Vehiculos, VehiculosEditar,
         Inventario, InventarioEditar, Ventas, Alquileres, Gastos,
-        AccesoPrestControl, AccesoDealerControl, AccesoAutoControl
+        Vender, Productos, Almacen, Caducidad, Comprobantes, ComprobantesTodos,
+        Cuadre, CuadreTodos, FacturasAnular,
+        AccesoPrestControl, AccesoDealerControl, AccesoAutoControl, AccesoPos500
     ];
 }

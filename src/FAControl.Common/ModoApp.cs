@@ -23,22 +23,26 @@ public enum ModoApp
     /// se quitó es la entrada: no está en <see cref="IdentidadModo.Todos"/>, así
     /// que no aparece en el launcher ni en la pantalla de usuarios.
     /// </summary>
-    AutoControl
+    AutoControl,
+    /// <summary>
+    /// POS-500: punto de venta (facturación, inventario, caja). Integrado a la
+    /// suite como un modo más el 2026-07-30, con **base de datos aparte**
+    /// (`pos500_db`): se vende por separado, así que sus datos tienen que poder
+    /// irse solos. Lo que SÍ comparte con el resto es lo mismo que los demás
+    /// modos — usuarios, roles por modo y permisos, que viven en facontrol_db.
+    ///
+    /// Se habilita con el código 5 de la licencia.
+    /// </summary>
+    Pos500
 }
 
-/// <summary>
-/// POS-500: punto de venta, producto APARTE de la suite (cliente 2026-07-29:
-/// "lo ideal sería colocar el POS-500 a disposición por si desean comprarlo").
-/// No es un ModoApp — no se abre desde acá; el launcher lo muestra como oferta y
-/// el código 5 registra la compra.
-/// </summary>
+/// <summary>Datos de marca del POS-500 (los usa el launcher y la oferta).</summary>
 public static class Pos500
 {
     public const string Nombre = "POS-500";
     public const string Etiqueta = "Punto de venta";
     public const string Descripcion =
-        "Facturación, inventario, caja y reportes para tiendas y colmados. " +
-        "Se vende e instala aparte de FAControl.";
+        "Facturación, inventario, almacén, caja y reportes para tiendas y colmados.";
     /// <summary>El verde que usaba AutoControl: el launcher conserva su equilibrio de color.</summary>
     public const string ColorHex = "#3A7D5C";
     public const string ColorBrilloHex = "#48B07E";
@@ -79,7 +83,14 @@ public record IdentidadModo(
         new(ModoApp.DealerControl, "DealControl", "Dealer",
             "Inventario de vehículos, importación, costos, rent a car y ventas financiadas.",
             // Azul acero + glow azul vivo para que resalte como el dorado
-            "#3D5A80", "#5B90D4", Disponible: true)
+            "#3D5A80", "#5B90D4", Disponible: true),
+
+        // Disponible: false hasta que terminen de portarse sus pantallas. Los
+        // cimientos (modo, licencia, permisos, roles y su base pos500_db) ya
+        // están; lo que falta es mudar las pantallas al shell de la suite.
+        // Cuando eso esté, esto pasa a true y no hay que tocar nada más.
+        new(ModoApp.Pos500, Pos500.Nombre, Pos500.Etiqueta, Pos500.Descripcion,
+            Pos500.ColorHex, Pos500.ColorBrilloHex, Disponible: false)
     ];
 
     /// <summary>
@@ -107,6 +118,14 @@ public static class ModoAppExtensiones
         ModoApp.PrestControl => "prestcontrol",
         ModoApp.DealerControl => "dealercontrol",
         ModoApp.AutoControl => "autocontrol",
+        ModoApp.Pos500 => "pos500",
         _ => throw new ArgumentOutOfRangeException(nameof(modo), modo, "Modo desconocido")
     };
+
+    /// <summary>
+    /// True si el modo guarda sus datos en la BASE APARTE `pos500_db`. Los otros
+    /// tres viven en facontrol_db; usuarios, roles y permisos son de facontrol_db
+    /// siempre, incluso para el POS.
+    /// </summary>
+    public static bool UsaBasePos500(this ModoApp modo) => modo == ModoApp.Pos500;
 }

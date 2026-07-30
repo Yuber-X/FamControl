@@ -21,7 +21,7 @@ CREATE TABLE rol (
   id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
   nombre      VARCHAR(50)  NOT NULL,
   -- Modo al que pertenece el rol (roles por modo, 011); NULL = global (Admin)
-  modo        ENUM('prestcontrol','dealercontrol','autocontrol') NULL,
+  modo        ENUM('prestcontrol','dealercontrol','autocontrol','pos500') NULL,
   descripcion VARCHAR(200) NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_rol_nombre_modo (nombre, modo)
@@ -94,7 +94,7 @@ CREATE TABLE usuario_permiso (
 -- -------------------------------------------------------------
 CREATE TABLE usuario_modo_rol (
   usuario_id BIGINT UNSIGNED NOT NULL,
-  modo       ENUM('prestcontrol','dealercontrol','autocontrol') NOT NULL,
+  modo       ENUM('prestcontrol','dealercontrol','autocontrol','pos500') NOT NULL,
   rol_id     INT UNSIGNED NOT NULL,
   PRIMARY KEY (usuario_id, modo),
   CONSTRAINT fk_umr_usuario FOREIGN KEY (usuario_id)
@@ -110,7 +110,7 @@ CREATE TABLE usuario_modo_rol (
 -- -------------------------------------------------------------
 CREATE TABLE usuario_modo_permiso (
   usuario_id BIGINT UNSIGNED NOT NULL,
-  modo       ENUM('prestcontrol','dealercontrol','autocontrol') NOT NULL,
+  modo       ENUM('prestcontrol','dealercontrol','autocontrol','pos500') NOT NULL,
   permiso_id INT UNSIGNED NOT NULL,
   PRIMARY KEY (usuario_id, modo, permiso_id),
   CONSTRAINT fk_ump_usuario FOREIGN KEY (usuario_id)
@@ -523,7 +523,12 @@ INSERT INTO rol (nombre, modo, descripcion) VALUES
   ('Encargado',  'dealercontrol','Gestiona el dealer: inventario, ventas, alquileres y gastos'),
   ('Vendedor',   'dealercontrol','Vende y alquila; consulta el inventario'),
   ('Encargado',  'autocontrol',  'Gestiona las ventas financiadas: crédito, cobros y contratos'),
-  ('Vendedor',   'autocontrol',  'Crea ventas financiadas y cobra');
+  ('Vendedor',   'autocontrol',  'Crea ventas financiadas y cobra'),
+  -- POS-500 (022): punto de venta. Sus DATOS viven en pos500_db, pero los
+  -- roles y permisos son compartidos y viven aca.
+  ('Supervisor', 'pos500',       'Operacion completa del piso de venta, sin configuracion ni usuarios'),
+  ('Cajero',     'pos500',       'Ventas, consulta de clientes, su propio cuadre y sus comprobantes'),
+  ('Vendedor',   'pos500',       'Ventas y gestion de clientes');
 
 INSERT INTO permiso (codigo, nombre, descripcion) VALUES
   ('panel',               'Panel',                     'KPIs de la cartera'),
@@ -549,7 +554,19 @@ INSERT INTO permiso (codigo, nombre, descripcion) VALUES
   -- Acceso por estancia/modo (aislamiento — cliente 2026-07-18)
   ('acceso_prestcontrol',  'Acceso a PrestControl',  'Puede entrar a la estancia de préstamos personales'),
   ('acceso_dealercontrol', 'Acceso a DealControl', 'Puede entrar a la estancia de inventario, ventas y alquiler de vehículos'),
-  ('acceso_autocontrol',   'Acceso a AutoControl',   'Puede entrar a la estancia de ventas financiadas de vehículos');
+  ('acceso_autocontrol',   'Acceso a AutoControl',   'Puede entrar a la estancia de ventas financiadas de vehículos'),
+  -- POS-500 (022). `panel`, `clientes`, `clientes_editar` y `reportes` se
+  -- reusan de arriba: son las mismas pantallas, filtradas por el modo activo.
+  ('vender',              'Vender',                'Facturar en el punto de venta'),
+  ('productos',           'Productos',             'Catalogo de productos y precios'),
+  ('almacen',             'Almacen',               'Existencias y entradas de mercancia'),
+  ('caducidad',           'Caducidad',             'Control de productos proximos a vencer'),
+  ('comprobantes',        'Buscar comprobante',    'Buscar y reimprimir facturas propias'),
+  ('comprobantes_todos',  'Comprobantes de todos', 'Ver los comprobantes de todos los cajeros'),
+  ('cuadre',              'Cuadre de caja',        'Cerrar y consultar su propia caja'),
+  ('cuadre_todos',        'Cuadre de todos',       'Ver el cuadre de caja de todos los cajeros'),
+  ('facturas_anular',     'Anular facturas',       'Anular una factura ya emitida'),
+  ('acceso_pos500',       'Acceso a POS-500',      'Puede entrar a la estancia del punto de venta');
 
 -- Admin y Programador: todo
 INSERT INTO rol_permiso (rol_id, permiso_id)
@@ -594,6 +611,26 @@ INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Vendedor' AND r.modo = 'autocontrol'
   AND p.codigo IN ('prestamos','prestamos_crear','cobros','clientes','acceso_autocontrol');
+
+-- POS-500 (022) — Supervisor: todo el piso de venta, incluido lo de "todos"
+INSERT INTO rol_permiso (rol_id, permiso_id)
+SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+WHERE r.nombre = 'Supervisor' AND r.modo = 'pos500'
+  AND p.codigo IN ('panel','vender','clientes','clientes_editar','productos','almacen',
+                   'caducidad','comprobantes','comprobantes_todos','cuadre','cuadre_todos',
+                   'reportes','facturas_anular','acceso_pos500');
+
+-- POS-500 — Cajero: vende y cuadra LO SUYO
+INSERT INTO rol_permiso (rol_id, permiso_id)
+SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+WHERE r.nombre = 'Cajero' AND r.modo = 'pos500'
+  AND p.codigo IN ('vender','clientes','comprobantes','cuadre','acceso_pos500');
+
+-- POS-500 — Vendedor: vende y administra clientes; no cuadra caja
+INSERT INTO rol_permiso (rol_id, permiso_id)
+SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+WHERE r.nombre = 'Vendedor' AND r.modo = 'pos500'
+  AND p.codigo IN ('vender','clientes','clientes_editar','comprobantes','acceso_pos500');
 
 -- =============================================================
 -- TRIGGERS: sincronizan usuario_permiso con el rol (patrón POS-400/POS-500).
