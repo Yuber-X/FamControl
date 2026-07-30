@@ -298,7 +298,7 @@ CREATE TABLE auditoria (
   usuario_id  BIGINT UNSIGNED NOT NULL,
   entidad     VARCHAR(50)  NOT NULL,              -- 'cliente', 'prestamo', 'cuota', 'pago', 'usuario'
   entidad_id  BIGINT UNSIGNED NULL,
-  accion      ENUM('crear','modificar','eliminar','consultar','login','logout') NOT NULL,
+  accion      ENUM('crear','modificar','eliminar','consultar','login','logout','anular') NOT NULL,
   descripcion TEXT         NULL,
   ip_local    VARCHAR(45)  NULL,
   timestamp   DATETIME     NOT NULL DEFAULT (UTC_TIMESTAMP()),

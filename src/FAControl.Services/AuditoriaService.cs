@@ -33,8 +33,21 @@ public class AuditoriaService
     /// (crear préstamo, registrar pago): la auditoría entra en la MISMA transacción.
     /// </summary>
     public Task RegistrarEnTransaccionAsync(AccionAuditoria accion, string entidad, long? entidadId,
-        string? descripcion, MySqlConnection conexion, MySqlTransaction transaccion, CancellationToken ct = default) =>
+        string? descripcion, MySqlConnection conexion, MySqlTransaction transaccion,
+        CancellationToken ct = default) =>
         _repositorio.InsertarAsync(Construir(accion, entidad, entidadId, descripcion), conexion, transaccion, ct);
+
+    /// <summary>
+    /// Igual que la anterior, pero para el PUNTO DE VENTA: su conexión apunta a
+    /// `pos500_db` y la tabla de auditoría vive en la base de la suite. Se
+    /// califica el nombre para escribir donde corresponde sin salirse de la
+    /// transacción — el historial del cliente sigue siendo uno solo.
+    /// </summary>
+    public Task RegistrarEnTransaccionDeOtraBaseAsync(AccionAuditoria accion, string entidad,
+        long? entidadId, string? descripcion, MySqlConnection conexion, MySqlTransaction transaccion,
+        string esquemaAuditoria, CancellationToken ct = default) =>
+        _repositorio.InsertarAsync(Construir(accion, entidad, entidadId, descripcion),
+            conexion, transaccion, ct, esquemaAuditoria);
 
     /// <summary>Visor del Historial (solo lectura, con filtros).</summary>
     public Task<IReadOnlyList<Auditoria>> BuscarAsync(FiltroAuditoria filtro, CancellationToken ct = default) =>

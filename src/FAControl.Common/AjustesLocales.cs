@@ -102,6 +102,28 @@ public class AjustesLocales
     /// </summary>
     public decimal PorcentajeComisionVendedor { get; set; }
 
+    // ---------- Punto de venta (POS-500, integrado 2026-07-30) ----------
+    // Preferencias POR PC: la impresora y el aviso al iniciar dependen de la
+    // terminal, no del negocio. Lo del negocio (ITBIS, moneda, numeración de
+    // facturas) vive en la tabla configuracion_negocio de pos500_db.
+
+    /// <summary>Avisar al entrar al POS sobre productos próximos a caducar.</summary>
+    public bool AvisoCaducidadActivo { get; set; } = true;
+    /// <summary>Cuántos días antes de la caducidad empieza el aviso.</summary>
+    public int AvisoCaducidadDias { get; set; } = 30;
+    /// <summary>Avisar al entrar al POS sobre productos con pocas existencias.</summary>
+    public bool AvisoStockBajoActivo { get; set; } = true;
+    /// <summary>Desde cuántas unidades para abajo se considera stock bajo.</summary>
+    public int AvisoStockBajoUmbral { get; set; } = 10;
+    /// <summary>Ids de productos silenciados con "no volver a avisarme por este".</summary>
+    public List<long> AvisoProductosSilenciados { get; set; } = [];
+
+    /// <summary>Impresora del ticket. Vacío = la predeterminada de Windows.</summary>
+    public string? ImpresoraPredeterminada { get; set; }
+    public int CopiasTicket { get; set; } = 1;
+    public string? TicketEncabezado { get; set; }
+    public string? TicketPie { get; set; } = "Gracias por su compra";
+
     /// <summary>
     /// Carpeta donde se guardan los archivos del expediente digital (018).
     /// Vacío = junto al ejecutable (&lt;app&gt;\expedientes). Se puede apuntar a

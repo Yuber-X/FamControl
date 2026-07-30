@@ -112,5 +112,11 @@ public enum AccionAuditoria
     Eliminar,
     Consultar,
     Login,
-    Logout
+    Logout,
+    /// <summary>
+    /// Anular una factura del punto de venta (023). Es su propia acción y no un
+    /// "modificar": una factura emitida nunca se borra ni se edita, se anula, y
+    /// eso tiene que poder buscarse solo en el historial.
+    /// </summary>
+    Anular
 }

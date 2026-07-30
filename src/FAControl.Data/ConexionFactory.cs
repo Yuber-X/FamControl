@@ -59,10 +59,34 @@ public class ConexionPos500 : ConexionFactory
     public const string NombreCadena = "POS500Db";
     public const string BasePorDefecto = "pos500_db";
 
-    public ConexionPos500() : base(Resolver()) { }
+    public const string EsquemaSuitePorDefecto = "facontrol_db";
 
-    /// <summary>Permite inyectar la cadena directamente (tests de integración).</summary>
-    public ConexionPos500(string cadenaConexion) : base(cadenaConexion) { }
+    /// <summary>
+    /// Nombre de la base de la SUITE (facontrol_db), para las consultas del POS
+    /// que necesitan cruzar con usuarios — el nombre del cajero en un
+    /// comprobante, el tiempo activo en el cuadre.
+    ///
+    /// MySQL no admite claves foráneas entre bases, pero los JOIN sí funcionan
+    /// mientras las dos vivan en el mismo servidor y el usuario tenga permiso.
+    /// El nombre NO se escribe a mano en las consultas: sale de la cadena de
+    /// conexión, así el que le puso otro nombre a su base sigue funcionando.
+    /// </summary>
+    public string EsquemaSuite { get; }
+
+    public ConexionPos500() : this(Resolver(), NombreBaseDe(DeConfig(NombreCadenaPrincipal))) { }
+
+    /// <summary>Permite inyectar las cadenas directamente (tests de integración).</summary>
+    public ConexionPos500(string cadenaConexion, string? esquemaSuite = null)
+        : base(cadenaConexion) =>
+        EsquemaSuite = string.IsNullOrWhiteSpace(esquemaSuite)
+            ? EsquemaSuitePorDefecto
+            : esquemaSuite;
+
+    private static string NombreBaseDe(string cadena)
+    {
+        var nombre = new MySqlConnectionStringBuilder(cadena).Database;
+        return string.IsNullOrWhiteSpace(nombre) ? EsquemaSuitePorDefecto : nombre;
+    }
 
     private static string Resolver()
     {

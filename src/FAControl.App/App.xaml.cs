@@ -304,6 +304,19 @@ public partial class App : Application
         servicios.AddSingleton<VentaPlazoRepository>();
         servicios.AddSingleton<ReporteDealRepository>();
 
+        // ---- Punto de venta (POS-500) ----
+        // Su propia base: ConexionPos500 es un tipo distinto justamente para que
+        // el contenedor no le pase por error la conexión de préstamos.
+        servicios.AddSingleton<ConexionPos500>();
+        servicios.AddSingleton<VerificadorPos500>();
+        servicios.AddSingleton<FAControl.Data.Pos.ClienteRepository>();
+        servicios.AddSingleton<FAControl.Data.Pos.ProductoRepository>();
+        servicios.AddSingleton<FAControl.Data.Pos.FacturaRepository>();
+        servicios.AddSingleton<FAControl.Data.Pos.CuadreRepository>();
+        servicios.AddSingleton<FAControl.Data.Pos.AnaliticaRepository>();
+        servicios.AddSingleton<FAControl.Data.Pos.ConfiguracionNegocioRepository>();
+        servicios.AddSingleton<FAControl.Data.Pos.ExportacionRepository>();
+
         // Services
         servicios.AddSingleton<AuditoriaService>();
         servicios.AddSingleton<AuthService>();
@@ -331,6 +344,18 @@ public partial class App : Application
         servicios.AddSingleton<ExpedienteService>();
         servicios.AddSingleton<VentaPlazoService>();
         servicios.AddSingleton<ReporteDealService>();
+
+        // ---- Servicios del punto de venta ----
+        // La auditoría que reciben es la COMPARTIDA de la suite: el cliente tiene
+        // un solo historial, no uno por módulo.
+        servicios.AddSingleton<FAControl.Services.Pos.ClienteService>();
+        servicios.AddSingleton<FAControl.Services.Pos.ProductoService>();
+        servicios.AddSingleton<FAControl.Services.Pos.VentaService>();
+        servicios.AddSingleton<FAControl.Services.Pos.FacturaService>();
+        servicios.AddSingleton<FAControl.Services.Pos.CuadreService>();
+        servicios.AddSingleton<FAControl.Services.Pos.AnaliticaService>();
+        servicios.AddSingleton<FAControl.Services.Pos.ConfiguracionNegocioService>();
+        servicios.AddSingleton<FAControl.Services.Pos.ExportacionService>();
         servicios.AddSingleton(sp =>
             new RespaldoService(sp.GetRequiredService<ConexionFactory>().CadenaConexion));
         servicios.AddSingleton(FAControl.Common.AjustesLocales.Cargar());

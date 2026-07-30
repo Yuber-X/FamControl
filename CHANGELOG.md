@@ -2,6 +2,45 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [1.7.0] — en curso · POS-500 se integra a la suite
+
+> Decisión con Yuber (2026-07-30): el punto de venta pasa a ser un modo más de
+> FAControl —mismo login, mismos usuarios y permisos— con sus DATOS en una base
+> aparte (`pos500_db`), porque se vende por separado. Esta entrega cubre los
+> cimientos y las capas de datos, negocio e impresión; faltan las pantallas.
+
+### Hecho
+
+- **Modo POS-500** en el launcher, con su color y su clave de base `pos500`. Se
+  habilita con el código 5, que ya existía: la clave que guardaba coincide con la
+  del modo, así que activar es literalmente digitar el código.
+- **Base propia `pos500_db`**, creada sola la primera vez que se entra al modo.
+  Lleva SOLO las tablas del punto de venta; usuarios, roles, permisos, sesiones y
+  auditoría siguen en `facontrol_db`, compartidos por toda la suite.
+- **022**: permisos del punto de venta (vender, productos, almacén, caducidad,
+  comprobantes y comprobantes de todos, cuadre y cuadre de todos, anular
+  facturas, acceso al modo) y roles **Supervisor / Cajero / Vendedor** propios
+  del POS, todo dentro de la base compartida.
+- **023**: la auditoría acepta la acción **anular**. Una factura emitida no se
+  edita ni se borra nunca, se anula, y eso tiene que poder buscarse solo en el
+  Historial.
+- **Capas de datos, negocio e impresión portadas**: productos, clientes del
+  mostrador, facturación con ITBIS, cuadre de caja, analítica, exportación y los
+  tickets de 80mm.
+- **La auditoría del POS entra en la MISMA transacción de la venta** aunque viva
+  en otra base: se califica el esquema en el INSERT, y como la transacción es de
+  la conexión y no de la base, la venta y su línea de historial se guardan o se
+  pierden juntas. Verificado con una prueba que fuerza el fallo por falta de
+  stock y comprueba que no queda ni factura ni rastro.
+
+### Falta
+
+- Las pantallas del POS (Panel, Vender, Clientes, Productos, Almacén, Caducidad,
+  Comprobantes, Cuadre, Reportes) dentro del shell de la suite.
+- Que el respaldo automático y el instalador contemplen las dos bases.
+- Mientras tanto la columna del launcher no deja entrar, a propósito: habilitarla
+  sin pantallas sería abrir un shell vacío.
+
 ## [1.6.0] — 2026-07-30 · Licencia por módulo, préstamo abierto y la cartera real del cliente
 
 ### FAControl (la suite)

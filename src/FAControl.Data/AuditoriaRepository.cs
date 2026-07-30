@@ -20,13 +20,27 @@ public class AuditoriaRepository
     /// <summary>
     /// Variante para participar en una transacción existente (venta de préstamo,
     /// registro de pago, etc. — la auditoría entra en la MISMA transacción atómica).
+    ///
+    /// <paramref name="esquema"/> es para el punto de venta: su conexión apunta a
+    /// `pos500_db`, donde NO existe la tabla auditoria (es compartida y vive en
+    /// facontrol_db). Calificando el nombre, el INSERT va a la base correcta y
+    /// —esto es lo importante— sigue dentro de la MISMA transacción, porque la
+    /// transacción es de la conexión, no de la base. Así una venta y su registro
+    /// en el historial se guardan o se pierden juntos.
     /// </summary>
-    public async Task InsertarAsync(Auditoria entrada, MySqlConnection conexion, MySqlTransaction? transaccion, CancellationToken ct = default)
+    public async Task InsertarAsync(Auditoria entrada, MySqlConnection conexion,
+        MySqlTransaction? transaccion, CancellationToken ct = default, string? esquema = null)
     {
+        // El esquema NO se puede parametrizar (es parte del nombre del objeto).
+        // Viene de la cadena de conexión local y se valida antes de usarlo.
+        var tabla = string.IsNullOrWhiteSpace(esquema)
+            ? DbNames.Auditoria
+            : $"`{Validar(esquema)}`.{DbNames.Auditoria}";
+
         using var cmd = conexion.CreateCommand();
         cmd.Transaction = transaccion;
         cmd.CommandText = $"""
-            INSERT INTO {DbNames.Auditoria} (usuario_id, entidad, entidad_id, accion, descripcion, ip_local, timestamp)
+            INSERT INTO {tabla} (usuario_id, entidad, entidad_id, accion, descripcion, ip_local, timestamp)
             VALUES (@usuarioId, @entidad, @entidadId, @accion, @descripcion, @ipLocal, @timestamp);
             """;
         cmd.Parameters.AddWithValue("@usuarioId", entrada.UsuarioId);
@@ -92,6 +106,12 @@ public class AuditoriaRepository
     private static DateTime? ADateTimeUtc(DateOnly? fecha) =>
         fecha?.ToDateTime(TimeOnly.MinValue).AddHours(4);
 
+    /// <summary>Nombre de esquema seguro para interpolar (no se puede parametrizar).</summary>
+    private static string Validar(string esquema) =>
+        System.Text.RegularExpressions.Regex.IsMatch(esquema, @"^[0-9A-Za-z$_]+$")
+            ? esquema
+            : throw new ArgumentException($"Nombre de base de datos no válido: '{esquema}'.", nameof(esquema));
+
     private static AccionAuditoria AccionDeDb(string valor) => valor switch
     {
         "crear" => AccionAuditoria.Crear,
@@ -100,6 +120,7 @@ public class AuditoriaRepository
         "consultar" => AccionAuditoria.Consultar,
         "login" => AccionAuditoria.Login,
         "logout" => AccionAuditoria.Logout,
+        "anular" => AccionAuditoria.Anular,
         _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Acción desconocida en BD.")
     };
 
@@ -112,6 +133,7 @@ public class AuditoriaRepository
         AccionAuditoria.Consultar => "consultar",
         AccionAuditoria.Login => "login",
         AccionAuditoria.Logout => "logout",
+        AccionAuditoria.Anular => "anular",
         _ => throw new ArgumentOutOfRangeException(nameof(accion))
     };
 }
