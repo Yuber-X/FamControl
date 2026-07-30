@@ -1,6 +1,31 @@
 # TODO.md — FAControl
 
-> Actualizado: 2026-07-27 (códigos del producto + expediente digital + instalador 1.5.0)
+> Actualizado: 2026-07-30 (licencia por módulo + préstamo abierto + cartera real del cliente)
+
+## Pedidos del cliente 2026-07-29
+
+### FAControl (la suite)
+- [x] Botón de ayuda con el teléfono del desarrollador (849-438-0242) en el launcher y en cada módulo
+- [x] Casilla de arranque directo: abrir siempre el mismo módulo, apagable desde Configuración
+- [x] Siete códigos con activación POR MÓDULO; los de módulo solo se piden al terminar la prueba
+- [x] Código 7 "eliminar todo" (sin respaldo) con palabra de confirmación y doble aviso
+- [x] Usuario Programador por defecto (`Yub`) sembrado con el esquema, sin saltarse el wizard inicial
+- [x] AutoControl retirado; POS-500 ocupa su lugar en el launcher como producto a la venta
+- [x] Instalador con prerequisitos opcionales (MySQL / AnyDesk / Google Drive) + icono
+- [x] Documento de cómo interconectar 3 PC contra una 4ta como servidor MySQL
+- [x] Guía de pruebas para dar el visto bueno antes del instalador definitivo
+
+### PrestControl
+- [x] Comprobante fiscal probado con la autorización real de la DGII (B01, 15 números, vence 31/12/2027)
+- [x] Método de amortización **abierto (solo interés)**: lo necesitaban 7 de los 10 préstamos reales
+- [x] Cartera real cargada (10 clientes) con informe de inconsistencias del listado
+- [x] Aislamiento por estancia verificado contra MySQL (clientes separados; usuarios/roles/permisos compartidos)
+
+### Pendiente del cliente (no del desarrollo)
+- [ ] Confirmar con Familia Almonte las 8 dudas del listado de préstamos
+      (ver `FAControl_CarteraReal_Informe_v1_2026-07-30.md`, sección 7)
+- [ ] Dejar los instaladores de AnyDesk, MySQL y Google Drive en `installer\prerequisitos\`
+- [ ] Decidir si la licencia se cobra por sistema o por PC (relevante para las 4 PC en red)
 
 ## ✅ Pedidos del cliente 2026-07-27 (COMPLETO)
 

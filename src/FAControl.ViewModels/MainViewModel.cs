@@ -215,6 +215,8 @@ public partial class MainViewModel : ObservableObject
         _nuevoVm.EsVehicular = EsAutoControl;
         // El toggle de tema debe reflejar la estancia actual (DealControl oscuro).
         _configuracionVm.SincronizarTema();
+        // Y la casilla de arranque directo, la estancia que quedó fijada.
+        _configuracionVm.SincronizarArranque();
         OnPropertyChanged(nameof(Modo));
         OnPropertyChanged(nameof(EsPrestControl));
         OnPropertyChanged(nameof(EsDealerControl));

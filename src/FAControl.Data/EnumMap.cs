@@ -32,6 +32,7 @@ internal static class EnumMap
     {
         MetodoAmortizacion.Frances => "frances",
         MetodoAmortizacion.CuotaFija => "cuota_fija",
+        MetodoAmortizacion.SoloInteres => "solo_interes",
         _ => throw new ArgumentOutOfRangeException(nameof(m))
     };
 
@@ -39,6 +40,7 @@ internal static class EnumMap
     {
         "frances" => MetodoAmortizacion.Frances,
         "cuota_fija" => MetodoAmortizacion.CuotaFija,
+        "solo_interes" => MetodoAmortizacion.SoloInteres,
         _ => throw new ArgumentOutOfRangeException(nameof(valor), valor, "Método de amortización desconocido en BD.")
     };
 

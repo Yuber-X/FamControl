@@ -55,9 +55,31 @@ public partial class App : Application
     /// </summary>
     private async Task CicloDeVidaAsync()
     {
+        // Arranque directo (cliente 2026-07-29): si el usuario marcó "abrir
+        // siempre este modo", la primera vuelta se salta el launcher. Solo la
+        // PRIMERA: al cerrar sesión vuelve a verlo, para poder cambiar de
+        // estancia sin tener que entrar a Configuración.
+        var directo = _servicios!.GetRequiredService<AjustesLocales>().ArranqueDirecto;
+        // …salvo que la licencia no habilite ESE modo: ahí hace falta el
+        // launcher para poder digitar el código que corresponda.
+        if (directo is { } fijado
+            && !_servicios!.GetRequiredService<LicenciaService>().PermiteModo(fijado))
+            directo = null;
+
         while (true)
         {
-            var modo = MostrarLauncher();
+            ModoApp? modo;
+            if (directo is { } modoDirecto)
+            {
+                modo = modoDirecto;
+                directo = null;
+                Log.Information("Arranque directo en {Modo} (el usuario lo dejó fijado)", modoDirecto);
+            }
+            else
+            {
+                modo = MostrarLauncher();
+            }
+
             if (modo is null)
                 break;                       // cerró el launcher → se acaba la app
 

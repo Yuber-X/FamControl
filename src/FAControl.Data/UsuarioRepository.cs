@@ -27,12 +27,25 @@ public class UsuarioRepository
         LEFT JOIN {DbNames.Rol} r ON r.id = u.rol_id
         """;
 
-    /// <summary>True si ya existe al menos un usuario (decide wizard inicial vs login).</summary>
+    /// <summary>
+    /// True si ya existe al menos un usuario del NEGOCIO (decide wizard inicial
+    /// vs login).
+    ///
+    /// La cuenta de respaldo del desarrollador (rol Programador, sembrada al
+    /// crear el esquema — 020) NO cuenta: el pedido del cliente 2026-07-29 es
+    /// que la instalación siga pidiendo las credenciales del primer Admin "como
+    /// si el user programador no existiera, pero sí estará".
+    /// </summary>
     public async Task<bool> ExisteAlgunUsuarioAsync(CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
-        cmd.CommandText = $"SELECT COUNT(*) FROM {DbNames.Usuario};";
+        cmd.CommandText = $"""
+            SELECT COUNT(*)
+            {Desde}
+            WHERE COALESCE(r.nombre, '') <> @programador;
+            """;
+        cmd.Parameters.AddWithValue("@programador", Roles.Programador);
         return Convert.ToInt64(await cmd.ExecuteScalarAsync(ct)) > 0;
     }
 

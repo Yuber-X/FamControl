@@ -26,6 +26,14 @@
           <CheckBox Content="Modo oscuro" FontSize="13" IsChecked="{Binding TemaOscuro}" />
           <TextBlock Text="Invierte los colores para trabajar de noche o con poca luz. Se aplica al instante y se recuerda en esta computadora."
                      Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0" />
+
+          <!-- Arranque directo (cliente 2026-07-29): se prende en la pantalla de
+               inicio y se apaga acá. -->
+          <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,16,0,14" />
+          <CheckBox Content="Abrir directamente esta estancia al iniciar FAControl"
+                    FontSize="13" IsChecked="{Binding ArranqueDirectoActivo}" />
+          <TextBlock Text="{Binding ArranqueDirectoTexto}"
+                     Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0" />
         </StackPanel>
       </Border>
 

@@ -51,7 +51,10 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         Metodos =
         [
             new Opcion<MetodoAmortizacion>(MetodoAmortizacion.CuotaFija, Textos.De(MetodoAmortizacion.CuotaFija)),
-            new Opcion<MetodoAmortizacion>(MetodoAmortizacion.Frances, Textos.De(MetodoAmortizacion.Frances))
+            new Opcion<MetodoAmortizacion>(MetodoAmortizacion.Frances, Textos.De(MetodoAmortizacion.Frances)),
+            // Préstamo abierto: solo interés y el capital queda abierto. Es la
+            // mitad de la cartera real del cliente (2026-07-29).
+            new Opcion<MetodoAmortizacion>(MetodoAmortizacion.SoloInteres, Textos.De(MetodoAmortizacion.SoloInteres))
         ];
         _modalidadSeleccionada = Modalidades[0];
         _metodoSeleccionado = Metodos[0];
@@ -123,6 +126,24 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     public bool MuestraTasaManual => !ModoMontoFinal;
     public string EtiquetaFecha => EsPagoUnico ? "Fecha del pago" : "Fecha del primer pago";
 
+    /// <summary>
+    /// Explica en una línea el método elegido. El abierto lo necesita más que los
+    /// otros dos: hay que dejar claro que la cantidad de cuotas es un horizonte,
+    /// no una fecha en la que el cliente esté obligado a saldar.
+    /// </summary>
+    public string MetodoAyudaTexto => MetodoSeleccionado?.Valor switch
+    {
+        MetodoAmortizacion.CuotaFija =>
+            "El interés se calcula sobre el monto prestado y se reparte parejo en todas las cuotas.",
+        MetodoAmortizacion.Frances =>
+            "Cuota siempre igual: al principio se paga más interés y menos capital.",
+        MetodoAmortizacion.SoloInteres =>
+            "Préstamo abierto: cada cuota es SOLO el interés y el capital queda abierto. " +
+            "La cantidad de cuotas es hasta dónde se proyecta; el capital entero aparece en la " +
+            "última. Si el cliente sigue pagando interés, se renueva.",
+        _ => string.Empty
+    };
+
     // ---------- Preview ----------
 
     public ObservableCollection<CuotaCalculada> Preview { get; } = [];
@@ -137,7 +158,11 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     partial void OnMontoTextoChanged(string value) => Recalcular();
     partial void OnTasaTextoChanged(string value) => Recalcular();
     partial void OnPlazoTextoChanged(string value) => Recalcular();
-    partial void OnMetodoSeleccionadoChanged(Opcion<MetodoAmortizacion> value) => Recalcular();
+    partial void OnMetodoSeleccionadoChanged(Opcion<MetodoAmortizacion> value)
+    {
+        OnPropertyChanged(nameof(MetodoAyudaTexto));
+        Recalcular();
+    }
     partial void OnFechaPrimerPagoChanged(DateTime value) => Recalcular();
     partial void OnMontoFinalTextoChanged(string value) => Recalcular();
     partial void OnClienteSeleccionadoChanged(Cliente? value) => NotificarComandos();

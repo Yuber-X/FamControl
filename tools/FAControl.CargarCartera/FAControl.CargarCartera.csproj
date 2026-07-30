@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FAControl.Services\FAControl.Services.csproj" />
+    <ProjectReference Include="..\..\src\FAControl.Data\FAControl.Data.csproj" />
+    <ProjectReference Include="..\..\src\FAControl.Models\FAControl.Models.csproj" />
+    <ProjectReference Include="..\..\src\FAControl.Common\FAControl.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySqlConnector" Version="2.6.1" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>FAControl.CargarCartera</RootNamespace>
+  </PropertyGroup>
+
+</Project>

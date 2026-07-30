@@ -22,7 +22,21 @@ public enum Modalidad
 public enum MetodoAmortizacion
 {
     Frances,
-    CuotaFija
+    CuotaFija,
+    /// <summary>
+    /// Préstamo ABIERTO ("a sola firma"): el cliente paga SOLO el interés cada
+    /// período y el capital queda abierto hasta que decida saldarlo.
+    ///
+    /// Es como trabaja de verdad buena parte de la cartera de Familia Almonte
+    /// (7 de los 10 préstamos del listado del 29-07-2026): "Cuotas: abierto,
+    /// Abono a capital: abierto, Total a pagar: solo el interés".
+    ///
+    /// En la tabla se representa con N cuotas de puro interés y el CAPITAL
+    /// COMPLETO en la última. Ese plazo N es el horizonte acordado (o el que se
+    /// use para proyectar), no una obligación de saldar: si el cliente sigue
+    /// pagando interés, el préstamo se renueva.
+    /// </summary>
+    SoloInteres
 }
 
 /// <summary>Estado del contrato de préstamo. Coincide con ENUM prestamo.estado.</summary>

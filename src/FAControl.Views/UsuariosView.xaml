@@ -147,24 +147,11 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <TextBlock Text="AutoControl (ventas financiadas)" Style="{DynamicResource Input.Label}" Margin="0,8,0,0" />
-            <ComboBox Height="38" FontSize="13" ItemsSource="{Binding RolesAuto}"
-                      SelectedItem="{Binding RolAutoSeleccionado}">
-              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Texto}" /></DataTemplate></ComboBox.ItemTemplate>
-            </ComboBox>
-            <ItemsControl ItemsSource="{Binding PermisosAuto}" Margin="8,6,0,0"
-                          IsEnabled="{Binding PermisosAutoHabilitados}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <CheckBox Content="{Binding Nombre}" ToolTip="{Binding Descripcion}"
-                            FontSize="12" Margin="0,2,14,2"
-                            IsChecked="{Binding Marcado, Mode=TwoWay}" />
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <!-- AutoControl salió del launcher el 2026-07-29 (DealControl hace
+                 sus operaciones), así que ya no se asignan roles de esa estancia.
+                 El ViewModel SÍ sigue cargando y guardando lo que había: quitarlo
+                 de ahí le borraría el rol de autocontrol a los usuarios viejos la
+                 primera vez que alguien los editara. -->
           </StackPanel>
 
           <TextBlock Text="Contraseña" Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />

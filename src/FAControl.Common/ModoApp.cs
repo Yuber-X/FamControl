@@ -11,8 +11,37 @@ public enum ModoApp
     PrestControl,
     /// <summary>El vehículo como ACTIVO: inventario, importación, rent a car, venta al contado.</summary>
     DealerControl,
-    /// <summary>El vehículo como CRÉDITO: venta financiada, garantía, cuotas.</summary>
+    /// <summary>
+    /// RETIRADO como estancia el 2026-07-29 por pedido del cliente: "ya con
+    /// DealControl que hace todas las operaciones del mismo autoControl, es
+    /// prácticamente una copia innecesaria". En su lugar el launcher ofrece
+    /// POS-500 (<see cref="Pos500"/>).
+    ///
+    /// El valor SIGUE en el enum a propósito: la columna `ambito` de la base, los
+    /// roles por modo y las ventas financiadas ya creadas lo referencian. Sacarlo
+    /// del enum obligaría a migrar datos históricos sin ninguna ganancia. Lo que
+    /// se quitó es la entrada: no está en <see cref="IdentidadModo.Todos"/>, así
+    /// que no aparece en el launcher ni en la pantalla de usuarios.
+    /// </summary>
     AutoControl
+}
+
+/// <summary>
+/// POS-500: punto de venta, producto APARTE de la suite (cliente 2026-07-29:
+/// "lo ideal sería colocar el POS-500 a disposición por si desean comprarlo").
+/// No es un ModoApp — no se abre desde acá; el launcher lo muestra como oferta y
+/// el código 5 registra la compra.
+/// </summary>
+public static class Pos500
+{
+    public const string Nombre = "POS-500";
+    public const string Etiqueta = "Punto de venta";
+    public const string Descripcion =
+        "Facturación, inventario, caja y reportes para tiendas y colmados. " +
+        "Se vende e instala aparte de FAControl.";
+    /// <summary>El verde que usaba AutoControl: el launcher conserva su equilibrio de color.</summary>
+    public const string ColorHex = "#3A7D5C";
+    public const string ColorBrilloHex = "#48B07E";
 }
 
 /// <summary>
@@ -36,6 +65,10 @@ public record IdentidadModo(
     /// <summary>False mientras el módulo no exista: el launcher lo marca.</summary>
     bool Disponible)
 {
+    /// <summary>
+    /// Las estancias que se abren desde el launcher. AutoControl salió el
+    /// 2026-07-29 (ver el comentario en <see cref="ModoApp.AutoControl"/>).
+    /// </summary>
     public static readonly IReadOnlyList<IdentidadModo> Todos =
     [
         new(ModoApp.PrestControl, "PrestControl", "Préstamos",
@@ -44,17 +77,22 @@ public record IdentidadModo(
             "#C9A15A", "#B5893F", Disponible: true),
 
         new(ModoApp.DealerControl, "DealControl", "Dealer",
-            "Inventario de vehículos, importación, costos y rent a car.",
+            "Inventario de vehículos, importación, costos, rent a car y ventas financiadas.",
             // Azul acero + glow azul vivo para que resalte como el dorado
-            "#3D5A80", "#5B90D4", Disponible: true),
-
-        new(ModoApp.AutoControl, "AutoControl", "Ventas de vehículos",
-            "Venta financiada: crédito con el vehículo en garantía, cuotas y pagaré.",
-            // Verde esmeralda (aprobado por Yuber 2026-07-17) + glow verde vivo
-            "#3A7D5C", "#48B07E", Disponible: true)
+            "#3D5A80", "#5B90D4", Disponible: true)
     ];
 
-    public static IdentidadModo De(ModoApp modo) => Todos.First(m => m.Modo == modo);
+    /// <summary>
+    /// Identidad de un modo, incluido el retirado: hay pantallas que muestran el
+    /// nombre de la estancia de datos históricos (auditoría, roles viejos).
+    /// </summary>
+    private static readonly IdentidadModo AutoControlRetirado =
+        new(ModoApp.AutoControl, "AutoControl", "Ventas de vehículos",
+            "Retirado: sus operaciones las hace DealControl.",
+            "#3A7D5C", "#48B07E", Disponible: false);
+
+    public static IdentidadModo De(ModoApp modo) =>
+        Todos.FirstOrDefault(m => m.Modo == modo) ?? AutoControlRetirado;
 }
 
 /// <summary>Utilidades del modo/ámbito compartidas por todas las capas.</summary>

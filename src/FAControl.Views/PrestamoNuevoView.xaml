@@ -129,6 +129,10 @@
             <ComboBox Height="40" FontSize="13"
                       ItemsSource="{Binding Metodos}"
                       SelectedItem="{Binding MetodoSeleccionado}" />
+            <!-- Explica el método elegido. Con Style: sin él el texto sale negro
+                 y desaparece en modo noche. -->
+            <TextBlock Text="{Binding MetodoAyudaTexto}" TextWrapping="Wrap"
+                       Style="{DynamicResource Texto.Caption}" Margin="0,6,0,0" />
           </StackPanel>
 
           <TextBlock Text="Garantía (opcional)" Style="{DynamicResource Input.Label}"

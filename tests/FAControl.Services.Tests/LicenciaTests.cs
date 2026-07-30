@@ -98,4 +98,88 @@ public class LicenciaTests
     {
         LicenciaService.Reconocer(null).Should().Be(AccionCodigo.Invalido);
     }
+
+    // ---------- Licencia POR MODO (cliente 2026-07-29) ----------
+    // "Los códigos solo se pedirán cuando se termine el trial. Después del
+    // trial, se pedirá el código correspondiente."
+
+    [Fact]
+    public void Durante_la_prueba_estan_abiertas_todas_las_estancias()
+    {
+        var licencia = new LicenciaLocal { PruebaIniciadaUtc = Ahora };
+
+        licencia.PermiteModo(ModoApp.PrestControl, Ahora).Should().BeTrue();
+        licencia.PermiteModo(ModoApp.DealerControl, Ahora).Should().BeTrue();
+        licencia.PermiteProducto(ProductosLicencia.Pos500, Ahora).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Vencida_la_prueba_sin_ningun_codigo_no_entra_a_nada()
+    {
+        var licencia = new LicenciaLocal { PruebaIniciadaUtc = Ahora };
+        var vencida = Ahora.AddDays(LicenciaLocal.DiasDePrueba);
+
+        licencia.PermiteUsar(vencida).Should().BeFalse();
+        licencia.PermiteModo(ModoApp.PrestControl, vencida).Should().BeFalse();
+        licencia.PermiteModo(ModoApp.DealerControl, vencida).Should().BeFalse();
+    }
+
+    /// <summary>El caso que pidió el cliente: se compra un módulo, no la suite.</summary>
+    [Fact]
+    public void Vencida_la_prueba_solo_entra_la_estancia_que_tiene_codigo()
+    {
+        var licencia = new LicenciaLocal { PruebaIniciadaUtc = Ahora };
+        licencia.AgregarProducto(ProductosLicencia.De(ModoApp.PrestControl));
+        var vencida = Ahora.AddDays(LicenciaLocal.DiasDePrueba);
+
+        licencia.PermiteUsar(vencida).Should().BeTrue("el launcher tiene que abrir");
+        licencia.PermiteModo(ModoApp.PrestControl, vencida).Should().BeTrue();
+        licencia.PermiteModo(ModoApp.DealerControl, vencida).Should().BeFalse();
+    }
+
+    /// <summary>Comprar durante la prueba tiene que seguir valiendo cuando la prueba termina.</summary>
+    [Fact]
+    public void Lo_comprado_durante_la_prueba_sobrevive_al_vencimiento()
+    {
+        var licencia = new LicenciaLocal { PruebaIniciadaUtc = Ahora };
+        new LicenciaService(licencia);
+        licencia.AgregarProducto(ProductosLicencia.De(ModoApp.DealerControl));
+
+        var vencida = Ahora.AddDays(LicenciaLocal.DiasDePrueba);
+        licencia.PermiteModo(ModoApp.DealerControl, vencida).Should().BeTrue();
+    }
+
+    [Fact]
+    public void La_activacion_total_abre_todas_las_estancias()
+    {
+        var licencia = new LicenciaLocal { Activada = true, ActivadaUtc = Ahora };
+
+        licencia.PermiteModo(ModoApp.PrestControl, Ahora).Should().BeTrue();
+        licencia.PermiteModo(ModoApp.DealerControl, Ahora).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Un_producto_no_se_duplica_si_se_digita_dos_veces_el_mismo_codigo()
+    {
+        var licencia = new LicenciaLocal();
+
+        licencia.AgregarProducto(ProductosLicencia.Pos500).Should().BeTrue();
+        licencia.AgregarProducto(ProductosLicencia.Pos500).Should().BeFalse();
+        licencia.Productos.Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// Con solo POS-500 comprado (que no es una estancia), el launcher abre —
+    /// hay que poder ver el estado— pero ninguna estancia se habilita.
+    /// </summary>
+    [Fact]
+    public void Comprar_pos500_no_habilita_estancias_de_la_suite()
+    {
+        var licencia = new LicenciaLocal();
+        licencia.AgregarProducto(ProductosLicencia.Pos500);
+
+        licencia.PermiteUsar(Ahora).Should().BeTrue();
+        licencia.PermiteModo(ModoApp.PrestControl, Ahora).Should().BeFalse();
+        licencia.PermiteModo(ModoApp.DealerControl, Ahora).Should().BeFalse();
+    }
 }

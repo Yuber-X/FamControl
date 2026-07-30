@@ -3,18 +3,36 @@
 ; Compilar:  ISCC.exe FAControl.iss
 ; Requiere:  ..\publish\ generado con:
 ;   dotnet publish src/FAControl.App -c Release -r win-x64 --self-contained true -o publish
+;
+; PREREQUISITOS (pedido del cliente 2026-07-29): si los instaladores de AnyDesk,
+; MySQL y Google Drive están en installer\prerequisitos\, el asistente ofrece
+; instalarlos antes de abrir FAControl. Si NO están, el instalador compila igual
+; y esa página simplemente no aparece. Ver prerequisitos\LEEME.txt.
 ; =============================================================
 
 #define AppNombre "FAControl"
-#define AppVersion "1.5.0"
+#define AppVersion "1.6.0"
 #define AppEditor "Yuber Santana"
 #define AppExe "FAControl.App.exe"
+#define AppTelefono "849-438-0242"
+
+; --- Prerequisitos: nombre esperado de cada instalador ---
+#define DirPrereq "prerequisitos"
+#define ExeAnyDesk "AnyDesk.exe"
+#define ExeMySql "mysql-installer-community.msi"
+#define ExeDrive "GoogleDriveSetup.exe"
+
+; FileExists se evalúa al COMPILAR: por eso el .iss sirve con y sin los archivos
+#define TieneAnyDesk FileExists(AddBackslash(SourcePath) + DirPrereq + "\" + ExeAnyDesk)
+#define TieneMySql   FileExists(AddBackslash(SourcePath) + DirPrereq + "\" + ExeMySql)
+#define TieneDrive   FileExists(AddBackslash(SourcePath) + DirPrereq + "\" + ExeDrive)
 
 [Setup]
 AppId={{7E2B9C41-5D8F-4A36-9B1C-FACONTROL}
 AppName={#AppNombre}
 AppVersion={#AppVersion}
 AppPublisher={#AppEditor}
+AppSupportPhone={#AppTelefono}
 DefaultDirName={autopf}\{#AppNombre}
 DefaultGroupName={#AppNombre}
 OutputDir=Output
@@ -27,6 +45,7 @@ PrivilegesRequired=admin
 WizardStyle=modern
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#AppExe}
+; Ícono de FAControl: en el .exe del instalador, en el Panel de control y en los accesos directos
 SetupIconFile=..\src\FAControl.App\Assets\facontrol.ico
 
 [Languages]
@@ -35,6 +54,20 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 [Tasks]
 Name: "escritorio"; Description: "Crear acceso directo en el escritorio"; \
   GroupDescription: "Accesos directos:"
+
+; --- Prerequisitos: una casilla por programa, solo si el instalador está presente ---
+#if TieneMySql
+Name: "prereq_mysql"; Description: "Instalar MySQL Server (la base de datos de FAControl)"; \
+  GroupDescription: "Programas necesarios:"
+#endif
+#if TieneAnyDesk
+Name: "prereq_anydesk"; Description: "Instalar AnyDesk (para dar soporte a distancia)"; \
+  GroupDescription: "Programas necesarios:"
+#endif
+#if TieneDrive
+Name: "prereq_drive"; Description: "Instalar Google Drive (para subir los respaldos a la nube)"; \
+  GroupDescription: "Programas necesarios:"
+#endif
 
 [Files]
 ; Aplicación publicada (self-contained: no requiere instalar .NET)
@@ -55,6 +88,20 @@ Source: "..\scripts\db\*.sql"; DestDir: "{app}\scripts\db"; \
 Source: "..\docs\INSTALL.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "..\docs\MANUAL.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 
+; --- Prerequisitos: van a la carpeta temporal y se borran al terminar ---
+#if TieneMySql
+Source: "{#DirPrereq}\{#ExeMySql}"; DestDir: "{tmp}"; \
+  Flags: deleteafterinstall; Tasks: prereq_mysql
+#endif
+#if TieneAnyDesk
+Source: "{#DirPrereq}\{#ExeAnyDesk}"; DestDir: "{tmp}"; \
+  Flags: deleteafterinstall; Tasks: prereq_anydesk
+#endif
+#if TieneDrive
+Source: "{#DirPrereq}\{#ExeDrive}"; DestDir: "{tmp}"; \
+  Flags: deleteafterinstall; Tasks: prereq_drive
+#endif
+
 [Dirs]
 ; La app escribe logs\, ajustes.json y licencia.json junto al ejecutable:
 ; los usuarios estándar necesitan permiso de modificación
@@ -70,6 +117,22 @@ Name: "{group}\Manual de usuario"; Filename: "{app}\docs\MANUAL.md"
 Name: "{autodesktop}\{#AppNombre}"; Filename: "{app}\{#AppExe}"; Tasks: escritorio
 
 [Run]
+; ---- Primero los prerequisitos, DESPUÉS la app ----
+; Van con la interfaz visible a propósito: MySQL pide contraseña de root y hay
+; que elegirla con el cliente delante, no dejarla al azar.
+#if TieneMySql
+Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\{#ExeMySql}"""; \
+  StatusMsg: "Instalando MySQL Server…"; Tasks: prereq_mysql
+#endif
+#if TieneAnyDesk
+Filename: "{tmp}\{#ExeAnyDesk}"; \
+  StatusMsg: "Instalando AnyDesk…"; Tasks: prereq_anydesk
+#endif
+#if TieneDrive
+Filename: "{tmp}\{#ExeDrive}"; \
+  StatusMsg: "Instalando Google Drive…"; Tasks: prereq_drive
+#endif
+
 Filename: "{app}\{#AppExe}"; Description: "Abrir {#AppNombre} ahora"; \
   Flags: nowait postinstall skipifsilent
 

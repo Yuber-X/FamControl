@@ -2,6 +2,28 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [1.6.0] — 2026-07-30 · Licencia por módulo, préstamo abierto y la cartera real del cliente
+
+### FAControl (la suite)
+
+- **Siete códigos** en lugar de cuatro, con **activación por módulo** (pedido del cliente 2026-07-29): prueba de 14 días, activación total, PrestControl, DealControl, POS-500, respaldar y limpiar todo, eliminar todo. Los códigos por módulo **solo se piden cuando termina la prueba**: durante los 14 días la suite está abierta completa, y lo que se compre durante la prueba sigue valiendo después. En el launcher, un módulo sin código muestra **REQUIERE CÓDIGO** y dice cuál falta.
+- **Eliminar todo** (código 7) es nuevo y no respalda nada: borra base, expedientes, ajustes y licencia para retirar la instalación de una PC. Exige escribir `ELIMINAR` y dos confirmaciones. La marca de inicio de prueba del registro **no** se borra: eliminar no sirve para estirar los 14 días.
+- **Cuenta de respaldo del desarrollador** sembrada con el esquema (`Yub`, rol Programador). La instalación **sigue pidiendo** las credenciales del primer Admin como si no existiera, y ningún Admin la ve ni la puede tocar. Cada login suyo queda con Warning en el log. Reemplaza al viejo código de recuperación de acceso, que se retiró: dos puertas traseras para lo mismo era una de más.
+- **Arranque directo**: casilla en la pantalla de inicio para que la app abra siempre el mismo módulo, sin pasar por el launcher. Se apaga desde Configuración → Apariencia de cualquier módulo. Solo aplica al arranque: al cerrar sesión vuelve a aparecer el launcher, para poder cambiar de estancia.
+- **Botón de ayuda** con el teléfono del desarrollador (849-438-0242), en el launcher y en el sidebar de cada módulo: copiar el número, abrir WhatsApp y qué contar al escribir.
+- **AutoControl salió de la suite**: DealControl ya hace sus operaciones. Su lugar en el launcher lo ocupa **POS-500** como producto a la venta (código 5 registra la compra). El valor sigue en la base para no migrar los datos históricos, pero ya no se entra ni se asignan roles de esa estancia.
+
+### PrestControl
+
+- **Préstamo abierto (solo interés)** — método de amortización nuevo. El cliente paga **solo el interés** cada período y el capital queda abierto hasta que decida saldarlo: N cuotas de puro interés y el capital completo en la última, que es una proyección y no un vencimiento pactado. **7 de los 10 préstamos reales del cliente son así** y ninguno de los dos métodos anteriores los representaba sin inventar abonos a capital.
+- **Comprobante fiscal con la autorización real de la DGII** (constancia del 29/07/2026, autorización 6005407803): B01 Factura de Crédito Fiscal, del B0100000001 al B0100000015, vence 31/12/2027. Probado de punta a punta contra MySQL: los 15 salen en orden y sin repetir, el 16 se bloquea en vez de inventarse un número, un rollback no quema el comprobante y una autorización vencida no emite.
+- **La cartera real cargada**: 10 clientes con sus préstamos, cargados con los mismos servicios de la app (códigos, cuotas y auditoría idénticos a haberlos tecleado). Las inconsistencias del listado quedaron escritas en las notas de cada préstamo y en un informe aparte; los pagos ya hechos **no** se cargaron a ojo.
+
+### Verificación
+
+- **Aislamiento entre estancias probado contra MySQL**: los clientes de un módulo no aparecen en el otro, la misma cédula puede existir en los dos, y lo único compartido es lo que pidió el cliente — usuarios, roles por módulo y permisos.
+- **Instalador 1.6.0** con prerequisitos opcionales (MySQL, AnyDesk, Google Drive): si los instaladores están en `installer\prerequisitos\`, el asistente ofrece instalarlos antes de abrir FAControl; si no están, compila igual.
+
 ## [1.5.0] — 2026-07-27 · Códigos del producto, expediente digital y primer instalador de la suite
 
 ### FAControl (los tres modos)

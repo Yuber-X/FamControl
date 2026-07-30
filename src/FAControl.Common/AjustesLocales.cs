@@ -28,6 +28,25 @@ public class AjustesLocales
     /// </summary>
     public Dictionary<string, bool> TemaOscuroPorModo { get; set; } = new();
 
+    /// <summary>
+    /// Arranque directo (pedido del cliente 2026-07-29): nombre del ModoApp que
+    /// la app abre sola al iniciar, sin mostrar el launcher. Vacío = mostrar el
+    /// launcher. Se marca en el launcher y se apaga en Configuración → Arranque.
+    ///
+    /// Solo aplica al ARRANQUE: si el usuario cierra sesión, vuelve a ver el
+    /// launcher en esa misma corrida. Si no, quedaría encerrado en un modo sin
+    /// forma de cambiar de estancia.
+    /// </summary>
+    public string ArranqueDirectoModo { get; set; } = string.Empty;
+
+    /// <summary>El modo de arranque directo, o null si está apagado o guardado con basura.</summary>
+    public ModoApp? ArranqueDirecto =>
+        Enum.TryParse<ModoApp>(ArranqueDirectoModo, out var modo) ? modo : null;
+
+    /// <summary>Fija el arranque directo (null = apagarlo). Llamar a <see cref="Guardar"/> aparte.</summary>
+    public void FijarArranqueDirecto(ModoApp? modo) =>
+        ArranqueDirectoModo = modo?.ToString() ?? string.Empty;
+
     /// <summary>Tema del modo: usa el default por modo si el usuario no lo cambió.</summary>
     public bool TemaOscuroDe(ModoApp modo) =>
         TemaOscuroPorModo.TryGetValue(modo.ToString(), out var oscuro)
@@ -141,4 +160,14 @@ public class AjustesLocales
     }
 
     public void Guardar() => File.WriteAllText(Ruta, JsonSerializer.Serialize(this, Opciones));
+
+    /// <summary>
+    /// Borra el archivo de ajustes (código 7 — eliminar todo). Los valores en
+    /// memoria no se tocan: la app se está por cerrar de todos modos.
+    /// </summary>
+    public static void Borrar()
+    {
+        if (File.Exists(Ruta))
+            File.Delete(Ruta);
+    }
 }

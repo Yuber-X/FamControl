@@ -80,6 +80,43 @@ public class VerificadorBaseDatosTests : IAsyncLifetime
         Convert.ToInt32(await cmd.ExecuteScalarAsync()).Should().Be(6);
     }
 
+    /// <summary>
+    /// La cuenta de respaldo del desarrollador (020) nace con el esquema, con
+    /// todos los permisos… y sin estorbar el wizard: la app tiene que seguir
+    /// pidiendo las credenciales del primer Admin, "como si no existiera"
+    /// (pedido del cliente 2026-07-29).
+    /// </summary>
+    [Fact]
+    public async Task CrearEsquema_SiembraLaCuentaDelDesarrollador_SinSaltarseElWizard()
+    {
+        var verificador = new VerificadorBaseDatos(CadenaProvision);
+        await verificador.CrearEsquemaAsync();
+
+        await using var conexion = new MySqlConnection(CadenaProvision);
+        await conexion.OpenAsync();
+
+        // Existe, es Programador y tiene TODOS los permisos del catálogo
+        await using (var cmd = conexion.CreateCommand())
+        {
+            cmd.CommandText = """
+                SELECT r.nombre,
+                       (SELECT COUNT(*) FROM usuario_permiso up WHERE up.usuario_id = u.id),
+                       (SELECT COUNT(*) FROM permiso)
+                FROM usuario u JOIN rol r ON r.id = u.rol_id
+                WHERE u.username = 'Yub';
+                """;
+            await using var reader = await cmd.ExecuteReaderAsync();
+            (await reader.ReadAsync()).Should().BeTrue("la cuenta de respaldo se siembra con el esquema");
+            reader.GetString(0).Should().Be("Programador");
+            reader.GetInt32(1).Should().Be(reader.GetInt32(2));
+        }
+
+        // …y el wizard de cuenta inicial igual aparece
+        var usuarios = new UsuarioRepository(new ConexionFactory(CadenaProvision));
+        (await usuarios.ExisteAlgunUsuarioAsync()).Should().BeFalse(
+            "la cuenta del desarrollador no cuenta como usuario del negocio");
+    }
+
     [Fact]
     public void EsquemaEmbebido_NoContieneCreateDatabaseNiUse()
     {

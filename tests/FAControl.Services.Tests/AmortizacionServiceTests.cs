@@ -294,4 +294,81 @@ public class AmortizacionServiceTests
             Modalidad.Mensual, MetodoAmortizacion.CuotaFija);
         accion.Should().Throw<ArgumentException>();
     }
+
+    // =========================================================
+    // Prestamo ABIERTO (solo interes) — cliente 2026-07-29
+    // =========================================================
+
+    /// <summary>
+    /// Richard Ovalles, del listado real: 1,000,000 al 2% mensual, "cuotas
+    /// abierto, abono a capital 0, total a pagar 20,000". Doce meses de puro
+    /// interes y el capital entero al final.
+    /// </summary>
+    [Fact]
+    public void SoloInteres_reproduce_un_prestamo_abierto_de_la_cartera_real()
+    {
+        var tabla = _sut.Calcular(Params(1_000_000m, 2m, 12,
+            metodo: MetodoAmortizacion.SoloInteres));
+
+        tabla.Should().HaveCount(12);
+        // Todas las cuotas menos la ultima: solo interes, el capital no se mueve
+        tabla.Take(11).Should().OnlyContain(c => c.Capital == 0m);
+        tabla.Take(11).Should().OnlyContain(c => c.Interes == 20_000m);
+        tabla.Take(11).Should().OnlyContain(c => c.MontoTotal == 20_000m);
+        tabla.Take(11).Should().OnlyContain(c => c.SaldoDespues == 1_000_000m);
+
+        // La ultima liquida el capital
+        tabla[^1].Capital.Should().Be(1_000_000m);
+        tabla[^1].Interes.Should().Be(20_000m);
+        tabla[^1].MontoTotal.Should().Be(1_020_000m);
+        tabla[^1].SaldoDespues.Should().Be(0m);
+
+        // El capital vuelve entero y el interes es el pactado, mes a mes
+        tabla.Sum(c => c.Capital).Should().Be(1_000_000m);
+        tabla.Sum(c => c.Interes).Should().Be(240_000m);
+    }
+
+    /// <summary>Dionicio: 1,100,000 al 1.5% → 16,500 mensuales, tal cual el papel.</summary>
+    [Theory]
+    [InlineData(1_100_000, 1.5, 16_500)]     // Dionicio
+    [InlineData(500_000, 2, 10_000)]         // Miguel Angel
+    [InlineData(400_000, 3, 12_000)]         // Grabiel
+    [InlineData(300_000, 2.5, 7_500)]        // Wendy Yocasta
+    [InlineData(200_000, 2, 4_000)]          // Mariana Sanchez
+    public void SoloInteres_da_el_interes_mensual_que_dice_el_listado(
+        decimal capital, decimal tasa, decimal interesEsperado)
+    {
+        var tabla = _sut.Calcular(Params(capital, tasa, 6,
+            metodo: MetodoAmortizacion.SoloInteres));
+
+        tabla[0].MontoTotal.Should().Be(interesEsperado);
+        tabla.Take(5).Should().OnlyContain(c => c.MontoTotal == interesEsperado);
+    }
+
+    /// <summary>Sin interes, el abierto es simplemente devolver el capital al final.</summary>
+    [Fact]
+    public void SoloInteres_con_tasa_cero_solo_devuelve_el_capital_al_final()
+    {
+        var tabla = _sut.Calcular(Params(50_000m, 0m, 4,
+            metodo: MetodoAmortizacion.SoloInteres));
+
+        tabla.Take(3).Should().OnlyContain(c => c.MontoTotal == 0m);
+        tabla[^1].MontoTotal.Should().Be(50_000m);
+        tabla.Sum(c => c.Interes).Should().Be(0m);
+    }
+
+    /// <summary>El resumen muestra como "cuota" el pago de interes, que es lo que cobra.</summary>
+    [Fact]
+    public void SoloInteres_el_resumen_muestra_el_pago_de_interes()
+    {
+        var tabla = _sut.Calcular(Params(400_000m, 2m, 6,
+            metodo: MetodoAmortizacion.SoloInteres));
+
+        var resumen = _sut.Resumir(tabla);
+
+        resumen.CuotaFija.Should().Be(8_000m);
+        resumen.Capital.Should().Be(400_000m);
+        resumen.InteresTotal.Should().Be(48_000m);
+        resumen.TotalAPagar.Should().Be(448_000m);
+    }
 }

@@ -25,3 +25,8 @@ appsettings.*.Production.json
 .idea/
 *.suo
 TestResults/
+
+# Instaladores de terceros que empaqueta el setup (AnyDesk, MySQL, Drive):
+# pesan cientos de MB y no son nuestros
+installer/prerequisitos/*
+!installer/prerequisitos/LEEME.txt

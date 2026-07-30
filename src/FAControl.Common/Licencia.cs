@@ -14,10 +14,27 @@ public enum EstadoLicencia
     SinActivar,
     /// <summary>Prueba corriendo (14 días desde que se digitó el código 1).</summary>
     EnPrueba,
-    /// <summary>La prueba se pasó de la fecha: la app queda bloqueada hasta el código 2.</summary>
+    /// <summary>
+    /// La prueba se pasó de la fecha. Desde acá cada producto pide SU código
+    /// (pedido del cliente 2026-07-29): "los códigos solo se pedirán cuando se
+    /// termine el trial".
+    /// </summary>
     PruebaVencida,
-    /// <summary>Producto habilitado en firme (código 2).</summary>
+    /// <summary>Suite completa habilitada en firme (código 2).</summary>
     Activada
+}
+
+/// <summary>
+/// Lo que se licencia por separado (cliente 2026-07-29: un código por modo).
+/// Son las claves que se guardan en <see cref="LicenciaLocal.Productos"/>.
+/// </summary>
+public static class ProductosLicencia
+{
+    /// <summary>POS-500: producto aparte, se ofrece desde el launcher (2026-07-29).</summary>
+    public const string Pos500 = "Pos500";
+
+    /// <summary>Clave de licencia de un modo de la suite.</summary>
+    public static string De(ModoApp modo) => modo.ToString();
 }
 
 /// <summary>
@@ -51,8 +68,17 @@ public class LicenciaLocal
         Encoding.UTF8.GetBytes("FAControl.Licencia.v1.FamiliaAlmonteAutoImport");
 
     public DateTime? PruebaIniciadaUtc { get; set; }
+    /// <summary>Suite completa activada (código 2): habilita todo, sin vencimiento.</summary>
     public bool Activada { get; set; }
     public DateTime? ActivadaUtc { get; set; }
+
+    /// <summary>
+    /// Productos habilitados de a uno (códigos 3, 4 y 5). Claves de
+    /// <see cref="ProductosLicencia"/>. Va dentro de la firma: agregar un modo a
+    /// mano en el .json invalida el archivo.
+    /// </summary>
+    public List<string> Productos { get; set; } = [];
+
     /// <summary>Firma del contenido. Si no cuadra, la licencia se descarta.</summary>
     public string Firma { get; set; } = string.Empty;
 
@@ -80,9 +106,42 @@ public class LicenciaLocal
         return restantes <= 0 ? 0 : (int)Math.Ceiling(restantes);
     }
 
-    /// <summary>True si la app puede abrirse (prueba viva o producto activado).</summary>
+    /// <summary>
+    /// True si la app puede abrirse: prueba viva, suite activada, o al menos un
+    /// producto comprado suelto (el launcher tiene que abrir para poder elegirlo).
+    /// </summary>
     public bool PermiteUsar(DateTime ahoraUtc) =>
-        EstadoEn(ahoraUtc) is EstadoLicencia.EnPrueba or EstadoLicencia.Activada;
+        EstadoEn(ahoraUtc) is EstadoLicencia.EnPrueba or EstadoLicencia.Activada
+        || Productos.Count > 0;
+
+    /// <summary>
+    /// True si ESTE producto se puede abrir hoy. Durante la prueba todo está
+    /// abierto; vencida la prueba, solo lo que tenga su código (cliente
+    /// 2026-07-29).
+    /// </summary>
+    public bool PermiteProducto(string clave, DateTime ahoraUtc) =>
+        EstadoEn(ahoraUtc) switch
+        {
+            EstadoLicencia.Activada => true,
+            EstadoLicencia.EnPrueba => true,
+            _ => TieneProducto(clave)
+        };
+
+    public bool PermiteModo(ModoApp modo, DateTime ahoraUtc) =>
+        PermiteProducto(ProductosLicencia.De(modo), ahoraUtc);
+
+    /// <summary>Producto comprado suelto (independiente de la prueba).</summary>
+    public bool TieneProducto(string clave) =>
+        Productos.Contains(clave, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Agrega un producto activado. Devuelve false si ya estaba.</summary>
+    public bool AgregarProducto(string clave)
+    {
+        if (TieneProducto(clave))
+            return false;
+        Productos.Add(clave);
+        return true;
+    }
 
     // ---------- Persistencia ----------
 
@@ -128,10 +187,26 @@ public class LicenciaLocal
             EscribirInicioPruebaEnRegistro(inicio);
     }
 
+    /// <summary>
+    /// Borra el archivo de licencia (código 7 — eliminar todo). El estado vuelve
+    /// a "sin activar". OJO: la marca de inicio de prueba del registro se deja a
+    /// propósito, así borrar no sirve para estirar los 14 días.
+    /// </summary>
+    public static void Borrar()
+    {
+        if (File.Exists(Ruta))
+            File.Delete(Ruta);
+    }
+
     private string Calcular()
     {
+        // Los productos entran ordenados y en mayúsculas: la firma no puede
+        // depender de en qué orden se digitaron los códigos.
+        var productos = string.Join(',', Productos
+            .Select(p => p.ToUpperInvariant())
+            .OrderBy(p => p, StringComparer.Ordinal));
         var contenido = string.Create(CultureInfo.InvariantCulture,
-            $"{PruebaIniciadaUtc:O}|{Activada}|{ActivadaUtc:O}|{Environment.MachineName}");
+            $"{PruebaIniciadaUtc:O}|{Activada}|{ActivadaUtc:O}|{productos}|{Environment.MachineName}");
         using var hmac = new HMACSHA256(ClaveFirma);
         return Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(contenido)));
     }

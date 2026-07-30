@@ -466,6 +466,33 @@ public partial class ConfiguracionViewModel : ObservableObject
     /// </summary>
     public void SincronizarTema() => TemaOscuro = _ajustes.TemaOscuroDe(SesionActual.Modo);
 
+    // ---------- Arranque directo (cliente 2026-07-29) ----------
+    // Se prende marcando la casilla del launcher; acá se puede prender para la
+    // estancia activa y, sobre todo, APAGAR para volver a ver el launcher.
+
+    [ObservableProperty] private bool _arranqueDirectoActivo;
+    [ObservableProperty] private string _arranqueDirectoTexto = string.Empty;
+
+    partial void OnArranqueDirectoActivoChanged(bool value)
+    {
+        _ajustes.FijarArranqueDirecto(value ? SesionActual.Modo : null);
+        _ajustes.Guardar();
+        ActualizarArranqueTexto();
+    }
+
+    /// <summary>Re-sincroniza la casilla con el modo activo (al cambiar de estancia).</summary>
+    public void SincronizarArranque()
+    {
+        ArranqueDirectoActivo = _ajustes.ArranqueDirecto == SesionActual.Modo;
+        ActualizarArranqueTexto();
+    }
+
+    private void ActualizarArranqueTexto() =>
+        ArranqueDirectoTexto = _ajustes.ArranqueDirecto is { } modo
+            ? $"Al abrir FAControl entra directo a {IdentidadModo.De(modo).Nombre}, sin la pantalla " +
+              "de inicio. Al cerrar sesión sí vuelve a aparecer, para poder cambiar de estancia."
+            : "Al abrir FAControl se muestra la pantalla de inicio con los modos disponibles.";
+
     // ---------- Cambio de contraseña ----------
 
     [ObservableProperty] private string _mensajePassword = string.Empty;

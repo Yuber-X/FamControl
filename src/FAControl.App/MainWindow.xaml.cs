@@ -92,6 +92,10 @@ public partial class MainWindow : Window
         Close();
     }
 
+    /// <summary>Ayuda y soporte: el número del desarrollador (cliente 2026-07-29).</summary>
+    private void BotonAyuda_Click(object sender, RoutedEventArgs e) =>
+        new FAControl.Views.AyudaWindow { Owner = this }.ShowDialog();
+
     /// <summary>
     /// Cambiar usuario: cierra la sesión y vuelve al LOGIN del mismo modo,
     /// sin pasar por el launcher. Es el relevo de turno.

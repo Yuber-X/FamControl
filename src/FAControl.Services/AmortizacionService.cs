@@ -49,6 +49,7 @@ public class AmortizacionService
         {
             MetodoAmortizacion.CuotaFija => CalcularCuotaFija(p),
             MetodoAmortizacion.Frances => CalcularFrances(p),
+            MetodoAmortizacion.SoloInteres => CalcularSoloInteres(p),
             _ => throw new ArgumentOutOfRangeException(nameof(p.Metodo))
         };
     }
@@ -229,6 +230,45 @@ public class AmortizacionService
                 interes,
                 cuota,
                 saldo));
+        }
+
+        return tabla;
+    }
+
+    /// <summary>
+    /// Préstamo ABIERTO (cliente 2026-07-29): el cliente paga SOLO el interés
+    /// cada período y el capital queda abierto.
+    ///
+    ///   interés_k = P × i     para todas las cuotas (el capital no baja)
+    ///   capital_k = 0         salvo la última, que lleva el capital entero
+    ///
+    /// Así es como el prestamista lleva de verdad estos préstamos: "interés
+    /// 20,000 mensual, abono a capital abierto". El plazo N es el horizonte
+    /// acordado; si el cliente sigue pagando interés, el préstamo se renueva y
+    /// la última cuota se corre.
+    ///
+    /// El interés NO se redondea acumulando error: es el mismo número todas las
+    /// veces, calculado una sola vez.
+    /// </summary>
+    private static List<CuotaCalculada> CalcularSoloInteres(ParametrosAmortizacion p)
+    {
+        var i = TasaPorPeriodo(p.TasaInteresMensual, p.Modalidad);
+        var n = PlazoEfectivo(p);
+        var interes = Math.Round(p.MontoCapital * i, 2, MidpointRounding.AwayFromZero);
+
+        var tabla = new List<CuotaCalculada>(n);
+        for (var k = 1; k <= n; k++)
+        {
+            var esUltima = k == n;
+            var capital = esUltima ? p.MontoCapital : 0m;
+            tabla.Add(new CuotaCalculada(
+                k,
+                FechaDeCuota(p.FechaPrimerPago, p.Modalidad, k),
+                capital,
+                interes,
+                capital + interes,
+                // El saldo no se mueve hasta que se salda: es la esencia del abierto
+                esUltima ? 0m : p.MontoCapital));
         }
 
         return tabla;

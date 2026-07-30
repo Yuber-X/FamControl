@@ -32,6 +32,7 @@ public static class Textos
     {
         MetodoAmortizacion.CuotaFija => "Interés fijo (dominicano)",
         MetodoAmortizacion.Frances => "Sistema francés (sobre saldo)",
+        MetodoAmortizacion.SoloInteres => "Abierto (solo interés)",
         _ => m.ToString()
     };
 

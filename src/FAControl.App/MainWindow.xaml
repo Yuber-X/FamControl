@@ -72,6 +72,13 @@
                     Template="{StaticResource BotonCircular}"
                     ToolTip="Cerrar sesión y volver al inicio" Click="BotonSalir_Click" />
 
+            <!-- Ayuda: el número del desarrollador (cliente 2026-07-29) -->
+            <Button DockPanel.Dock="Right" Content="&#xE897;" FontFamily="Segoe MDL2 Assets"
+                    FontSize="13" Width="28" Height="28" Margin="0,0,4,0"
+                    Cursor="Hand" Foreground="{DynamicResource Brush.TextoTerciario}"
+                    Template="{StaticResource BotonCircular}"
+                    ToolTip="Ayuda y soporte" Click="BotonAyuda_Click" />
+
             <!-- Cambiar usuario: vuelve al LOGIN de este mismo modo, para el
                  relevo de turno (pedido de Yuber 2026-07-17) -->
             <Button DockPanel.Dock="Right" Content="&#xE748;" FontFamily="Segoe MDL2 Assets"

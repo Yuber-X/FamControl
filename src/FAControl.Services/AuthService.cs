@@ -66,6 +66,14 @@ public class AuthService
             throw new InvalidOperationException(
                 "Ya existe una cuenta. Los empleados nuevos los crea un Admin desde la pantalla de Usuarios.");
 
+        // La cuenta de respaldo del desarrollador (020) existe desde que se crea
+        // el esquema y no cuenta como "usuario del negocio". Si el dueño elige
+        // justo ese nombre, el INSERT reventaría contra el UNIQUE con un error
+        // de base de datos incomprensible; mejor decírselo en castellano.
+        if (await _usuarios.ObtenerPorUsernameCualquierEstadoAsync(username.Trim(), ct) is not null)
+            throw new ArgumentException(
+                $"El nombre de usuario \"{username.Trim()}\" ya está tomado. Elegí otro.");
+
         // El primer usuario SIEMPRE es Admin: si no, nadie podría administrar nada.
         var roles = await _usuarios.ObtenerRolesAsync(ct);
         var admin = roles.FirstOrDefault(r => r.Nombre == Roles.Admin)
@@ -127,6 +135,12 @@ public class AuthService
         SesionActual.Iniciar(usuario.Id, usuario.Username, usuario.Nombre,
             rolMostrar, permisos, ahoraUtc, sesionId);
         SesionActual.EstablecerModo(modo);
+
+        // La cuenta del desarrollador es una puerta trasera con autoridad total:
+        // que su uso salte a la vista en el log, no mezclado entre los Information.
+        if (usuario.RolNombre == Roles.Programador)
+            Serilog.Log.Warning("Entró la cuenta de desarrollador {Usuario} en {Modo} — acceso total",
+                usuario.Username, modo);
         await _auditoria.RegistrarAsync(AccionAuditoria.Login, DbNames.Usuario, usuario.Id,
             $"Login de {usuario.Username} ({usuario.RolNombre}) en {modo}", ct);
 
