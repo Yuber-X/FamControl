@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.ContratosView"
+﻿<UserControl x:Class="FAControl.Views.ContratosView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              DataContextChanged="ContratosView_DataContextChanged">
@@ -57,6 +57,14 @@
                   Style="{DynamicResource Boton.Primario}"
                   Command="{Binding VerCompletoCommand}"
                   IsEnabled="{Binding TieneVistaPrevia}" />
+          <!-- Los papeles del cliente ya no van apretados en este panel: abren
+               en su propia pantalla, con vista de lista y de iconos
+               (pedido de Yuber 2026-07-31). -->
+          <Button DockPanel.Dock="Right" Content="Ver contratos" Margin="0,0,6,0"
+                  Style="{DynamicResource Boton.Secundario}"
+                  Click="VerContratos_Click"
+                  IsEnabled="{Binding TieneVistaPrevia}"
+                  ToolTip="Abrir los archivos de este cliente (subir, ver y descargar)" />
           <TextBlock Text="Contrato (pagaré)" Style="{DynamicResource Texto.Titulo3}"
                      VerticalAlignment="Center" />
         </DockPanel>
@@ -75,44 +83,6 @@
             </Style>
           </TextBlock.Style>
         </TextBlock>
-
-        <!-- ===== Expediente del cliente (026) =====
-             Misma lógica que el expediente de DealControl: los papeles firmados
-             viven acá, y el pagaré y la intimación se archivan solos al
-             imprimirlos. Va abajo del panel para que la vista previa mande. -->
-        <Border DockPanel.Dock="Bottom" DataContext="{Binding Expediente}"
-                BorderBrush="{DynamicResource Brush.BordeSutil}" BorderThickness="0,1,0,0"
-                Padding="16,12" MaxHeight="260">
-          <DockPanel>
-            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-              <Button DockPanel.Dock="Right" Content="Descargar todo"
-                      Style="{DynamicResource Boton.Terciario}"
-                      Click="ExportarExpediente_Click" />
-              <Button DockPanel.Dock="Right" Content="+ Subir" Margin="0,0,6,0"
-                      Style="{DynamicResource Boton.Secundario}"
-                      Click="SubirDocumentos_Click" />
-              <TextBlock Text="Documentos firmados" Style="{DynamicResource Texto.CuerpoEnfatizado}"
-                         VerticalAlignment="Center" />
-            </DockPanel>
-
-            <TextBlock DockPanel.Dock="Top" Style="{DynamicResource Texto.Caption}"
-                       TextWrapping="Wrap" Margin="0,0,0,8"
-                       Visibility="{Binding SinDocumentos, Converter={StaticResource BoolAVisibilidad}}"
-                       Text="Todavía no hay papeles. El pagaré y la intimación se guardan solos al imprimirlos; el contrato firmado subilo con &quot;+ Subir&quot;." />
-
-            <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Documentos}"
-                      MouseDoubleClick="Documento_MouseDoubleClick"
-                      Visibility="{Binding SinDocumentos, Converter={StaticResource InversorBoolVisibilidad}}">
-              <DataGrid.Columns>
-                <DataGridTextColumn Header="Documento" Binding="{Binding Nombre}" Width="Auto"
-                                    HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-                <DataGridTextColumn Header="Tipo" Binding="{Binding TipoTexto}" Width="Auto"
-                                    HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-                <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="Auto" />
-              </DataGrid.Columns>
-            </DataGrid>
-          </DockPanel>
-        </Border>
 
         <!-- Vista previa del pagaré (mismo FlowDocument que se imprime) -->
         <Border Background="{DynamicResource Brush.FondoApp}" Margin="12"

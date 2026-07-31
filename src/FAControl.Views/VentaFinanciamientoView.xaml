@@ -255,6 +255,12 @@
                       Click="SubirDocumentos_Click" />
               <Button Content="Descargar todo (ZIP)" Style="{DynamicResource Boton.Terciario}"
                       Margin="6,0,0,0" Click="ExportarExpediente_Click" />
+              <!-- La misma pantalla dedicada que se agregó en PrestControl:
+                   acá el expediente comparte espacio con el cobro, y con varios
+                   papeles del mismo cliente queda corto. -->
+              <Button Content="Ver contratos" Style="{DynamicResource Boton.Terciario}"
+                      Margin="6,0,0,0" Click="VerContratos_Click"
+                      ToolTip="Abrir los archivos en pantalla completa (lista o iconos)" />
             </StackPanel>
             <StackPanel>
               <TextBlock Text="Expediente del cliente" Style="{DynamicResource Texto.Titulo3}" />

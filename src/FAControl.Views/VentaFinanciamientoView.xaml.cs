@@ -92,6 +92,24 @@ public partial class VentaFinanciamientoView : UserControl
         await _vm.Expediente.ExportarZipAsync(dialogo.FileName);
     }
 
+    /// <summary>
+    /// Abre los archivos de esta venta en su propia pantalla, con vista de
+    /// lista o de iconos. Es la misma ventana que usa PrestControl: el
+    /// expediente ya sabe de quién es.
+    /// </summary>
+    private void VerContratos_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm is null)
+            return;
+
+        var ventana = new ExpedienteWindow(_vm.Expediente,
+            $"Contratos y documentos — {_vm.Codigo}", _vm.ClienteNombre)
+        {
+            Owner = Window.GetWindow(this)
+        };
+        ventana.ShowDialog();
+    }
+
     private void Documento_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (sender is DataGrid grid && grid.SelectedItem is DocumentoFila fila)

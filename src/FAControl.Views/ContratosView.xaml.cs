@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using FAControl.Models;
@@ -46,45 +46,24 @@ public partial class ContratosView : UserControl
             : null;
 
     // ---------- Expediente del cliente (026) ----------
-    // Mismos gestos que en DealControl: subir varios de una, bajar todo en ZIP
-    // y doble clic para abrir con la aplicación de Windows que corresponda.
 
-    private async void SubirDocumentos_Click(object sender, RoutedEventArgs e)
-    {
-        if (_vm?.DuenoDelSeleccionado is null)
-            return;
-
-        var dialogo = new Microsoft.Win32.OpenFileDialog
-        {
-            Title = "Elegí los documentos firmados",
-            Multiselect = true,
-            Filter = ExpedienteViewModel.FiltroArchivos
-        };
-        if (dialogo.ShowDialog(Window.GetWindow(this)) == true)
-            await _vm.Expediente.AgregarArchivosAsync(dialogo.FileNames);
-    }
-
-    private async void ExportarExpediente_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Abre la pantalla dedicada a los archivos de este contrato (pedido de
+    /// Yuber 2026-07-31: "en vez de tener un mostrar al lateral, mejor
+    /// coloquemos un btn de 'ver contratos'"). El panel lateral se quedaba
+    /// corto apenas el cliente tenia mas de un papel.
+    ///
+    /// Es la MISMA ventana que usa DealControl: el expediente ya sabe de quien
+    /// es, asi que no hay una copia por estancia.
+    /// </summary>
+    private void VerContratos_Click(object sender, RoutedEventArgs e)
     {
         if (_vm?.Seleccionado is not { } contrato)
             return;
 
-        var dialogo = new Microsoft.Win32.SaveFileDialog
-        {
-            Title = "¿Dónde guardo el expediente?",
-            Filter = "Comprimido (*.zip)|*.zip",
-            FileName = $"Expediente_{contrato.Resumen.Codigo}.zip"
-        };
-        if (dialogo.ShowDialog(Window.GetWindow(this)) == true)
-            await _vm.Expediente.ExportarZipAsync(dialogo.FileName);
-    }
-
-    private void Documento_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        if (_vm is null || (sender as DataGrid)?.SelectedItem is not DocumentoFila fila)
-            return;
-
-        var ventana = new DocumentoAccionesWindow(_vm.Expediente, fila)
+        var ventana = new ExpedienteWindow(_vm.Expediente,
+            $"Contratos y documentos — {contrato.Resumen.Codigo}",
+            contrato.Resumen.ClienteNombre)
         {
             Owner = Window.GetWindow(this)
         };
