@@ -48,7 +48,9 @@ public record VentaResumen(
     decimal Precio,
     MetodoPago MetodoPago,
     /// <summary>Cómo se pactó la venta (016): contado, plazos o separación.</summary>
-    TipoVenta TipoVenta = TipoVenta.Contado);
+    TipoVenta TipoVenta = TipoVenta.Contado,
+    /// <summary>Quién registró la venta (pedido de Yuber 2026-07-31).</summary>
+    string Vendedor = "—");
 
 // ===================== Rent a car =====================
 
@@ -97,7 +99,9 @@ public record AlquilerResumen(
     DateOnly FechaFin,
     int Dias,
     decimal MontoTotal,
-    EstadoAlquiler Estado);
+    EstadoAlquiler Estado,
+    /// <summary>Quién registró el alquiler (pedido de Yuber 2026-07-31).</summary>
+    string Registro = "—");
 
 // ===================== Gastos de importación =====================
 

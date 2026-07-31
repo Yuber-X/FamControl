@@ -42,6 +42,9 @@
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
           <DataGridTextColumn Header="Estado" Binding="{Binding EstadoTexto}" Width="110" MinWidth="100" />
+          <!-- Quién lo registró (pedido de Yuber 2026-07-31) -->
+          <DataGridTextColumn Header="Registró" Binding="{Binding Registro}" Width="Auto" MinWidth="130"
+                              HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTemplateColumn Width="200">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>

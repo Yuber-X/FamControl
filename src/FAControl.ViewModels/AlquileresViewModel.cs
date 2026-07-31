@@ -21,6 +21,7 @@ public record AlquilerFila(AlquilerResumen Resumen)
     public int Dias => Resumen.Dias;
     public decimal MontoTotal => Resumen.MontoTotal;
     public string EstadoTexto => Textos.De(Resumen.Estado);
+    public string Registro => Resumen.Registro;
     public bool EstaActivo => Resumen.Estado == EstadoAlquiler.Activo;
 }
 

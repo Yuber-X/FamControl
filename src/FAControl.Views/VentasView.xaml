@@ -34,7 +34,10 @@
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="120" />
           <DataGridTextColumn Header="Método" Binding="{Binding MetodoTexto}" Width="120" MinWidth="110" />
-          <DataGridTextColumn Header="Tipo" Binding="{Binding TipoTexto}" Width="110" />
+          <DataGridTextColumn Header="Tipo" Binding="{Binding TipoTexto}" Width="Auto" MinWidth="100" />
+          <!-- Quién la hizo (pedido de Yuber 2026-07-31) -->
+          <DataGridTextColumn Header="Vendió" Binding="{Binding Vendedor}" Width="Auto" MinWidth="130"
+                              HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Precio"
                               Binding="{Binding Precio, Converter={StaticResource Money}}"
                               Width="160" MinWidth="140">
@@ -51,7 +54,7 @@
                           Command="{Binding DataContext.VerFacturaCommand,
                                     RelativeSource={RelativeSource AncestorType=DataGrid}}"
                           CommandParameter="{Binding}" />
-                  <Button Content="Plazos" Style="{DynamicResource Boton.Terciario}" Margin="4,0,0,0"
+                  <Button Content="Ver detalles" Style="{DynamicResource Boton.Terciario}" Margin="4,0,0,0"
                           Visibility="{Binding TienePlan, Converter={StaticResource BoolAVisibilidad}}"
                           Command="{Binding DataContext.VerPlazosCommand,
                                     RelativeSource={RelativeSource AncestorType=DataGrid}}"

@@ -85,10 +85,13 @@ public class AlquilerRepository
             SELECT a.id, a.codigo,
                    CONCAT(v.marca, ' ', v.modelo, COALESCE(CONCAT(' ', v.anio), '')) AS vehiculo_desc,
                    TRIM(CONCAT(c.nombre, ' ', c.apellido)) AS cliente_nombre,
-                   a.fecha_inicio, a.fecha_fin, a.dias, a.monto_total, a.estado
+                   a.fecha_inicio, a.fecha_fin, a.dias, a.monto_total, a.estado,
+                   COALESCE(TRIM(CONCAT(u.nombre, ' ', COALESCE(u.apellido, ''))), '—') AS registro
             FROM {DbNames.Alquiler} a
             JOIN {DbNames.Vehiculo} v ON v.id = a.vehiculo_id
             JOIN {DbNames.Cliente} c ON c.id = a.cliente_id
+            -- LEFT: el alquiler no desaparece del listado si se borró el usuario
+            LEFT JOIN {DbNames.Usuario} u ON u.id = a.created_by
             ORDER BY a.estado = 'activo' DESC, a.fecha_inicio DESC;
             """;
 
@@ -105,7 +108,8 @@ public class AlquilerRepository
                 DateOnly.FromDateTime(reader.GetDateTime("fecha_fin")),
                 reader.GetInt32("dias"),
                 reader.GetDecimal("monto_total"),
-                EnumMap.EstadoAlquilerDeDb(reader.GetString("estado"))));
+                EnumMap.EstadoAlquilerDeDb(reader.GetString("estado")),
+                reader.GetString("registro")));
         }
         return lista;
     }

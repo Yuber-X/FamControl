@@ -19,14 +19,16 @@ public class VehiculoService
     private readonly AuditoriaService _auditoria;
     private readonly VehiculoReparacionRepository _reparaciones;
     private readonly VentaVehiculoRepository _ventas;
+    private readonly VehiculoGastoRepository _gastos;
     private readonly PrestamoRepository _prestamos;
 
     public VehiculoService(VehiculoRepository vehiculos, ContadorRepository contador,
         ConexionFactory factory, AuditoriaService auditoria,
         VehiculoReparacionRepository reparaciones, VentaVehiculoRepository ventas,
-        PrestamoRepository prestamos)
+        PrestamoRepository prestamos, VehiculoGastoRepository gastos)
     {
         _vehiculos = vehiculos;
+        _gastos = gastos;
         _contador = contador;
         _factory = factory;
         _auditoria = auditoria;
@@ -138,6 +140,22 @@ public class VehiculoService
             };
 
             var id = await _vehiculos.InsertarAsync(vehiculo, conexion, transaccion, ct);
+
+            // Los gastos que se escriben en el alta van también al LIBRO de gastos
+            // (pedido de Yuber 2026-07-31: los cargaba en el vehículo y no los veía
+            // en Importación/gastos). Antes el total vivía suelto en la ficha y el
+            // libro quedaba vacío: dos fuentes de verdad para el mismo número.
+            if (vehiculo.GastosImportacion > 0m)
+            {
+                await _gastos.InsertarAsync(new VehiculoGasto
+                {
+                    VehiculoId = id,
+                    Concepto = "Gastos de importación (cargados al registrar el vehículo)",
+                    Monto = vehiculo.GastosImportacion,
+                    Fecha = FechaNegocio.Hoy
+                }, conexion, transaccion, ct);
+            }
+
             await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Crear, DbNames.Vehiculo, id,
                 $"Vehículo {codigo}: {vehiculo.Descripcion} — costo total {vehiculo.CostoTotal:N2} DOP, " +
                 $"precio {vehiculo.PrecioVenta:N2} DOP", conexion, transaccion, ct);

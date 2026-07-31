@@ -88,10 +88,13 @@ public class VentaVehiculoRepository
                    CONCAT(v.marca, ' ', v.modelo,
                           COALESCE(CONCAT(' ', v.anio), '')) AS vehiculo_desc,
                    TRIM(CONCAT(c.nombre, ' ', c.apellido)) AS cliente_nombre,
-                   vv.fecha_venta, vv.precio, vv.metodo_pago, vv.tipo_venta
+                   vv.fecha_venta, vv.precio, vv.metodo_pago, vv.tipo_venta,
+                   COALESCE(TRIM(CONCAT(u.nombre, ' ', COALESCE(u.apellido, ''))), '—') AS vendedor
             FROM {DbNames.VentaVehiculo} vv
             JOIN {DbNames.Vehiculo} v ON v.id = vv.vehiculo_id
             JOIN {DbNames.Cliente} c ON c.id = vv.cliente_id
+            -- LEFT: la venta no se pierde del listado si se borró el usuario
+            LEFT JOIN {DbNames.Usuario} u ON u.id = vv.created_by
             ORDER BY vv.fecha_venta DESC;
             """;
 
@@ -107,7 +110,8 @@ public class VentaVehiculoRepository
                 DateTime.SpecifyKind(reader.GetDateTime("fecha_venta"), DateTimeKind.Utc),
                 reader.GetDecimal("precio"),
                 EnumMap.MetodoPagoDeDb(reader.GetString("metodo_pago")),
-                EnumMap.TipoVentaDeDb(reader.GetString("tipo_venta"))));
+                EnumMap.TipoVentaDeDb(reader.GetString("tipo_venta")),
+                reader.GetString("vendedor")));
         }
         return lista;
     }

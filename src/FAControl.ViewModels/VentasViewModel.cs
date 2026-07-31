@@ -18,6 +18,7 @@ public record VentaFila(VentaResumen Resumen)
     public string FechaTexto => Resumen.FechaVentaUtc.ToLocalTime().ToString(Textos.FormatoFecha, Textos.CulturaRd);
     public decimal Precio => Resumen.Precio;
     public string MetodoTexto => Textos.De(Resumen.MetodoPago);
+    public string Vendedor => Resumen.Vendedor;
     /// <summary>Cómo se pactó la venta (016): contado, plazos o separación.</summary>
     public string TipoTexto => Resumen.TipoVenta switch
     {

@@ -36,19 +36,19 @@
     <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0">
       <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Filas}">
         <DataGrid.Columns>
-          <DataGridTextColumn Header="Factura" Binding="{Binding Numero}" Width="120">
+          <DataGridTextColumn Header="Factura" Binding="{Binding Numero}" Width="Auto" MinWidth="110">
             <DataGridTextColumn.ElementStyle>
               <Style TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{DynamicResource Fuente.Mono}" />
               </Style>
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="160" />
-          <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteTexto}" Width="*" MinWidth="150"
+          <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="Auto" MinWidth="150" />
+          <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteTexto}" Width="Auto" MinWidth="160"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-          <DataGridTextColumn Header="Cajero" Binding="{Binding Cajero}" Width="140"
+          <DataGridTextColumn Header="Cajero" Binding="{Binding Cajero}" Width="Auto" MinWidth="130"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-          <DataGridTextColumn Header="Pago" Binding="{Binding MetodoTexto}" Width="110" />
+          <DataGridTextColumn Header="Pago" Binding="{Binding MetodoTexto}" Width="Auto" MinWidth="100" />
           <DataGridTextColumn Header="Total"
                               Binding="{Binding Total, Converter={StaticResource Money}}" Width="130">
             <DataGridTextColumn.ElementStyle>
