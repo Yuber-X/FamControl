@@ -27,12 +27,11 @@ public partial class VentaFinanciamientoView : UserControl
                 _vm.SeparacionSolicitada -= MostrarSeparacion;
             }
             _vm = e.NewValue as VentaFinanciamientoViewModel;
-        if (_vm is not null)
-            _vm.CancelacionSolicitada = PedirCancelacion;
             if (_vm is not null)
             {
                 _vm.CartaSolicitada += MostrarCarta;
                 _vm.SeparacionSolicitada += MostrarSeparacion;
+                _vm.CancelacionSolicitada = PedirCancelacion;
             }
         };
     }

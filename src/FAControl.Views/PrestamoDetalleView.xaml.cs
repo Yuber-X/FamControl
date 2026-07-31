@@ -26,7 +26,18 @@ public partial class PrestamoDetalleView : UserControl
         {
             _vm.ImpresionSolicitada += MostrarImpresion;
             _vm.IntimacionSolicitada += MostrarIntimacion;
+            _vm.EdicionSolicitada = PedirCorreccion;
         }
+    }
+
+    /// <summary>
+    /// Abre el formulario de corrección (029) y devuelve lo que el usuario
+    /// confirmó, o null si se arrepintió: abrir el diálogo no cambia nada.
+    /// </summary>
+    private EdicionPrestamo? PedirCorreccion(PrestamoParaEditar datos)
+    {
+        var ventana = new EditarPrestamoWindow(datos) { Owner = Window.GetWindow(this) };
+        return ventana.ShowDialog() == true ? ventana.Resultado : null;
     }
 
     private void MostrarImpresion(PrestamoImpreso prestamo)

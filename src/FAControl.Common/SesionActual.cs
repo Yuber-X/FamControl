@@ -117,6 +117,12 @@ public static class Permisos
     public const string PrestamosCrear = "prestamos_crear";
     public const string PrestamosAutorizar = "prestamos_autorizar";
     public const string PrestamosCancelar = "prestamos_cancelar";
+    /// <summary>
+    /// Corregir un préstamo ya registrado (029). El cliente lo pidió como
+    /// permiso otorgable, no como "solo Admin": "un btn editar que solo los
+    /// admin pueden tener, o un permiso otorgado por el mismo a un usuario".
+    /// </summary>
+    public const string PrestamosEditar = "prestamos_editar";
     public const string Cobros = "cobros";
     public const string Reportes = "reportes";
     public const string Historial = "historial";
@@ -129,7 +135,11 @@ public static class Permisos
     public const string Inventario = "inventario";
     public const string InventarioEditar = "inventario_editar";
     public const string Ventas = "ventas";
+    /// <summary>Corregir una venta de vehículo ya registrada (029).</summary>
+    public const string VentasEditar = "ventas_editar";
     public const string Alquileres = "alquileres";
+    /// <summary>Corregir un alquiler ya registrado (029).</summary>
+    public const string AlquileresEditar = "alquileres_editar";
     public const string Gastos = "gastos";
 
     // POS-500 (022): punto de venta integrado a la suite. `panel`, `clientes`,
@@ -168,9 +178,9 @@ public static class Permisos
     public static readonly string[] Todos =
     [
         Panel, Clientes, ClientesEditar, Prestamos, PrestamosCrear, PrestamosAutorizar,
-        PrestamosCancelar, Cobros, Reportes, Historial, Usuarios, Configuracion,
+        PrestamosCancelar, PrestamosEditar, Cobros, Reportes, Historial, Usuarios, Configuracion,
         Vehiculos, VehiculosEditar,
-        Inventario, InventarioEditar, Ventas, Alquileres, Gastos,
+        Inventario, InventarioEditar, Ventas, VentasEditar, Alquileres, AlquileresEditar, Gastos,
         Vender, Productos, Almacen, Caducidad, Comprobantes, ComprobantesTodos,
         Cuadre, CuadreTodos, FacturasAnular,
         AccesoPrestControl, AccesoDealerControl, AccesoAutoControl, AccesoPos500

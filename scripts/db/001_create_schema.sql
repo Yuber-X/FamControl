@@ -562,6 +562,9 @@ INSERT INTO permiso (codigo, nombre, descripcion) VALUES
   ('prestamos_crear',     'Préstamos (crear)',         'Crear préstamos nuevos'),
   ('prestamos_autorizar', 'Autorizar préstamos',       'Aprobar préstamos nuevos'),
   ('prestamos_cancelar',  'Cancelar préstamos',        'Permiso especial: cancelación con auditoría'),
+  -- Corregir contratos ya registrados (029). Solo mientras no haya cobros:
+  -- con un recibo emitido, cambiar el contrato haria mentir a ese papel.
+  ('prestamos_editar',    'Préstamos (editar)',        'Corregir un préstamo ya registrado (errores de digitación)'),
   ('cobros',              'Cobros',                    'Registrar pagos y emitir recibos'),
   ('reportes',            'Reportes',                  'Reportes por fecha y por cliente'),
   ('historial',           'Historial',                 'Auditoría de operaciones'),
@@ -573,7 +576,9 @@ INSERT INTO permiso (codigo, nombre, descripcion) VALUES
   ('inventario',          'Inventario (ver)',          'Consulta del inventario de vehículos'),
   ('inventario_editar',   'Inventario (crear/editar)', 'Alta, edición y baja de vehículos'),
   ('ventas',              'Ventas al contado',         'Registrar ventas al contado de vehículos'),
+  ('ventas_editar',       'Ventas (editar)',           'Corregir una venta de vehículo ya registrada'),
   ('alquileres',          'Alquileres (rent a car)',   'Registrar y devolver alquileres'),
+  ('alquileres_editar',   'Alquileres (editar)',       'Corregir un alquiler ya registrado'),
   ('gastos',              'Importación / gastos',      'Gestionar los gastos de importación'),
   -- Acceso por estancia/modo (aislamiento — cliente 2026-07-18)
   ('acceso_prestcontrol',  'Acceso a PrestControl',  'Puede entrar a la estancia de préstamos personales'),
@@ -602,7 +607,8 @@ INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Supervisor' AND r.modo = 'prestcontrol'
   AND p.codigo IN ('panel','clientes','clientes_editar','prestamos','prestamos_crear',
-                   'prestamos_cancelar','cobros','reportes','historial','acceso_prestcontrol');
+                   'prestamos_cancelar','prestamos_editar','cobros','reportes','historial',
+                   'acceso_prestcontrol');
 
 -- Cobrador (PrestControl): cobra, consulta y crea préstamos (con autorización de Admin)
 INSERT INTO rol_permiso (rol_id, permiso_id)
@@ -614,7 +620,8 @@ WHERE r.nombre = 'Cobrador' AND r.modo = 'prestcontrol'
 INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Encargado' AND r.modo = 'dealercontrol'
-  AND p.codigo IN ('panel','inventario','inventario_editar','ventas','alquileres','gastos',
+  AND p.codigo IN ('panel','inventario','inventario_editar','ventas','ventas_editar',
+                   'alquileres','alquileres_editar','gastos',
                    'clientes','clientes_editar','reportes','historial','acceso_dealercontrol');
 
 -- Vendedor (DealControl): vende y alquila; consulta el inventario
@@ -627,7 +634,7 @@ WHERE r.nombre = 'Vendedor' AND r.modo = 'dealercontrol'
 INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Encargado' AND r.modo = 'autocontrol'
-  AND p.codigo IN ('prestamos','prestamos_crear','prestamos_cancelar','cobros',
+  AND p.codigo IN ('prestamos','prestamos_crear','prestamos_cancelar','prestamos_editar','cobros',
                    'clientes','clientes_editar','reportes','historial','acceso_autocontrol');
 
 -- Vendedor (AutoControl): crea ventas financiadas y cobra

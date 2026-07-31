@@ -22,6 +22,12 @@ public partial class PrestamoDetalleViewModel : ObservableObject
 
     public event Action<long>? CobrarSolicitado;
     public event Action? VolverSolicitado;
+    /// <summary>
+    /// La View abre el diálogo de corrección (029) y devuelve lo que el usuario
+    /// confirmó, o null si se arrepintió. Es una propiedad y no un `event`
+    /// porque DEVUELVE un valor: un evento con retorno da CS0079.
+    /// </summary>
+    public Func<PrestamoParaEditar, EdicionPrestamo?>? EdicionSolicitada { get; set; }
     /// <summary>La App abre la vista previa imprimible del préstamo.</summary>
     public event Action<PrestamoImpreso>? ImpresionSolicitada;
     /// <summary>La App abre la vista previa de la intimación de pago.</summary>
@@ -64,6 +70,13 @@ public partial class PrestamoDetalleViewModel : ObservableObject
     [ObservableProperty] private bool _tieneNcf;
     [ObservableProperty] private bool _tieneNotas;
     [ObservableProperty] private string _ncfManual = string.Empty;
+
+    /// <summary>
+    /// Muestra el botón "Editar" (029). El Admin lo tiene siempre; a los demás
+    /// se los habilita el Admin desde Usuarios, tal como lo pidió el cliente:
+    /// "solo los admin pueden tener, o un permiso otorgado por el mismo".
+    /// </summary>
+    public bool PuedeEditar => SesionActual.EsAdmin || SesionActual.TienePermiso(Permisos.PrestamosEditar);
 
     public async Task CargarAsync(long prestamoId)
     {
@@ -123,6 +136,74 @@ public partial class PrestamoDetalleViewModel : ObservableObject
 
     [RelayCommand]
     private void Cobrar() => CobrarSolicitado?.Invoke(_prestamoId);
+
+    /// <summary>
+    /// Corrige el préstamo (029). Antes de abrir el formulario le pregunta al
+    /// servicio hasta dónde se puede editar, para que la pantalla no ofrezca
+    /// cambiar montos que después van a ser rechazados.
+    /// </summary>
+    [RelayCommand]
+    private async Task EditarAsync()
+    {
+        if (EdicionSolicitada is null)
+            return;
+
+        try
+        {
+            var prestamo = await _prestamos.ObtenerPorIdAsync(_prestamoId);
+            if (prestamo is null)
+            {
+                _dialogos.MostrarError("Corregir préstamo", "El préstamo ya no existe.");
+                return;
+            }
+
+            var permitido = await _prestamos.ConsultarEdicionPermitidaAsync(_prestamoId);
+
+            // La vista previa se calcula acá y baja como delegado: la View no
+            // referencia Services. Así el número que se ve mientras se tipea
+            // sale del mismo cálculo que después se guarda.
+            var cambios = EdicionSolicitada(new PrestamoParaEditar(
+                _prestamoId, Codigo, prestamo, permitido, Previsualizar));
+            if (cambios is null)
+                return;   // se arrepintió
+
+            await _prestamos.EditarAsync(cambios);
+            await CargarAsync(_prestamoId);
+            _dialogos.Informar("Préstamo corregido",
+                $"El préstamo {Codigo} quedó corregido." +
+                (permitido.Todo ? "\n\nLa tabla de cuotas se rehizo con los datos nuevos." : ""));
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            _dialogos.MostrarError("Corregir préstamo", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error corrigiendo el préstamo {Id}", _prestamoId);
+            _dialogos.MostrarError("Corregir préstamo", $"No se pudo corregir el préstamo.\n\n{ex.Message}");
+        }
+    }
+
+    /// <summary>Cómo queda la cuota con lo que el usuario está tipeando.</summary>
+    private VistaPreviaCuota Previsualizar(ParametrosAmortizacion parametros)
+    {
+        try
+        {
+            var tabla = _prestamos.CalcularAmortizacion(parametros);
+            var total = tabla.Sum(c => c.MontoTotal);
+            return new VistaPreviaCuota(
+                $"Cuota: {tabla[0].MontoTotal:N2} DOP × {parametros.PlazoCuotas}",
+                $"Total a pagar {total:N2} DOP — interés {total - parametros.MontoCapital:N2} DOP. " +
+                $"Primera cuota el {parametros.FechaPrimerPago:dd/MM/yyyy}, " +
+                $"última el {tabla[^1].FechaVencimiento:dd/MM/yyyy}.");
+        }
+        catch (ArgumentException ex)
+        {
+            // El cálculo valida los rangos; se muestra su mensaje tal cual en
+            // vez de inventar uno propio que diga otra cosa.
+            return new VistaPreviaCuota(ex.Message, string.Empty);
+        }
+    }
 
     /// <summary>
     /// Asigna el comprobante fiscal a un préstamo que no tiene: con texto en

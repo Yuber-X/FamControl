@@ -1,0 +1,112 @@
+<Window x:Class="FAControl.Views.EditarPrestamoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Corregir préstamo"
+        Width="560" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource Brush.FondoApp}">
+
+  <Border Margin="24" Style="{DynamicResource Card}">
+    <StackPanel>
+      <TextBlock x:Name="TextoTitulo" Style="{DynamicResource Texto.Titulo3}" TextWrapping="Wrap" />
+
+      <!-- Aviso cuando ya hay cobros: explica POR QUE hay campos bloqueados.
+           Un campo gris sin explicacion se lee como un error del programa. -->
+      <Border x:Name="AvisoLimite" Margin="0,12,0,0" CornerRadius="8" Padding="14,12"
+              Background="{DynamicResource Brush.EnMora.Fondo}" Visibility="Collapsed">
+        <TextBlock x:Name="TextoLimite" Style="{DynamicResource Texto.Caption}"
+                   Foreground="{DynamicResource Brush.EnMora.Texto}" TextWrapping="Wrap" />
+      </Border>
+
+      <!-- ===== Lo que solo se corrige sin cobros ===== -->
+      <Grid x:Name="ZonaMontos" Margin="0,16,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="12" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Capital prestado (DOP)"
+                   Style="{DynamicResource Input.Label}" />
+        <TextBox   Grid.Row="1" Grid.Column="0" x:Name="CajaCapital" Height="34"
+                   Style="{DynamicResource Input.Texto}" TextChanged="Campo_TextChanged" />
+
+        <TextBlock Grid.Row="0" Grid.Column="2" Text="Tasa mensual (%)"
+                   Style="{DynamicResource Input.Label}" />
+        <TextBox   Grid.Row="1" Grid.Column="2" x:Name="CajaTasa" Height="34"
+                   Style="{DynamicResource Input.Texto}" TextChanged="Campo_TextChanged" />
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Cantidad de cuotas"
+                   Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
+        <TextBox   Grid.Row="3" Grid.Column="0" x:Name="CajaPlazo" Height="34"
+                   Style="{DynamicResource Input.Texto}" TextChanged="Campo_TextChanged" />
+
+        <TextBlock Grid.Row="2" Grid.Column="2" Text="Fecha del primer pago"
+                   Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
+        <DatePicker Grid.Row="3" Grid.Column="2" x:Name="SelectorFecha" Height="34"
+                    SelectedDateChanged="Fecha_Changed" />
+
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Modalidad"
+                   Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
+        <ComboBox  Grid.Row="5" Grid.Column="0" x:Name="ComboModalidad" Height="34"
+                   SelectionChanged="Combo_Changed" />
+
+        <TextBlock Grid.Row="4" Grid.Column="2" Text="Método de amortización"
+                   Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
+        <ComboBox  Grid.Row="5" Grid.Column="2" x:Name="ComboMetodo" Height="34"
+                   SelectionChanged="Combo_Changed" />
+      </Grid>
+
+      <!-- Vista previa: que va a pasar con la cuota si se guarda asi -->
+      <Border x:Name="PanelPreview" Margin="0,14,0,0" CornerRadius="8" Padding="14,12"
+              Background="{DynamicResource Brush.PrimarioSutil}">
+        <StackPanel>
+          <TextBlock x:Name="TextoPreview" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                     TextWrapping="Wrap" />
+          <TextBlock x:Name="TextoPreviewDetalle" Style="{DynamicResource Texto.Caption}"
+                     TextWrapping="Wrap" Margin="0,4,0,0" />
+        </StackPanel>
+      </Border>
+
+      <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,18,0,14" />
+
+      <!-- ===== Lo que se corrige siempre ===== -->
+      <TextBlock Text="Garantía" Style="{DynamicResource Input.Label}" />
+      <TextBox x:Name="CajaGarantia" Height="34" Style="{DynamicResource Input.Texto}" />
+
+      <TextBlock Text="Notas" Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
+      <TextBox x:Name="CajaNotas" Height="56" Style="{DynamicResource Input.Texto}"
+               TextWrapping="Wrap" AcceptsReturn="True"
+               VerticalContentAlignment="Top" Padding="10,8" />
+
+      <TextBlock Text="¿Por qué se corrige? (queda en el historial)"
+                 Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
+      <TextBox x:Name="CajaMotivo" Height="34" Style="{DynamicResource Input.Texto}" />
+
+      <TextBlock x:Name="TextoError" Style="{DynamicResource Texto.Caption}"
+                 Foreground="{DynamicResource Brush.Destructivo}"
+                 TextWrapping="Wrap" Margin="0,10,0,0" />
+
+      <Grid Margin="0,18,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="8" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Button Grid.Column="0" Content="Guardar corrección"
+                Style="{DynamicResource Boton.Primario}" Click="Confirmar_Click" />
+        <Button Grid.Column="2" Content="Volver" Style="{DynamicResource Boton.Secundario}"
+                IsCancel="True" Click="Volver_Click" />
+      </Grid>
+    </StackPanel>
+  </Border>
+</Window>

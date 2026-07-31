@@ -322,6 +322,81 @@ public class PrestamoRepository
         return cuotas;
     }
 
+    /// <summary>
+    /// Cuántos cobros tiene el préstamo (029): decide hasta dónde se puede
+    /// corregir. Cuenta también los ANULADOS (deleted_at IS NOT NULL) a
+    /// propósito: un recibo anulado igual se imprimió y se entregó, así que su
+    /// número ya circuló y los montos que declaraba no se pueden desmentir
+    /// cambiando el préstamo por detrás.
+    /// </summary>
+    public async Task<int> ContarCobrosAsync(long prestamoId, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT COUNT(*)
+            FROM {DbNames.Pago} p
+            JOIN {DbNames.Cuota} c ON c.id = p.cuota_id
+            WHERE c.prestamo_id = @prestamoId;
+            """;
+        cmd.Parameters.AddWithValue("@prestamoId", prestamoId);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct));
+    }
+
+    /// <summary>
+    /// Corrige los datos del préstamo (029). El código y el NCF NO se tocan:
+    /// son identificadores ya emitidos. El cliente tampoco: mover un préstamo
+    /// de una persona a otra no es corregir un tipeo, es otro préstamo.
+    /// </summary>
+    public async Task ActualizarDatosAsync(Prestamo prestamo, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            UPDATE {DbNames.Prestamo}
+            SET monto_capital = @montoCapital, tasa_interes = @tasaInteres,
+                plazo_cuotas = @plazoCuotas, modalidad = @modalidad,
+                metodo_amortizacion = @metodo, fecha_inicio = @fechaInicio,
+                garantia = @garantia, notas = @notas, updated_at = UTC_TIMESTAMP()
+            WHERE id = @id;
+            """;
+        cmd.Parameters.AddWithValue("@montoCapital", prestamo.MontoCapital);
+        cmd.Parameters.AddWithValue("@tasaInteres", prestamo.TasaInteres);
+        cmd.Parameters.AddWithValue("@plazoCuotas", prestamo.PlazoCuotas);
+        cmd.Parameters.AddWithValue("@modalidad", EnumMap.ADb(prestamo.Modalidad));
+        cmd.Parameters.AddWithValue("@metodo", EnumMap.ADb(prestamo.MetodoAmortizacion));
+        cmd.Parameters.AddWithValue("@fechaInicio", prestamo.FechaInicio.ToDateTime(TimeOnly.MinValue));
+        cmd.Parameters.AddWithValue("@garantia", (object?)prestamo.Garantia ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@notas", (object?)prestamo.Notas ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@id", prestamo.Id);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Borra la tabla de amortización para regenerarla tras una corrección.
+    ///
+    /// La regla del CLAUDE.md ("nunca borrar cuotas de un préstamo activo")
+    /// apunta a NO usar el borrado como forma de cancelar: para eso está
+    /// <see cref="CancelarCuotasImpagasAsync"/>, que las conserva. Acá es otra
+    /// cosa: la tabla es un cálculo derivado del capital, la tasa y el plazo, y
+    /// el servicio solo llega hasta aquí cuando NO hay ningún cobro, así que
+    /// ninguna cuota tiene recibo colgando. Regenerarla es recalcular, no
+    /// borrar historia.
+    ///
+    /// La FK de `pago` hacia `cuota` es la última red: si por lo que fuera
+    /// hubiera un pago, MySQL rechaza el DELETE y la transacción se revierte.
+    /// </summary>
+    public async Task BorrarCuotasAsync(long prestamoId, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"DELETE FROM {DbNames.Cuota} WHERE prestamo_id = @prestamoId;";
+        cmd.Parameters.AddWithValue("@prestamoId", prestamoId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static Cuota MapearCuota(MySqlDataReader reader) => new()
     {
         Id = reader.GetInt64("id"),

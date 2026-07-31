@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using MySqlConnector;
 using FAControl.Common;
 using FAControl.Data;
@@ -290,5 +290,126 @@ public class FlujoPrestamoPagoTests : IAsyncLifetime
         var resultado = await _pagos.RegistrarPagoAsync(new SolicitudPago(
             prestamoId, ultima.MontoTotal, MetodoPago.Efectivo, null));
         resultado.PrestamoQuedoPagado.Should().BeTrue();
+    }
+    /// <summary>
+    /// El caso que pidio el cliente: se digito mal el capital y todavia no se
+    /// cobro nada. Se corrige y la tabla de amortizacion se rehace con los
+    /// numeros nuevos.
+    /// </summary>
+    [Fact]
+    public async Task CorregirPrestamoSinCobros_RegeneraLaTablaDeAmortizacion()
+    {
+        // Se quiso poner 12,000 y se escribio 21,000 (numeros invertidos)
+        var (prestamoId, _) = await _prestamos.CrearAsync(new NuevoPrestamo(
+            _clienteId, 21_000m, 5m, 12, Modalidad.Mensual, MetodoAmortizacion.CuotaFija,
+            FechaNegocio.Hoy.AddMonths(1), Garantia: null, Notas: null));
+
+        var permitido = await _prestamos.ConsultarEdicionPermitidaAsync(prestamoId);
+        permitido.Todo.Should().BeTrue("no hay un solo cobro registrado");
+
+        await _prestamos.EditarAsync(new EdicionPrestamo(
+            prestamoId, 12_000m, 5m, 12, Modalidad.Mensual, MetodoAmortizacion.CuotaFija,
+            FechaNegocio.Hoy.AddMonths(1), Garantia: "Cedula", Notas: "Corregido",
+            Motivo: "Se digitaron los numeros invertidos"));
+
+        var prestamo = await _prestamos.ObtenerPorIdAsync(prestamoId);
+        prestamo!.MontoCapital.Should().Be(12_000m);
+        prestamo.Garantia.Should().Be("Cedula");
+
+        var cuotas = await _prestamos.ObtenerCuotasAsync(prestamoId);
+        cuotas.Should().HaveCount(12);
+        cuotas.Sum(c => c.Capital).Should().Be(12_000m, "la tabla se rehizo con el capital corregido");
+        cuotas[0].MontoTotal.Should().Be(1_600m);
+
+        // Queda por que se corrigio: sin eso el permiso no sirve para rendir cuentas
+        using var conexion = await _factory.AbrirAsync();
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = """
+            SELECT descripcion FROM auditoria
+            WHERE entidad = 'prestamo' AND entidad_id = @id AND accion = 'modificar'
+            ORDER BY id DESC LIMIT 1;
+            """;
+        cmd.Parameters.AddWithValue("@id", prestamoId);
+        var descripcion = (string?)await cmd.ExecuteScalarAsync();
+        descripcion.Should().Contain("21,000.00").And.Contain("12,000.00");
+        descripcion.Should().Contain("numeros invertidos");
+    }
+
+    /// <summary>
+    /// Con un cobro hecho, la plata queda congelada: el recibo impreso que tiene
+    /// el cliente declara esos montos. Solo se corrige lo descriptivo.
+    /// </summary>
+    [Fact]
+    public async Task CorregirPrestamoConCobros_NoTocaLosMontos_PeroSiLasNotas()
+    {
+        var (prestamoId, _) = await _prestamos.CrearAsync(new NuevoPrestamo(
+            _clienteId, 12_000m, 5m, 12, Modalidad.Mensual, MetodoAmortizacion.CuotaFija,
+            FechaNegocio.Hoy.AddMonths(1), Garantia: null, Notas: null));
+
+        await _pagos.RegistrarPagoAsync(new SolicitudPago(
+            prestamoId, 1_600m, MetodoPago.Efectivo, "Primera cuota"));
+
+        var permitido = await _prestamos.ConsultarEdicionPermitidaAsync(prestamoId);
+        permitido.Todo.Should().BeFalse();
+        permitido.CobrosRegistrados.Should().Be(1);
+
+        // Se intenta cambiar el capital Y las notas de una sola vez
+        await _prestamos.EditarAsync(new EdicionPrestamo(
+            prestamoId, 99_000m, 15m, 24, Modalidad.Semanal, MetodoAmortizacion.Frances,
+            FechaNegocio.Hoy.AddMonths(6), Garantia: "Vehiculo", Notas: "Telefono nuevo",
+            Motivo: "Actualizar datos de contacto"));
+
+        var prestamo = await _prestamos.ObtenerPorIdAsync(prestamoId);
+        prestamo!.MontoCapital.Should().Be(12_000m, "hay un recibo emitido con estos numeros");
+        prestamo.TasaInteres.Should().Be(5m);
+        prestamo.PlazoCuotas.Should().Be(12);
+        prestamo.Modalidad.Should().Be(Modalidad.Mensual);
+        prestamo.Garantia.Should().Be("Vehiculo", "lo descriptivo si se corrige");
+        prestamo.Notas.Should().Be("Telefono nuevo");
+
+        // Y la tabla quedo intacta: la cuota cobrada sigue ahi con su pago
+        var cuotas = await _prestamos.ObtenerCuotasAsync(prestamoId);
+        cuotas.Should().HaveCount(12);
+        cuotas.Single(c => c.NumeroCuota == 1).MontoPagado.Should().Be(1_600m);
+    }
+
+    /// <summary>Sin motivo no se corrige: el historial quedaria sin explicacion.</summary>
+    [Fact]
+    public async Task CorregirSinMotivo_SeRechaza()
+    {
+        var (prestamoId, _) = await _prestamos.CrearAsync(new NuevoPrestamo(
+            _clienteId, 12_000m, 5m, 12, Modalidad.Mensual, MetodoAmortizacion.CuotaFija,
+            FechaNegocio.Hoy.AddMonths(1), Garantia: null, Notas: null));
+
+        var editar = async () => await _prestamos.EditarAsync(new EdicionPrestamo(
+            prestamoId, 10_000m, 5m, 12, Modalidad.Mensual, MetodoAmortizacion.CuotaFija,
+            FechaNegocio.Hoy.AddMonths(1), Garantia: null, Notas: null, Motivo: "   "));
+
+        await editar.Should().ThrowAsync<ArgumentException>();
+
+        var prestamo = await _prestamos.ObtenerPorIdAsync(prestamoId);
+        prestamo!.MontoCapital.Should().Be(12_000m, "no se guardo nada");
+    }
+
+    /// <summary>
+    /// Sin el permiso no se puede, aunque la pantalla lo dejara pasar: la regla
+    /// vive en el servicio.
+    /// </summary>
+    [Fact]
+    public async Task CorregirSinPermiso_SeRechaza()
+    {
+        var (prestamoId, _) = await _prestamos.CrearAsync(new NuevoPrestamo(
+            _clienteId, 12_000m, 5m, 12, Modalidad.Mensual, MetodoAmortizacion.CuotaFija,
+            FechaNegocio.Hoy.AddMonths(1), Garantia: null, Notas: null));
+
+        // Un cobrador: puede cobrar, no corregir contratos
+        SesionActual.Iniciar(SesionActual.Id, "cobrador", "Cobrador", Roles.Cobrador,
+            [Permisos.Cobros, Permisos.Prestamos], DateTime.UtcNow, 1);
+
+        var editar = async () => await _prestamos.EditarAsync(new EdicionPrestamo(
+            prestamoId, 10_000m, 5m, 12, Modalidad.Mensual, MetodoAmortizacion.CuotaFija,
+            FechaNegocio.Hoy.AddMonths(1), Garantia: null, Notas: null, Motivo: "Prueba"));
+
+        await editar.Should().ThrowAsync<UnauthorizedAccessException>();
     }
 }

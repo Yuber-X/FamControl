@@ -51,6 +51,15 @@
                 ToolTip="Envía un recordatorio de pago al correo de este cliente"
                 Visibility="{Binding EsActivo, Converter={StaticResource BoolAVisibilidad}}"
                 Margin="0,0,8,8" />
+        <!-- Editar (029): corregir errores de digitación. Solo lo ve el Admin
+             o quien tenga el permiso 'prestamos_editar' que él otorga. Qué
+             tanto se puede corregir lo decide el servicio según si ya hubo
+             cobros; el diálogo lo explica. -->
+        <Button Content="Editar" Style="{DynamicResource Boton.Secundario}"
+                Command="{Binding EditarCommand}"
+                ToolTip="Corregir los datos de este préstamo"
+                Visibility="{Binding PuedeEditar, Converter={StaticResource BoolAVisibilidad}}"
+                Margin="0,0,8,8" />
         <Button Content="Cancelar préstamo" Style="{DynamicResource Boton.Destructivo}"
                 Command="{Binding CancelarPrestamoCommand}"
                 Visibility="{Binding EsActivo, Converter={StaticResource BoolAVisibilidad}}"

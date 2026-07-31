@@ -185,6 +185,124 @@ public class PrestamoService
     }
 
     /// <summary>
+    /// Hasta dónde se puede corregir este préstamo (029). La UI lo consulta
+    /// para habilitar o bloquear campos; <see cref="EditarAsync"/> lo vuelve a
+    /// verificar por su cuenta, porque la pantalla puede quedar abierta
+    /// mientras otro cajero cobra.
+    /// </summary>
+    public async Task<EdicionPermitida> ConsultarEdicionPermitidaAsync(long prestamoId,
+        CancellationToken ct = default)
+    {
+        var cobros = await _prestamos.ContarCobrosAsync(prestamoId, ct);
+        return cobros == 0 ? EdicionPermitida.Completa() : EdicionPermitida.Limitada(cobros);
+    }
+
+    /// <summary>
+    /// Corrige un préstamo ya registrado (029 — pedido del cliente 2026-07-30:
+    /// "así si se produce un error de digitación se pueda arreglar").
+    ///
+    /// DOS NIVELES, según si ya se cobró algo:
+    ///  * SIN cobros → se corrige todo y la tabla de amortización se regenera
+    ///    con los números nuevos, dentro de la misma transacción.
+    ///  * CON cobros → solo garantía y notas. Los montos, el plazo y las fechas
+    ///    quedan fijos: hay recibos impresos en manos del cliente que declaran
+    ///    esos números, y recalcular por detrás los haría mentir. Si de verdad
+    ///    hay que cambiar el dinero, lo correcto es cancelar y volver a prestar,
+    ///    que deja rastro de ambas cosas.
+    ///
+    /// Lo que NUNCA se toca: el código (P-0001), el comprobante fiscal y el
+    /// cliente. Los dos primeros ya se emitieron; mover el préstamo a otra
+    /// persona no es corregir un tipeo, es otro préstamo.
+    /// </summary>
+    public async Task EditarAsync(EdicionPrestamo cambios, CancellationToken ct = default)
+    {
+        if (!SesionActual.EsAdmin && !SesionActual.TienePermiso(Permisos.PrestamosEditar))
+            throw new UnauthorizedAccessException("No tenés permiso para corregir préstamos.");
+        if (string.IsNullOrWhiteSpace(cambios.Motivo))
+            throw new ArgumentException("Indicá por qué se corrige el préstamo: queda en el historial.",
+                nameof(cambios));
+
+        var prestamo = await _prestamos.ObtenerPorIdAsync(cambios.PrestamoId, ct)
+            ?? throw new InvalidOperationException($"No existe el préstamo con id {cambios.PrestamoId}.");
+
+        // Se relee acá y no se confía en lo que trajo la pantalla: entre que se
+        // abrió el formulario y se guardó, otro usuario pudo registrar un cobro.
+        var permitido = await ConsultarEdicionPermitidaAsync(cambios.PrestamoId, ct);
+
+        // Los descriptivos van siempre. `Prestamo` es una clase, así que se
+        // anota el detalle ANTES de tocarlo: después ya no queda el valor viejo.
+        var detalle = new List<string>();
+        if (prestamo.Garantia != cambios.Garantia) detalle.Add("garantía");
+        if (prestamo.Notas != cambios.Notas) detalle.Add("notas");
+
+        IReadOnlyList<CuotaCalculada>? tabla = null;
+        if (permitido.Todo)
+        {
+            // Calcular ANTES de abrir la transacción: valida los parámetros y
+            // deja lista la tabla definitiva (mismo criterio que CrearAsync).
+            tabla = _amortizacion.Calcular(new ParametrosAmortizacion(
+                cambios.MontoCapital, cambios.TasaInteresMensual, cambios.PlazoCuotas,
+                cambios.Modalidad, cambios.Metodo, cambios.FechaPrimerPago));
+
+            if (prestamo.MontoCapital != cambios.MontoCapital)
+                detalle.Add($"capital {prestamo.MontoCapital:N2} → {cambios.MontoCapital:N2}");
+            if (prestamo.TasaInteres != cambios.TasaInteresMensual)
+                detalle.Add($"tasa {prestamo.TasaInteres:0.##}% → {cambios.TasaInteresMensual:0.##}%");
+            if (prestamo.PlazoCuotas != cambios.PlazoCuotas)
+                detalle.Add($"plazo {prestamo.PlazoCuotas} → {cambios.PlazoCuotas} cuotas");
+            if (prestamo.Modalidad != cambios.Modalidad)
+                detalle.Add($"modalidad {prestamo.Modalidad} → {cambios.Modalidad}");
+            if (prestamo.MetodoAmortizacion != cambios.Metodo)
+                detalle.Add($"método {prestamo.MetodoAmortizacion} → {cambios.Metodo}");
+            if (prestamo.FechaInicio != cambios.FechaPrimerPago)
+                detalle.Add($"primer pago {prestamo.FechaInicio:dd/MM/yyyy} → {cambios.FechaPrimerPago:dd/MM/yyyy}");
+
+            prestamo.MontoCapital = cambios.MontoCapital;
+            prestamo.TasaInteres = cambios.TasaInteresMensual;
+            prestamo.PlazoCuotas = cambios.PlazoCuotas;
+            prestamo.Modalidad = cambios.Modalidad;
+            prestamo.MetodoAmortizacion = cambios.Metodo;
+            prestamo.FechaInicio = cambios.FechaPrimerPago;
+        }
+
+        prestamo.Garantia = cambios.Garantia;
+        prestamo.Notas = cambios.Notas;
+
+        if (detalle.Count == 0)
+            return;   // Nada cambió: no se ensucia la auditoría con un registro vacío
+
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var transaccion = await conexion.BeginTransactionAsync(ct);
+        try
+        {
+            await _prestamos.ActualizarDatosAsync(prestamo, conexion, transaccion, ct);
+
+            if (tabla is not null)
+            {
+                // Sin cobros, la tabla es un cálculo derivado: se rehace entera.
+                await _prestamos.BorrarCuotasAsync(cambios.PrestamoId, conexion, transaccion, ct);
+                await _prestamos.InsertarCuotasAsync(cambios.PrestamoId, tabla, conexion, transaccion, ct);
+            }
+
+            await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Modificar, DbNames.Prestamo,
+                cambios.PrestamoId,
+                $"Préstamo {prestamo.Codigo} corregido ({string.Join(", ", detalle)}). " +
+                $"Motivo: {cambios.Motivo.Trim()}" +
+                (tabla is not null ? " — tabla de amortización regenerada" : " — sin tocar montos: ya tiene cobros"),
+                conexion, transaccion, ct);
+
+            await transaccion.CommitAsync(ct);
+            Log.Information("Préstamo {Codigo} corregido por {Usuario}: {Detalle}. Motivo: {Motivo}",
+                prestamo.Codigo, SesionActual.Username, string.Join(", ", detalle), cambios.Motivo);
+        }
+        catch
+        {
+            await transaccion.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Cancela un préstamo activo: estado 'cancelado' + cuotas impagas → 'cancelada'
     /// + auditoría, todo en una transacción. Las cuotas jamás se borran.
     /// </summary>
@@ -222,6 +340,14 @@ public class PrestamoService
     /// <summary>Vehículos disponibles para financiar (AutoControl: picker de nueva venta).</summary>
     public Task<IReadOnlyList<VehiculoResumen>> ObtenerVehiculosDisponiblesAsync(CancellationToken ct = default) =>
         _vehiculos.ObtenerResumenesAsync(ct);
+
+    /// <summary>
+    /// Tabla de amortización SIN persistir, para las vistas previas (029). Es
+    /// el mismo cálculo que usa <see cref="EditarAsync"/>, así lo que el usuario
+    /// ve mientras tipea coincide exacto con lo que se va a guardar.
+    /// </summary>
+    public IReadOnlyList<CuotaCalculada> CalcularAmortizacion(ParametrosAmortizacion parametros) =>
+        _amortizacion.Calcular(parametros);
 
     public Task<Prestamo?> ObtenerPorIdAsync(long id, CancellationToken ct = default) =>
         _prestamos.ObtenerPorIdAsync(id, ct);
