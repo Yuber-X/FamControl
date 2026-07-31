@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -58,6 +58,29 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     /// <summary>La View abre el visor del documento (carta o recibo de separación).</summary>
     public event Action<CartaCompromisoImpresa>? CartaSolicitada;
     public event Action<ReciboSeparacionImpreso>? SeparacionSolicitada;
+
+    /// <summary>
+    /// Papeles listos para emitir tras registrar la venta (033). La View los
+    /// RETIRA con <see cref="TomarPapelesPendientes"/> cuando ya esta en
+    /// pantalla.
+    ///
+    /// Es un buzon y no un evento a proposito: cuando se registra una venta, la
+    /// pantalla de financiamiento todavia no existe —se crea recien al navegar—,
+    /// asi que un evento disparado durante la carga no tendria a nadie
+    /// escuchando y los papeles se perderian en silencio.
+    /// </summary>
+    private PapelesDeVenta? _papelesPendientes;
+
+    /// <summary>
+    /// Devuelve los papeles a emitir y VACIA el buzon, para que no se vuelvan a
+    /// imprimir cada vez que la pantalla entra en el arbol visual.
+    /// </summary>
+    public PapelesDeVenta? TomarPapelesPendientes()
+    {
+        var papeles = _papelesPendientes;
+        _papelesPendientes = null;
+        return papeles;
+    }
 
     public VentaFinanciamientoViewModel(VentaPlazoService plazos, VentaVehiculoService ventas,
         AjustesLocales ajustes, IDialogService dialogos, ExpedienteViewModel expediente)
@@ -178,7 +201,11 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
                $"{Math.Max(0m, proximo.SaldoPendiente - excedente):N2} DOP.");
     }
 
-    public async Task CargarAsync(long ventaId)
+    /// <param name="reciénRegistrada">
+    /// True cuando se acaba de registrar la venta: ademas de mostrar la
+    /// pantalla, se emiten e imprimen los papeles y se archivan solos.
+    /// </param>
+    public async Task CargarAsync(long ventaId, bool reciénRegistrada = false)
     {
         try
         {
@@ -232,6 +259,12 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
             HayAbonos = Abonos.Count > 0;
 
             await Expediente.CargarAsync(ventaId);
+
+            // Recien registrada: se emiten los papeles y se archivan solos, para
+            // que el usuario quede parado en esta pantalla con lo suyo ya hecho
+            // y solo le falte subir lo que trajo el cliente.
+            if (reciénRegistrada)
+                EmitirPapeles();
 
             ActualizarAviso(estado, hoy);
             MensajeCobro = string.Empty;
@@ -459,4 +492,115 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
             AnioTexto: d.Anio?.ToString(Textos.CulturaRd) ?? "—",
             EmitidoPor: SesionActual.Nombre));
     }
+
+    /// <summary>
+    /// Junta los papeles que corresponden a ESTA venta y se los pasa a la View
+    /// para imprimir y archivar (033).
+    ///
+    /// CUALES SON, segun como se pacto:
+    ///   Contado     -> factura.
+    ///   Por plazos  -> factura + carta de compromiso.
+    ///   Separacion  -> factura + recibo de separacion.
+    /// Es la misma cuenta que ya usaba CantidadDocumentos en Contratos, asi que
+    /// lo que se archiva coincide con lo que esa pantalla dice que hay.
+    /// </summary>
+    private void EmitirPapeles()
+    {
+        if (_estado is not { } estado || _datosVenta is not { } d)
+            return;
+
+        var factura = new FacturaVentaImpresa(
+            NegocioNombre: _ajustes.NombreNegocio,
+            NegocioRnc: _ajustes.RncNegocio,
+            NegocioTelefono: _ajustes.TelefonoNegocio,
+            NegocioCiudad: _ajustes.CiudadNegocio,
+            Codigo: d.Codigo,
+            FechaTexto: FechaNegocio.AUtcLocal(d.FechaVentaUtc).ToString(Textos.FormatoFecha, Textos.CulturaRd),
+            Precio: d.Precio,
+            MetodoTexto: Textos.De(d.MetodoPago),
+            Notas: d.Notas,
+            VendedorNombre: d.VendedorNombre,
+            ClienteNombre: d.ClienteNombre,
+            ClienteCedula: d.ClienteCedula ?? "—",
+            ClienteTelefono: d.ClienteTelefono ?? "—",
+            ClienteDireccion: d.ClienteDireccion ?? "—",
+            VehiculoDescripcion: d.VehiculoDescripcion,
+            Vin: d.Vin ?? "—",
+            Placa: d.Placa ?? "—",
+            Matricula: d.Matricula ?? "—",
+            Color: d.Color ?? "—",
+            AnioTexto: d.Anio?.ToString(Textos.CulturaRd) ?? "—");
+
+        CartaCompromisoImpresa? carta = null;
+        ReciboSeparacionImpreso? separacion = null;
+
+        if (estado.Tipo == TipoVenta.Plazos)
+        {
+            carta = new CartaCompromisoImpresa(
+                NegocioNombre: _ajustes.NombreNegocio,
+                NegocioRnc: _ajustes.RncNegocio,
+                NegocioTelefono: _ajustes.TelefonoNegocio,
+                NegocioCiudad: _ajustes.CiudadNegocio,
+                Codigo: estado.Codigo,
+                FechaTexto: FechaNegocio.AUtcLocal(d.FechaVentaUtc).ToString(Textos.FormatoFecha, Textos.CulturaRd),
+                Precio: estado.Precio,
+                Inicial: estado.Inicial,
+                TotalAPlazos: estado.TotalAPlazos,
+                ClienteNombre: d.ClienteNombre,
+                ClienteCedula: d.ClienteCedula ?? "—",
+                ClienteDireccion: d.ClienteDireccion ?? "—",
+                ClienteTelefono: d.ClienteTelefono ?? "—",
+                VehiculoDescripcion: d.VehiculoDescripcion,
+                Vin: d.Vin ?? "—",
+                Placa: d.Placa ?? "—",
+                Matricula: d.Matricula ?? "—",
+                Color: d.Color ?? "—",
+                AnioTexto: d.Anio?.ToString(Textos.CulturaRd) ?? "—",
+                Plazos: [.. Plazos.Select(p => new PlazoImpreso(p.Numero, p.FechaTexto, p.Monto, p.EstadoTexto))],
+                EmitidoPor: SesionActual.Nombre);
+        }
+        else if (estado.Tipo == TipoVenta.Separacion)
+        {
+            var limite = estado.FechaLimite ?? FechaNegocio.Hoy;
+            var emision = DateOnly.FromDateTime(FechaNegocio.AUtcLocal(d.FechaVentaUtc));
+            separacion = new ReciboSeparacionImpreso(
+                NegocioNombre: _ajustes.NombreNegocio,
+                NegocioRnc: _ajustes.RncNegocio,
+                NegocioTelefono: _ajustes.TelefonoNegocio,
+                NegocioCiudad: _ajustes.CiudadNegocio,
+                Codigo: estado.Codigo,
+                FechaTexto: emision.ToString(Textos.FormatoFecha, Textos.CulturaRd),
+                Precio: estado.Precio,
+                Adelanto: estado.Inicial,
+                Pendiente: Math.Max(0m, estado.Precio - estado.Inicial),
+                FechaLimiteTexto: limite.ToString(Textos.FormatoFecha, Textos.CulturaRd),
+                DiasDerecho: Math.Max(0, limite.DayNumber - emision.DayNumber),
+                ClienteNombre: d.ClienteNombre,
+                ClienteCedula: d.ClienteCedula ?? "—",
+                ClienteTelefono: d.ClienteTelefono ?? "—",
+                VehiculoDescripcion: d.VehiculoDescripcion,
+                Vin: d.Vin ?? "—",
+                Placa: d.Placa ?? "—",
+                Color: d.Color ?? "—",
+                AnioTexto: d.Anio?.ToString(Textos.CulturaRd) ?? "—",
+                EmitidoPor: SesionActual.Nombre);
+        }
+
+        _papelesPendientes = new PapelesDeVenta(_ventaId, d.Codigo, factura, carta, separacion);
+    }
+
+    /// <summary>Recarga el expediente tras archivar los papeles recien emitidos.</summary>
+    public Task RefrescarExpedienteAsync() => Expediente.CargarAsync(_ventaId);
 }
+
+/// <summary>
+/// Los papeles a emitir al registrar una venta (033). Van juntos porque se
+/// imprimen y se archivan de una sola pasada: cual de los dos contratos viene
+/// depende de como se pacto la venta, y nunca vienen los dos.
+/// </summary>
+public record PapelesDeVenta(
+    long VentaId,
+    string Codigo,
+    FacturaVentaImpresa Factura,
+    CartaCompromisoImpresa? Carta,
+    ReciboSeparacionImpreso? Separacion);

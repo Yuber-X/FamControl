@@ -148,7 +148,11 @@ public partial class MainViewModel : ObservableObject
         // Expediente de contratos del dealer: "ver detalles" abre el financiamiento
         _contratosDealVm.DetalleSolicitado += id => _ = AbrirFinanciamientoAsync(id);
         _contratosDealVm.DetalleAlquilerSolicitado += id => _ = AbrirAlquilerDetalleAsync(id);
-        _ventaNuevaVm.Registrado += () => _ = NavegarAsync(Pagina.Ventas);
+        // Registrada la venta se va DIRECTO a su financiamiento (033): ahi se
+        // imprimen los papeles, se archivan solos y queda a mano subir lo que
+        // trajo el cliente. Volver a la lista obligaba a buscar la venta recien
+        // hecha para poder seguir.
+        _ventaNuevaVm.Registrado += id => _ = AbrirFinanciamientoAsync(id, reciénRegistrada: true);
         _ventaNuevaVm.Cancelado += () => _ = NavegarAsync(Pagina.Ventas);
 
         // Alquileres: lista → nuevo alquiler → vuelta
@@ -491,13 +495,13 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>Plazos de una venta financiada del dealer (016).</summary>
-    private async Task AbrirFinanciamientoAsync(long ventaId)
+    private async Task AbrirFinanciamientoAsync(long ventaId, bool reciénRegistrada = false)
     {
         try
         {
             PaginaActual = Pagina.Ventas;
             TituloPagina = "Financiamiento de la venta";
-            await _financiamientoVm.CargarAsync(ventaId);
+            await _financiamientoVm.CargarAsync(ventaId, reciénRegistrada);
             PaginaActualVm = _financiamientoVm;
         }
         catch (Exception ex)

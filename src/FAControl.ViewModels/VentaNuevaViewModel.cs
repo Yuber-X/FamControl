@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -26,7 +26,12 @@ public partial class VentaNuevaViewModel : ObservableObject
     private readonly ClienteService _clientes;
     private readonly IDialogService _dialogos;
 
-    public event Action? Registrado;
+    /// <summary>
+    /// Venta registrada: lleva el id para que el shell abra su financiamiento
+    /// (033). Antes volvia a la lista, donde habia que buscar la venta recien
+    /// hecha para seguir trabajando en ella.
+    /// </summary>
+    public event Action<long>? Registrado;
     public event Action? Cancelado;
 
     public VentaNuevaViewModel(VentaVehiculoService ventas, VehiculoService vehiculos,
@@ -207,7 +212,7 @@ public partial class VentaNuevaViewModel : ObservableObject
                 DiasSeparacion: diasSeparacion,
                 AdelantoSeparacion: adelanto);
 
-            var (_, codigo) = await _ventas.RegistrarAsync(datos);
+            var (ventaId, codigo) = await _ventas.RegistrarAsync(datos);
             var mensaje = TipoSeleccionado.Valor switch
             {
                 TipoVenta.Plazos =>
@@ -220,7 +225,7 @@ public partial class VentaNuevaViewModel : ObservableObject
                     $"Venta {codigo}: {VehiculoSeleccionado.Descripcion} vendido a {ClienteSeleccionado.NombreCompleto}."
             };
             _dialogos.Informar("Venta registrada", mensaje);
-            Registrado?.Invoke();
+            Registrado?.Invoke(ventaId);
         }
         catch (ArgumentException ex)
         {

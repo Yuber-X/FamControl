@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using FAControl.Models;
@@ -15,10 +15,21 @@ namespace FAControl.Views;
 public partial class VentaFinanciamientoView : UserControl
 {
     private VentaFinanciamientoViewModel? _vm;
-
     public VentaFinanciamientoView()
     {
         InitializeComponent();
+
+        // Los papeles de una venta recien registrada se retiran ACA y no en
+        // DataContextChanged: Loaded garantiza que la pantalla ya esta en el
+        // arbol visual, asi que los dialogos tienen dueno y aparecen centrados
+        // sobre ella. El buzon se vacia al retirarlos, de modo que volver a
+        // entrar no los reimprime.
+        Loaded += async (_, _) =>
+        {
+            if (_vm?.TomarPapelesPendientes() is { } papeles)
+                await EmitirPapelesAsync(papeles);
+        };
+
         DataContextChanged += (_, e) =>
         {
             if (_vm is not null)
@@ -129,6 +140,99 @@ public partial class VentaFinanciamientoView : UserControl
         var ventana = new DocumentoAccionesWindow(_vm.Expediente, fila)
         { Owner = Window.GetWindow(this) };
         ventana.ShowDialog();
+    }
+
+    // ---------- Emisión automática al registrar la venta (033) ----------
+
+    /// <summary>
+    /// Imprime los papeles de la venta recién registrada y los archiva solos en
+    /// su expediente.
+    ///
+    /// Pedido del cliente (2026-07-30): "al realizar y registrar la venta,
+    /// debería imprimir el pagaré de forma inmediata (o la cantidad de contratos
+    /// que se debería imprimir, como la carta de compromiso también), y guardar
+    /// de forma automática los contratos imprimidos en el financiamiento de
+    /// ventas como nuevos archivos".
+    ///
+    /// SE ARCHIVA AUNQUE NO SE IMPRIMA. El PDF se guarda apenas se genera el
+    /// documento, no al mandar a la impresora: lo que se busca es tener el papel
+    /// en el expediente, y atarlo a que la impresora responda significaría
+    /// perder el registro cada vez que se queda sin papel.
+    ///
+    /// Nada de esto puede tumbar la pantalla: la venta YA está registrada. Si
+    /// falla la impresión o el archivado, se registra y se sigue.
+    /// </summary>
+    private async Task EmitirPapelesAsync(PapelesDeVenta papeles)
+    {
+        var dueno = DuenoExpediente.DeVenta(papeles.VentaId);
+
+        // 1. La factura
+        try
+        {
+            var ventana = new FacturaVentaWindow(papeles.Factura, papeles.VentaId, _vm!.Expediente)
+            { Owner = Window.GetWindow(this) };
+            ventana.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Warning(ex, "No se pudo mostrar la factura de {Codigo}", papeles.Codigo);
+        }
+
+        // 2. El contrato que corresponda: carta de compromiso o recibo de
+        //    separación. Nunca los dos: dependen de cómo se pactó la venta.
+        if (papeles.Carta is { } carta)
+        {
+            await ArchivarYMostrarAsync(dueno, "Carta de compromiso",
+                $"CartaCompromiso_{papeles.Codigo}",
+                () => DocumentosDealFactory.CrearCartaCompromiso(carta));
+        }
+        else if (papeles.Separacion is { } recibo)
+        {
+            await ArchivarYMostrarAsync(dueno, "Recibo de separación",
+                $"Separacion_{papeles.Codigo}",
+                () => DocumentosDealFactory.CrearReciboSeparacion(recibo));
+        }
+
+        if (_vm is not null)
+            await _vm.RefrescarExpedienteAsync();
+    }
+
+    /// <summary>
+    /// Genera el PDF, lo mete en el expediente y abre el visor para imprimirlo.
+    ///
+    /// La FÁBRICA se llama dos veces a propósito: un FlowDocument tiene un solo
+    /// padre lógico, así que el PDF y el visor necesitan cada uno el suyo.
+    /// </summary>
+    private async Task ArchivarYMostrarAsync(DuenoExpediente dueno, string titulo,
+        string nombreArchivo, Func<System.Windows.Documents.FlowDocument> fabrica)
+    {
+        var temporal = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+            $"{nombreArchivo}.pdf");
+        try
+        {
+            ImpresoraRecibos.GuardarDocumentoPdf(fabrica(), temporal, titulo);
+            await _vm!.Expediente.ArchivarImpresoAsync(dueno, temporal, TipoDocumento.Contrato);
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Warning(ex, "No se pudo archivar {Titulo} de {Dueno}", titulo, dueno.Descripcion);
+        }
+        finally
+        {
+            try { if (System.IO.File.Exists(temporal)) System.IO.File.Delete(temporal); }
+            catch (Exception) { /* temporal: si queda, Windows lo limpia */ }
+        }
+
+        try
+        {
+            var ventana = new DocumentoDealWindow(titulo, nombreArchivo, fabrica)
+            { Owner = Window.GetWindow(this) };
+            ventana.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Warning(ex, "No se pudo mostrar {Titulo}", titulo);
+        }
     }
 
     /// <summary>
