@@ -1,0 +1,83 @@
+<Window x:Class="FAControl.Views.CerrarAlquilerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cerrar el alquiler"
+        Width="520" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource Brush.FondoApp}">
+
+  <Border Margin="24" Style="{DynamicResource Card}">
+    <StackPanel>
+      <TextBlock x:Name="TextoTitulo" Style="{DynamicResource Texto.Titulo3}" TextWrapping="Wrap" />
+      <TextBlock x:Name="TextoVehiculo" Style="{DynamicResource Texto.Caption}"
+                 TextWrapping="Wrap" Margin="0,4,0,0" />
+
+      <!-- La pregunta que justifica que sea UN solo botón: por dentro los dos
+           liberan el vehículo, pero para la plata no significan lo mismo. -->
+      <TextBlock Text="¿Cómo terminó este alquiler?" Style="{DynamicResource Input.Label}"
+                 Margin="0,18,0,6" />
+
+      <RadioButton x:Name="OpcionDevuelto" GroupName="Cierre" IsChecked="True"
+                   Checked="Opcion_Changed" Margin="0,0,0,8">
+        <StackPanel Margin="6,0,0,0">
+          <TextBlock Text="El cliente devolvió el vehículo"
+                     Style="{DynamicResource Texto.CuerpoEnfatizado}" />
+          <TextBlock Text="El alquiler se cumplió. Lo cobrado se gana y cuenta como ingreso."
+                     Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" />
+        </StackPanel>
+      </RadioButton>
+
+      <RadioButton x:Name="OpcionCancelado" GroupName="Cierre" Checked="Opcion_Changed">
+        <StackPanel Margin="6,0,0,0">
+          <TextBlock Text="Se canceló" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                     Foreground="{DynamicResource Brush.EnMora.Texto}" />
+          <TextBlock Text="El alquiler no llegó a correr. No cuenta como ingreso y puede haber que devolver dinero."
+                     Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" />
+        </StackPanel>
+      </RadioButton>
+
+      <!-- Fecha real: solo aplica a la devolución -->
+      <StackPanel x:Name="ZonaFecha" Margin="0,16,0,0">
+        <TextBlock Text="¿Qué día lo devolvió?" Style="{DynamicResource Input.Label}" />
+        <DatePicker x:Name="SelectorFecha" Width="160" Height="34"
+                    HorizontalAlignment="Left"
+                    SelectedDateChanged="Fecha_Changed" />
+      </StackPanel>
+
+      <!-- Cómo queda la plata, en vivo -->
+      <Border x:Name="PanelCuenta" Margin="0,14,0,0" CornerRadius="8" Padding="14,12"
+              Background="{DynamicResource Brush.PrimarioSutil}">
+        <StackPanel>
+          <TextBlock x:Name="TextoPactado" Style="{DynamicResource Texto.Caption}" />
+          <TextBlock x:Name="TextoReal" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                     Margin="0,4,0,0" TextWrapping="Wrap" />
+          <TextBlock x:Name="TextoDiferencia" Style="{DynamicResource Texto.Caption}"
+                     Margin="0,2,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <TextBlock Text="Motivo (queda en el historial)" Style="{DynamicResource Input.Label}"
+                 Margin="0,16,0,0" />
+      <TextBox x:Name="CajaMotivo" Style="{DynamicResource Input.Texto}" Height="52"
+               TextWrapping="Wrap" AcceptsReturn="True"
+               VerticalContentAlignment="Top" Padding="10,8" />
+
+      <TextBlock x:Name="TextoError" Style="{DynamicResource Texto.Caption}"
+                 Foreground="{DynamicResource Brush.Destructivo}"
+                 TextWrapping="Wrap" Margin="0,10,0,0" />
+
+      <Grid Margin="0,18,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="8" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Button x:Name="BotonConfirmar" Grid.Column="0" Content="Cerrar el alquiler"
+                Style="{DynamicResource Boton.Primario}" Click="Confirmar_Click" />
+        <Button Grid.Column="2" Content="Volver" Style="{DynamicResource Boton.Secundario}"
+                IsCancel="True" Click="Volver_Click" />
+      </Grid>
+    </StackPanel>
+  </Border>
+</Window>

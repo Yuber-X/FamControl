@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Models;
 
 namespace FAControl.Data;
@@ -78,6 +78,74 @@ public class ReporteDealRepository
                 Convert.ToInt32(reader["plazos_atrasados"]),
                 pendiente,
                 Convert.ToInt32(reader["adjuntos"])));
+        }
+        return lista;
+    }
+
+    /// <summary>
+    /// Los ALQUILERES como contratos del dealer (032 — pedido del cliente:
+    /// "tambien debe mostrarse en contratos").
+    ///
+    /// Va aparte de la consulta de ventas a proposito. Los dos son contratos y
+    /// se muestran en la misma pantalla, pero viven en tablas distintas y no
+    /// comparten forma: un alquiler no tiene plazos ni factura. Forzarlos en un
+    /// UNION obligaria a rellenar media docena de columnas con ceros que no
+    /// significan nada, y esos ceros terminan mostrandose en pantalla.
+    /// </summary>
+    public async Task<IReadOnlyList<ContratoDealFila>> ObtenerContratosDeAlquilerAsync(
+        CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT a.id, a.codigo, a.created_at, a.monto_total, a.monto_final, a.estado,
+                   TRIM(CONCAT(c.nombre, ' ', COALESCE(c.apellido, ''))) AS cliente,
+                   COALESCE(u.nombre, '—') AS usuario,
+                   TRIM(CONCAT(v.marca, ' ', v.modelo, COALESCE(CONCAT(' ', v.anio), ''))) AS vehiculo,
+                   v.matricula, v.placa,
+                   (SELECT COUNT(*) FROM {DbNames.Documento} d
+                    WHERE d.alquiler_id = a.id AND d.deleted_at IS NULL) AS adjuntos
+            FROM {DbNames.Alquiler} a
+            JOIN {DbNames.Cliente} c ON c.id = a.cliente_id
+            JOIN {DbNames.Vehiculo} v ON v.id = a.vehiculo_id
+            -- LEFT: el contrato no desaparece del listado si se borro el usuario
+            LEFT JOIN {DbNames.Usuario} u ON u.id = a.created_by
+            ORDER BY a.created_at DESC;
+            """;
+
+        var lista = new List<ContratoDealFila>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var estado = reader.GetString("estado");
+            // Cerrado: vale lo que realmente correspondio cobrar. Abierto: lo pactado.
+            var monto = reader.IsDBNull(reader.GetOrdinal("monto_final"))
+                ? reader.GetDecimal("monto_total")
+                : reader.GetDecimal("monto_final");
+
+            lista.Add(new ContratoDealFila(
+                reader.GetInt64("id"),
+                reader.GetString("codigo"),
+                DateTime.SpecifyKind(reader.GetDateTime("created_at"), DateTimeKind.Utc),
+                reader.GetString("cliente"),
+                reader.GetString("usuario"),
+                reader.GetString("vehiculo"),
+                reader.IsDBNull(reader.GetOrdinal("matricula")) ? null : reader.GetString("matricula"),
+                reader.IsDBNull(reader.GetOrdinal("placa")) ? null : reader.GetString("placa"),
+                monto,
+                TipoVenta.Contado,      // no aplica a un alquiler; manda EsAlquiler
+                PlazosTotales: 0,
+                PlazosPagados: 0,
+                PlazosAtrasados: 0,
+                Pendiente: 0m,
+                DocumentosAdjuntos: Convert.ToInt32(reader["adjuntos"]),
+                EsAlquiler: true,
+                EstadoAlquilerTexto: estado switch
+                {
+                    "activo" => "Activo",
+                    "finalizado" => "Finalizado",
+                    _ => "Cancelado"
+                }));
         }
         return lista;
     }

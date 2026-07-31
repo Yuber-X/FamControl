@@ -1,4 +1,4 @@
-using MySqlConnector;
+﻿using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models;
 
@@ -48,31 +48,76 @@ public class AlquilerRepository
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
-            SELECT id, codigo, vehiculo_id, cliente_id, fecha_inicio, fecha_fin, fecha_devolucion,
-                   tarifa_dia, dias, monto_total, estado, notas, created_at
-            FROM {DbNames.Alquiler}
-            WHERE id = @id;
+            SELECT a.id, a.codigo, a.vehiculo_id, a.cliente_id, a.fecha_inicio, a.fecha_fin,
+                   a.fecha_devolucion, a.tarifa_dia, a.dias, a.dias_reales, a.monto_total,
+                   a.monto_final, a.estado, a.cerrado_motivo, a.cerrado_at, a.notas, a.created_at,
+                   TRIM(CONCAT(u.nombre, ' ', COALESCE(u.apellido, ''))) AS cerrado_por_nombre
+            FROM {DbNames.Alquiler} a
+            -- LEFT: el alquiler no desaparece si se borro el usuario que lo cerro
+            LEFT JOIN {DbNames.Usuario} u ON u.id = a.cerrado_por
+            WHERE a.id = @id;
             """;
         cmd.Parameters.AddWithValue("@id", id);
         using var reader = await cmd.ExecuteReaderAsync(ct);
         return await reader.ReadAsync(ct) ? Mapear(reader) : null;
     }
 
-    /// <summary>Cierra un alquiler (finalizado/cancelado) dentro de la transacción del Service.</summary>
-    public async Task CerrarAsync(long id, EstadoAlquiler estado, DateOnly? fechaDevolucion,
+    /// <summary>
+    /// Cierra un alquiler (finalizado/cancelado) dentro de la transaccion del
+    /// Service, guardando el motivo, quien lo cerro y los dias/monto REALES (031).
+    ///
+    /// El WHERE exige que siga activo: si otro usuario lo cerro entre que se
+    /// leyo y se escribio, esto afecta 0 filas y el Service lo convierte en
+    /// error, en vez de pisar un cierre ajeno.
+    /// </summary>
+    public async Task<int> CerrarAsync(long id, EstadoAlquiler estado, DateOnly? fechaDevolucion,
+        string motivo, int? diasReales, decimal? montoFinal,
         MySqlConnection conexion, MySqlTransaction transaccion, CancellationToken ct = default)
     {
         using var cmd = conexion.CreateCommand();
         cmd.Transaction = transaccion;
         cmd.CommandText = $"""
             UPDATE {DbNames.Alquiler}
-            SET estado = @estado, fecha_devolucion = @fechaDevolucion
-            WHERE id = @id;
+            SET estado = @estado, fecha_devolucion = @fechaDevolucion,
+                cerrado_motivo = @motivo, cerrado_at = UTC_TIMESTAMP(), cerrado_por = @cerradoPor,
+                dias_reales = @diasReales, monto_final = @montoFinal
+            WHERE id = @id AND estado = 'activo';
             """;
         cmd.Parameters.AddWithValue("@estado", EnumMap.ADb(estado));
         cmd.Parameters.AddWithValue("@fechaDevolucion",
             fechaDevolucion is { } f ? f.ToDateTime(TimeOnly.MinValue) : (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@motivo", motivo);
+        cmd.Parameters.AddWithValue("@cerradoPor",
+            SesionActual.HaySesionActiva ? SesionActual.Id : (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@diasReales", (object?)diasReales ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@montoFinal", (object?)montoFinal ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@id", id);
+        return await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Corrige los datos de un alquiler (031). El codigo NO se toca: ya se
+    /// emitio. El vehiculo y el cliente tampoco: cambiarlos no es corregir un
+    /// tipeo, es otro alquiler.
+    /// </summary>
+    public async Task ActualizarDatosAsync(Alquiler alquiler, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            UPDATE {DbNames.Alquiler}
+            SET fecha_inicio = @inicio, fecha_fin = @fin, tarifa_dia = @tarifa,
+                dias = @dias, monto_total = @total, notas = @notas
+            WHERE id = @id;
+            """;
+        cmd.Parameters.AddWithValue("@inicio", alquiler.FechaInicio.ToDateTime(TimeOnly.MinValue));
+        cmd.Parameters.AddWithValue("@fin", alquiler.FechaFin.ToDateTime(TimeOnly.MinValue));
+        cmd.Parameters.AddWithValue("@tarifa", alquiler.TarifaDia);
+        cmd.Parameters.AddWithValue("@dias", alquiler.Dias);
+        cmd.Parameters.AddWithValue("@total", alquiler.MontoTotal);
+        cmd.Parameters.AddWithValue("@notas", (object?)alquiler.Notas ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@id", alquiler.Id);
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
@@ -126,8 +171,15 @@ public class AlquilerRepository
             ? null : DateOnly.FromDateTime(reader.GetDateTime("fecha_devolucion")),
         TarifaDia = reader.GetDecimal("tarifa_dia"),
         Dias = reader.GetInt32("dias"),
+        DiasReales = reader.IsDBNull(reader.GetOrdinal("dias_reales")) ? null : reader.GetInt32("dias_reales"),
         MontoTotal = reader.GetDecimal("monto_total"),
+        MontoFinal = reader.IsDBNull(reader.GetOrdinal("monto_final")) ? null : reader.GetDecimal("monto_final"),
         Estado = EnumMap.EstadoAlquilerDeDb(reader.GetString("estado")),
+        CerradoMotivo = reader.IsDBNull(reader.GetOrdinal("cerrado_motivo")) ? null : reader.GetString("cerrado_motivo"),
+        CerradoAtUtc = reader.IsDBNull(reader.GetOrdinal("cerrado_at"))
+            ? null : DateTime.SpecifyKind(reader.GetDateTime("cerrado_at"), DateTimeKind.Utc),
+        CerradoPorNombre = reader.IsDBNull(reader.GetOrdinal("cerrado_por_nombre"))
+            ? null : reader.GetString("cerrado_por_nombre"),
         Notas = reader.IsDBNull(reader.GetOrdinal("notas")) ? null : reader.GetString("notas"),
         CreatedAtUtc = DateTime.SpecifyKind(reader.GetDateTime("created_at"), DateTimeKind.Utc)
     };

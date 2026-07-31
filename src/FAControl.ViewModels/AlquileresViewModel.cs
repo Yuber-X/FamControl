@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -25,13 +25,18 @@ public record AlquilerFila(AlquilerResumen Resumen)
     public bool EstaActivo => Resumen.Estado == EstadoAlquiler.Activo;
 }
 
-/// <summary>Lista de alquileres (DealerControl). Permite devolver/cancelar los activos.</summary>
+/// <summary>
+/// Lista de alquileres (DealerControl). Desde 031 el cierre no se hace aca:
+/// cada fila abre su pantalla de detalles, que es donde estan editar y cerrar.
+/// </summary>
 public partial class AlquileresViewModel : ObservableObject
 {
     private readonly AlquilerService _servicio;
     private readonly IDialogService _dialogos;
 
     public event Action? NuevoSolicitado;
+    /// <summary>El shell abre la pantalla de detalles del alquiler (031).</summary>
+    public event Action<long>? DetalleSolicitado;
 
     public AlquileresViewModel(AlquilerService servicio, IDialogService dialogos)
     {
@@ -66,39 +71,18 @@ public partial class AlquileresViewModel : ObservableObject
     [RelayCommand]
     private void Nuevo() => NuevoSolicitado?.Invoke();
 
+    /// <summary>
+    /// Abre el detalle del alquiler (031). Devolver y cancelar YA NO estan en el
+    /// grid: viven adentro, en un solo boton que pregunta cual de las dos es.
+    /// El cliente lo pidio asi ("¿los btn devolver y cancelar no hacen
+    /// practicamente lo mismo? si es asi, con un solo btn seria suficiente"), y
+    /// ademas cerrar un contrato desde una fila de la lista, sin ver el periodo
+    /// ni el monto, es demasiado facil de hacer sobre el alquiler equivocado.
+    /// </summary>
     [RelayCommand]
-    private async Task DevolverAsync(AlquilerFila? fila)
+    private void VerDetalles(AlquilerFila? fila)
     {
-        if (fila is null || !fila.EstaActivo)
-            return;
-        if (!_dialogos.Confirmar("Registrar devolución",
-                $"¿Marcar el alquiler {fila.Codigo} como devuelto? El vehículo vuelve a estar disponible."))
-            return;
-        await CerrarAsync(fila, cancelado: false);
-    }
-
-    [RelayCommand]
-    private async Task CancelarAsync(AlquilerFila? fila)
-    {
-        if (fila is null || !fila.EstaActivo)
-            return;
-        if (!_dialogos.Confirmar("Cancelar alquiler",
-                $"¿Cancelar el alquiler {fila.Codigo}? El vehículo vuelve a estar disponible."))
-            return;
-        await CerrarAsync(fila, cancelado: true);
-    }
-
-    private async Task CerrarAsync(AlquilerFila fila, bool cancelado)
-    {
-        try
-        {
-            await _servicio.CerrarAsync(fila.Id, cancelado);
-            await CargarAsync();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error cerrando el alquiler {Id}", fila.Id);
-            _dialogos.MostrarError("Alquileres", ex.Message);
-        }
+        if (fila is not null)
+            DetalleSolicitado?.Invoke(fila.Id);
     }
 }

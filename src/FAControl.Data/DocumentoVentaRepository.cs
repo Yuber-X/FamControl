@@ -1,4 +1,4 @@
-using MySqlConnector;
+﻿using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models;
 
@@ -15,7 +15,7 @@ public class DocumentoVentaRepository
     public DocumentoVentaRepository(ConexionFactory factory) => _factory = factory;
 
     private const string Columnas = """
-        d.id, d.venta_id, d.prestamo_id, d.nombre, d.ruta_relativa, d.extension, d.tamano_bytes,
+        d.id, d.venta_id, d.prestamo_id, d.alquiler_id, d.nombre, d.ruta_relativa, d.extension, d.tamano_bytes,
         d.tipo, d.notas, d.created_at,
         TRIM(CONCAT(COALESCE(u.nombre, ''), ' ', COALESCE(u.apellido, ''))) AS subido_por
         """;
@@ -29,7 +29,8 @@ public class DocumentoVentaRepository
             SELECT {Columnas}
             FROM {DbNames.Documento} d
             LEFT JOIN {DbNames.Usuario} u ON u.id = d.created_by
-            WHERE (d.venta_id <=> @venta) AND (d.prestamo_id <=> @prestamo) AND d.deleted_at IS NULL
+            WHERE (d.venta_id <=> @venta) AND (d.prestamo_id <=> @prestamo)
+              AND (d.alquiler_id <=> @alquiler) AND d.deleted_at IS NULL
             ORDER BY d.created_at DESC;
             """;
         AgregarDueno(cmd, dueno);
@@ -64,7 +65,8 @@ public class DocumentoVentaRepository
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT COUNT(*) FROM {DbNames.Documento}
-            WHERE (venta_id <=> @venta) AND (prestamo_id <=> @prestamo) AND deleted_at IS NULL;
+            WHERE (venta_id <=> @venta) AND (prestamo_id <=> @prestamo)
+              AND (alquiler_id <=> @alquiler) AND deleted_at IS NULL;
             """;
         AgregarDueno(cmd, dueno);
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct));
@@ -83,8 +85,9 @@ public class DocumentoVentaRepository
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO {DbNames.Documento}
-              (venta_id, prestamo_id, nombre, ruta_relativa, extension, tamano_bytes, tipo, notas, created_by)
-            VALUES (@venta, @prestamo, @nombre, @ruta, @ext, @tamano, @tipo, @notas, @usuario);
+              (venta_id, prestamo_id, alquiler_id, nombre, ruta_relativa, extension,
+               tamano_bytes, tipo, notas, created_by)
+            VALUES (@venta, @prestamo, @alquiler, @nombre, @ruta, @ext, @tamano, @tipo, @notas, @usuario);
             SELECT LAST_INSERT_ID();
             """;
         AgregarDueno(cmd, dueno);
@@ -116,7 +119,8 @@ public class DocumentoVentaRepository
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             UPDATE {DbNames.Documento}
-            SET venta_id = @venta, prestamo_id = @prestamo, ruta_relativa = @ruta
+            SET venta_id = @venta, prestamo_id = @prestamo, alquiler_id = @alquiler,
+                ruta_relativa = @ruta
             WHERE id = @id;
             """;
         AgregarDueno(cmd, destino);
@@ -136,9 +140,9 @@ public class DocumentoVentaRepository
     }
 
     /// <summary>
-    /// Los dos parámetros del dueño. Van SIEMPRE los dos, uno en NULL: las
+    /// Los TRES parámetros del dueño. Van siempre los tres, dos en NULL: las
     /// consultas comparan con &lt;=&gt; (igualdad que trata NULL como valor), así
-    /// una sola consulta sirve para ventas y para préstamos.
+    /// una sola consulta sirve para ventas, préstamos y alquileres (032).
     /// </summary>
     private static void AgregarDueno(MySqlCommand cmd, DuenoExpediente dueno)
     {
@@ -146,6 +150,8 @@ public class DocumentoVentaRepository
             dueno.Tipo == TipoExpediente.Venta ? dueno.Id : DBNull.Value);
         cmd.Parameters.AddWithValue("@prestamo",
             dueno.Tipo == TipoExpediente.Prestamo ? dueno.Id : DBNull.Value);
+        cmd.Parameters.AddWithValue("@alquiler",
+            dueno.Tipo == TipoExpediente.Alquiler ? dueno.Id : DBNull.Value);
     }
 
     private static DocumentoVenta Mapear(MySqlConnector.MySqlDataReader reader) => new()
@@ -153,6 +159,7 @@ public class DocumentoVentaRepository
         Id = reader.GetInt64("id"),
         VentaId = reader.IsDBNull(reader.GetOrdinal("venta_id")) ? null : reader.GetInt64("venta_id"),
         PrestamoId = reader.IsDBNull(reader.GetOrdinal("prestamo_id")) ? null : reader.GetInt64("prestamo_id"),
+        AlquilerId = reader.IsDBNull(reader.GetOrdinal("alquiler_id")) ? null : reader.GetInt64("alquiler_id"),
         Nombre = reader.GetString("nombre"),
         RutaRelativa = reader.GetString("ruta_relativa"),
         Extension = reader.GetString("extension"),

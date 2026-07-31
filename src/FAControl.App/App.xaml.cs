@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using FAControl.Common;
@@ -554,6 +554,7 @@ public partial class App : Application
         servicios.AddSingleton<VentaNuevaViewModel>();
         servicios.AddSingleton<AlquileresViewModel>();
         servicios.AddSingleton<AlquilerNuevoViewModel>();
+        servicios.AddSingleton<AlquilerDetalleViewModel>();
         servicios.AddSingleton<GastosViewModel>();
         // Páginas del punto de venta. Van agrupadas en PaginasPos para no
         // sumarle nueve parámetros más al constructor del shell.

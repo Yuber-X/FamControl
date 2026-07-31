@@ -19,12 +19,29 @@ public class ReporteDealService
         _ajustes = ajustes;
     }
 
-    /// <summary>Expediente de contratos del dealer, del más reciente al más viejo.</summary>
-    public Task<IReadOnlyList<ContratoDealFila>> ObtenerContratosAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Expediente de contratos del dealer, del más reciente al más viejo:
+    /// VENTAS y ALQUILERES juntos (032 — "también debe mostrarse en contratos").
+    ///
+    /// Cada uno se consulta por su lado y se mezclan acá, ordenados por fecha.
+    /// Los datos no se cruzan en la base: solo comparten pantalla.
+    ///
+    /// Los alquileres se incluyen solo si el usuario tiene permiso para verlos.
+    /// Un vendedor al que no le habilitaron rent a car no debería enterarse de
+    /// esos contratos por la puerta de atrás.
+    /// </summary>
+    public async Task<IReadOnlyList<ContratoDealFila>> ObtenerContratosAsync(
+        CancellationToken ct = default)
     {
         if (!SesionActual.TienePermiso(Permisos.Ventas))
             throw new UnauthorizedAccessException("No tenés permiso para ver los contratos del dealer.");
-        return _repositorio.ObtenerContratosAsync(FechaNegocio.Hoy, ct);
+
+        var ventas = await _repositorio.ObtenerContratosAsync(FechaNegocio.Hoy, ct);
+        if (!SesionActual.TienePermiso(Permisos.Alquileres))
+            return ventas;
+
+        var alquileres = await _repositorio.ObtenerContratosDeAlquilerAsync(ct);
+        return [.. ventas.Concat(alquileres).OrderByDescending(c => c.FechaUtc)];
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
 using Serilog;
@@ -58,6 +58,7 @@ public partial class MainViewModel : ObservableObject
     private readonly VentaNuevaViewModel _ventaNuevaVm;
     private readonly AlquileresViewModel _alquileresVm;
     private readonly AlquilerNuevoViewModel _alquilerNuevoVm;
+    private readonly AlquilerDetalleViewModel _alquilerDetalleVm;
     private readonly GastosViewModel _gastosVm;
     private readonly PanelDealViewModel _panelDealVm;
     private readonly VehiculoFichaViewModel _fichaVehiculoVm;
@@ -75,7 +76,8 @@ public partial class MainViewModel : ObservableObject
         UsuariosViewModel usuariosVm, ContratosViewModel contratosVm, ConfiguracionViewModel configuracionVm,
         VehiculosViewModel vehiculosVm, VehiculoFormViewModel vehiculoFormVm,
         VentasViewModel ventasVm, VentaNuevaViewModel ventaNuevaVm,
-        AlquileresViewModel alquileresVm, AlquilerNuevoViewModel alquilerNuevoVm, GastosViewModel gastosVm,
+        AlquileresViewModel alquileresVm, AlquilerNuevoViewModel alquilerNuevoVm,
+        AlquilerDetalleViewModel alquilerDetalleVm, GastosViewModel gastosVm,
         PanelDealViewModel panelDealVm, VehiculoFichaViewModel fichaVehiculoVm,
         VentaFinanciamientoViewModel financiamientoVm,
         ContratosDealViewModel contratosDealVm, ReportesDealViewModel reportesDealVm,
@@ -130,6 +132,7 @@ public partial class MainViewModel : ObservableObject
         _ventaNuevaVm = ventaNuevaVm;
         _alquileresVm = alquileresVm;
         _alquilerNuevoVm = alquilerNuevoVm;
+        _alquilerDetalleVm = alquilerDetalleVm;
         _gastosVm = gastosVm;
         _vehiculosVm.NuevoSolicitado += AbrirVehiculoNuevo;
         _vehiculosVm.EditarSolicitado += id => _ = AbrirVehiculoEdicionAsync(id);
@@ -144,11 +147,14 @@ public partial class MainViewModel : ObservableObject
         _financiamientoVm.VolverSolicitado += () => _ = NavegarAsync(Pagina.Ventas);
         // Expediente de contratos del dealer: "ver detalles" abre el financiamiento
         _contratosDealVm.DetalleSolicitado += id => _ = AbrirFinanciamientoAsync(id);
+        _contratosDealVm.DetalleAlquilerSolicitado += id => _ = AbrirAlquilerDetalleAsync(id);
         _ventaNuevaVm.Registrado += () => _ = NavegarAsync(Pagina.Ventas);
         _ventaNuevaVm.Cancelado += () => _ = NavegarAsync(Pagina.Ventas);
 
         // Alquileres: lista → nuevo alquiler → vuelta
         _alquileresVm.NuevoSolicitado += () => _ = AbrirAlquilerNuevoAsync();
+        _alquileresVm.DetalleSolicitado += id => _ = AbrirAlquilerDetalleAsync(id);
+        _alquilerDetalleVm.VolverSolicitado += () => _ = NavegarAsync(Pagina.Alquileres);
         _alquilerNuevoVm.Registrado += () => _ = NavegarAsync(Pagina.Alquileres);
         _alquilerNuevoVm.Cancelado += () => _ = NavegarAsync(Pagina.Alquileres);
 
@@ -612,6 +618,22 @@ public partial class MainViewModel : ObservableObject
         PaginaActual = Pagina.Ventas;
         TituloPagina = "Nueva venta al contado";
         PaginaActualVm = _ventaNuevaVm;
+    }
+
+    /// <summary>Detalle de un alquiler (031): editar y cerrar viven ahi adentro.</summary>
+    private async Task AbrirAlquilerDetalleAsync(long alquilerId)
+    {
+        try
+        {
+            PaginaActual = Pagina.Alquileres;
+            TituloPagina = "Detalle del alquiler";
+            await _alquilerDetalleVm.CargarAsync(alquilerId);
+            PaginaActualVm = _alquilerDetalleVm;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error abriendo el detalle del alquiler {Id}", alquilerId);
+        }
     }
 
     private async Task AbrirAlquilerNuevoAsync()

@@ -1,4 +1,4 @@
-namespace FAControl.Models;
+﻿namespace FAControl.Models;
 
 /// <summary>
 /// Fila del expediente de contratos del dealer (pedido 2026-07-25): cliente,
@@ -20,21 +20,34 @@ public record ContratoDealFila(
     int PlazosAtrasados,
     decimal Pendiente,
     /// <summary>Archivos guardados en el expediente digital de esta venta (018).</summary>
-    int DocumentosAdjuntos = 0)
+    int DocumentosAdjuntos = 0,
+    /// <summary>
+    /// True si la fila es un ALQUILER y no una venta (032 — "tambien debe
+    /// mostrarse en contratos"). Los dos son contratos del dealer y se listan
+    /// juntos, pero sus datos viven en tablas distintas y no se mezclan: por eso
+    /// la fila lleva de que es, en vez de meter 'alquiler' dentro de TipoVenta.
+    /// </summary>
+    bool EsAlquiler = false,
+    /// <summary>Alquiler: como esta el contrato ('Activo', 'Finalizado', 'Cancelado').</summary>
+    string EstadoAlquilerTexto = "")
 {
     /// <summary>
     /// Documentos del expediente: los que EMITE la app (factura y, según cómo
     /// se pactó, carta de compromiso o recibo de separación) más los que
     /// SUBIÓ el usuario al expediente digital (018).
     /// </summary>
-    public int CantidadDocumentos => DocumentosAdjuntos + TipoVenta switch
-    {
-        TipoVenta.Plazos => 2,        // factura + carta de compromiso
-        TipoVenta.Separacion => 2,    // factura + recibo de separación
-        _ => 1                        // factura
-    };
+    public int CantidadDocumentos => EsAlquiler
+        // Un alquiler no emite factura ni carta: sus papeles son los que se
+        // suben (contrato firmado, licencia, fotos del auto).
+        ? DocumentosAdjuntos
+        : DocumentosAdjuntos + TipoVenta switch
+        {
+            TipoVenta.Plazos => 2,        // factura + carta de compromiso
+            TipoVenta.Separacion => 2,    // factura + recibo de separación
+            _ => 1                        // factura
+        };
 
-    public bool TienePlan => TipoVenta != TipoVenta.Contado;
+    public bool TienePlan => !EsAlquiler && TipoVenta != TipoVenta.Contado;
 }
 
 /// <summary>

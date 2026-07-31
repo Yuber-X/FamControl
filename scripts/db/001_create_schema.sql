@@ -1,4 +1,4 @@
--- =============================================================
+﻿-- =============================================================
 -- FAControl — Esquema inicial
 -- Script: 001_create_schema.sql
 -- Motor: MySQL 8.0+ · InnoDB · utf8mb4_unicode_ci
@@ -448,8 +448,17 @@ CREATE TABLE alquiler (
   fecha_devolucion DATE          NULL,               -- devolución real
   tarifa_dia       DECIMAL(15,2) NOT NULL,
   dias             INT UNSIGNED  NOT NULL,
+  -- Dias y monto REALES al cerrar (031): si el cliente devuelve tarde o antes,
+  -- lo pactado y lo que corresponde cobrar dejan de coincidir.
+  dias_reales      INT UNSIGNED  NULL,
   monto_total      DECIMAL(15,2) NOT NULL,
+  monto_final      DECIMAL(15,2) NULL,
   estado           ENUM('activo','finalizado','cancelado') NOT NULL DEFAULT 'activo',
+  -- Por que, cuando y quien cerro el contrato (031). Sin el motivo, un alquiler
+  -- cancelado en el historial no explica nada.
+  cerrado_motivo   VARCHAR(250)  NULL,
+  cerrado_at       DATETIME      NULL,
+  cerrado_por      BIGINT UNSIGNED NULL,
   notas            TEXT          NULL,
   created_at       DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
   created_by       BIGINT UNSIGNED NULL,
@@ -459,7 +468,8 @@ CREATE TABLE alquiler (
   KEY ix_alquiler_estado (estado),
   CONSTRAINT fk_alquiler_vehiculo FOREIGN KEY (vehiculo_id) REFERENCES vehiculo (id) ON DELETE RESTRICT,
   CONSTRAINT fk_alquiler_cliente  FOREIGN KEY (cliente_id)  REFERENCES cliente (id)  ON DELETE RESTRICT,
-  CONSTRAINT fk_alquiler_usuario  FOREIGN KEY (created_by)  REFERENCES usuario (id)  ON DELETE SET NULL
+  CONSTRAINT fk_alquiler_usuario  FOREIGN KEY (created_by)  REFERENCES usuario (id)  ON DELETE SET NULL,
+  CONSTRAINT fk_alquiler_cerrado_por FOREIGN KEY (cerrado_por) REFERENCES usuario (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
@@ -508,10 +518,11 @@ CREATE TABLE vehiculo_reparacion (
 -- -------------------------------------------------------------
 CREATE TABLE documento (
   id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  -- De que cuelga el expediente (026): una venta del dealer o un prestamo.
-  -- Va exactamente UNO de los dos; lo garantiza ck_documento_un_dueno.
+  -- De que cuelga el expediente: una venta del dealer, un prestamo (026) o un
+  -- alquiler (032). Va exactamente UNO; lo garantiza ck_documento_un_dueno_3.
   venta_id      BIGINT UNSIGNED NULL,
   prestamo_id   BIGINT UNSIGNED NULL,
+  alquiler_id   BIGINT UNSIGNED NULL,
   nombre        VARCHAR(255) NOT NULL,
   -- Ruta relativa a la carpeta de expedientes: 'ventas/<id>/...' o
   -- 'prestamos/<id>/...'. Se guarda, no se recalcula.
@@ -527,13 +538,19 @@ CREATE TABLE documento (
   PRIMARY KEY (id),
   KEY ix_documento_venta (venta_id),
   KEY ix_documento_prestamo (prestamo_id),
+  KEY ix_documento_alquiler (alquiler_id),
   CONSTRAINT fk_documento_venta FOREIGN KEY (venta_id)
     REFERENCES venta_vehiculo (id) ON DELETE RESTRICT,
   CONSTRAINT fk_documento_prestamo FOREIGN KEY (prestamo_id)
     REFERENCES prestamo (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_documento_alquiler FOREIGN KEY (alquiler_id)
+    REFERENCES alquiler (id) ON DELETE RESTRICT,
   CONSTRAINT fk_documento_usuario FOREIGN KEY (created_by)
     REFERENCES usuario (id) ON DELETE SET NULL,
-  CONSTRAINT ck_documento_un_dueno CHECK ((venta_id IS NULL) <> (prestamo_id IS NULL))
+  -- Suma de los tres = 1: la forma directa de decir "uno y solo uno". Con <>
+  -- encadenados, tres nulos y tres llenos se comportarian igual.
+  CONSTRAINT ck_documento_un_dueno_3
+    CHECK ((venta_id IS NOT NULL) + (prestamo_id IS NOT NULL) + (alquiler_id IS NOT NULL) = 1)
 ) ENGINE=InnoDB;
 
 -- =============================================================

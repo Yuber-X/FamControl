@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.AlquileresView"
+﻿<UserControl x:Class="FAControl.Views.AlquileresView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -45,21 +45,17 @@
           <!-- Quién lo registró (pedido de Yuber 2026-07-31) -->
           <DataGridTextColumn Header="Registró" Binding="{Binding Registro}" Width="Auto" MinWidth="130"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-          <DataGridTemplateColumn Width="200">
+          <!-- Devolver y cancelar YA NO estan aca (031): viven dentro del
+               detalle, en un solo boton que pregunta cual de los dos es.
+               Cerrar un contrato desde una fila, sin ver el periodo ni el
+               monto, es demasiado facil de hacer sobre el alquiler equivocado. -->
+          <DataGridTemplateColumn Width="130">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
-                <StackPanel Orientation="Horizontal"
-                            Visibility="{Binding EstaActivo, Converter={StaticResource BoolAVisibilidad}}">
-                  <Button Content="Devolver" Style="{DynamicResource Boton.Terciario}"
-                          Command="{Binding DataContext.DevolverCommand,
-                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                          CommandParameter="{Binding}" />
-                  <Button Content="Cancelar" Style="{DynamicResource Boton.Terciario}"
-                          Margin="4,0,0,0"
-                          Command="{Binding DataContext.CancelarCommand,
-                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                          CommandParameter="{Binding}" />
-                </StackPanel>
+                <Button Content="Ver detalles" Style="{DynamicResource Boton.Terciario}"
+                        Command="{Binding DataContext.VerDetallesCommand,
+                                  RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        CommandParameter="{Binding}" />
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>

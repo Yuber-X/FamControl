@@ -76,9 +76,70 @@ public class Alquiler
     public int Dias { get; set; }
     public decimal MontoTotal { get; set; }
     public EstadoAlquiler Estado { get; set; } = EstadoAlquiler.Activo;
+    /// <summary>Días realmente usados (031). NULL mientras está activo.</summary>
+    public int? DiasReales { get; set; }
+    /// <summary>Lo que corresponde cobrar al cerrar (031). Difiere del pactado si devolvió tarde.</summary>
+    public decimal? MontoFinal { get; set; }
+    /// <summary>Por qué se cerró el contrato (031). NULL = no se indicó.</summary>
+    public string? CerradoMotivo { get; set; }
+    public DateTime? CerradoAtUtc { get; set; }
+    public string? CerradoPorNombre { get; set; }
     public string? Notas { get; set; }
     public DateTime CreatedAtUtc { get; set; }
 }
+
+/// <summary>
+/// Cómo termina un alquiler (031). Por dentro los dos cierran el contrato y
+/// liberan el vehículo, pero NO significan lo mismo y por eso se preguntan:
+/// devuelto es plata ganada, cancelado puede ser plata a devolver.
+/// </summary>
+public enum CierreAlquiler
+{
+    /// <summary>El cliente usó el auto y lo trajo: el alquiler se cumplió.</summary>
+    Devuelto,
+    /// <summary>El alquiler no llegó a pasar o se cortó.</summary>
+    Cancelado
+}
+
+/// <summary>Datos del cierre de un alquiler (031).</summary>
+public record CierreAlquilerDatos(
+    long AlquilerId,
+    CierreAlquiler Tipo,
+    /// <summary>Obligatorio: queda en el historial y explica el cierre.</summary>
+    string Motivo,
+    /// <summary>
+    /// Fecha real de devolución. NULL = hoy. Solo aplica a Devuelto; en una
+    /// cancelación el auto nunca salió, o volvió sin que el contrato corriera.
+    /// </summary>
+    DateOnly? FechaDevolucion = null);
+
+/// <summary>Resultado del cierre, para mostrarle al usuario qué pasó con la plata.</summary>
+public record ResultadoCierreAlquiler(
+    string Codigo,
+    CierreAlquiler Tipo,
+    int DiasPactados,
+    int DiasReales,
+    decimal MontoPactado,
+    decimal MontoFinal)
+{
+    public decimal Diferencia => MontoFinal - MontoPactado;
+    public bool DevolvioTarde => DiasReales > DiasPactados;
+    public bool DevolvioAntes => DiasReales < DiasPactados;
+}
+
+/// <summary>
+/// Corrección de un alquiler ya registrado (031), para arreglar errores de
+/// digitación. Igual que en préstamos, lo que se puede tocar depende de si el
+/// contrato sigue abierto — ver AlquilerService.EditarAsync.
+/// </summary>
+public record EdicionAlquiler(
+    long AlquilerId,
+    DateOnly FechaInicio,
+    DateOnly FechaFin,
+    decimal TarifaDia,
+    string? Notas,
+    /// <summary>Por qué se corrige. Va a la auditoría; obligatorio.</summary>
+    string Motivo);
 
 /// <summary>Datos que captura la pantalla de nuevo alquiler.</summary>
 public record AlquilerDatos(

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -25,15 +25,27 @@ public record ContratoDealItem(ContratoDealFila Fila)
     public bool TienePlan => Fila.TienePlan;
     public decimal Pendiente => Fila.Pendiente;
 
-    public string TipoTexto => Fila.TipoVenta switch
-    {
-        TipoVenta.Plazos => "Por plazos",
-        TipoVenta.Separacion => "Separación",
-        _ => "Contado"
-    };
+    /// <summary>True si esta fila es un alquiler y no una venta (032).</summary>
+    public bool EsAlquiler => Fila.EsAlquiler;
+
+    public string TipoTexto => Fila.EsAlquiler
+        ? "Alquiler"
+        : Fila.TipoVenta switch
+        {
+            TipoVenta.Plazos => "Por plazos",
+            TipoVenta.Separacion => "Separación",
+            _ => "Contado"
+        };
 
     /// <summary>"3 de 12 pagados · 1 atrasado" — el resumen que pidió el cliente.</summary>
-    public string EstadoPagosTexto => Fila.TipoVenta switch
+    public string EstadoPagosTexto => Fila.EsAlquiler
+        ? Fila.EstadoAlquilerTexto switch
+        {
+            "Activo" => "Alquiler en curso",
+            "Finalizado" => "Vehículo devuelto",
+            _ => "Alquiler cancelado"
+        }
+        : Fila.TipoVenta switch
     {
         TipoVenta.Contado => "Saldado al contado",
         TipoVenta.Separacion => Fila.Pendiente <= 0m
@@ -60,6 +72,12 @@ public partial class ContratosDealViewModel : ObservableObject
 
     /// <summary>El shell abre el detalle/financiamiento de la venta.</summary>
     public event Action<long>? DetalleSolicitado;
+    /// <summary>
+    /// El shell abre el detalle del ALQUILER (032). Va por su propio evento:
+    /// son pantallas distintas y los ids pertenecen a tablas distintas —
+    /// mandarlos por el mismo evento abriría la venta 7 al pedir el alquiler 7.
+    /// </summary>
+    public event Action<long>? DetalleAlquilerSolicitado;
 
     public ContratosDealViewModel(ReporteDealService servicio, IDialogService dialogos)
     {
@@ -118,10 +136,19 @@ public partial class ContratosDealViewModel : ObservableObject
                   : "");
     }
 
+    /// <summary>
+    /// Abre el detalle que corresponda: el financiamiento de la venta, o la
+    /// pantalla del alquiler (032). El id se manda por el evento del tipo
+    /// correcto: la venta 7 y el alquiler 7 son cosas distintas.
+    /// </summary>
     [RelayCommand]
     private void VerDetalles(ContratoDealItem? item)
     {
-        if (item is not null)
+        if (item is null)
+            return;
+        if (item.EsAlquiler)
+            DetalleAlquilerSolicitado?.Invoke(item.VentaId);
+        else
             DetalleSolicitado?.Invoke(item.VentaId);
     }
 }

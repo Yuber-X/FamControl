@@ -1,4 +1,4 @@
-namespace FAControl.Models;
+﻿namespace FAControl.Models;
 
 /// <summary>Para qué sirve el papel dentro del expediente.</summary>
 public enum TipoDocumento
@@ -20,7 +20,9 @@ public enum TipoExpediente
     /// <summary>Venta de vehículo (DealControl).</summary>
     Venta,
     /// <summary>Préstamo (PrestControl).</summary>
-    Prestamo
+    Prestamo,
+    /// <summary>Alquiler de vehículo (DealControl, 032).</summary>
+    Alquiler
 }
 
 /// <summary>
@@ -34,11 +36,25 @@ public readonly record struct DuenoExpediente(TipoExpediente Tipo, long Id)
 {
     public static DuenoExpediente DeVenta(long ventaId) => new(TipoExpediente.Venta, ventaId);
     public static DuenoExpediente DePrestamo(long prestamoId) => new(TipoExpediente.Prestamo, prestamoId);
+    public static DuenoExpediente DeAlquiler(long alquilerId) => new(TipoExpediente.Alquiler, alquilerId);
 
-    /// <summary>Carpeta relativa donde van sus archivos.</summary>
-    public string Carpeta => Tipo == TipoExpediente.Venta ? $"ventas/{Id}" : $"prestamos/{Id}";
+    /// <summary>
+    /// Carpeta relativa donde van sus archivos. El prefijo por tipo es lo que
+    /// evita que la venta 5, el préstamo 5 y el alquiler 5 compartan archivos.
+    /// </summary>
+    public string Carpeta => Tipo switch
+    {
+        TipoExpediente.Venta => $"ventas/{Id}",
+        TipoExpediente.Prestamo => $"prestamos/{Id}",
+        _ => $"alquileres/{Id}"
+    };
 
-    public string Descripcion => Tipo == TipoExpediente.Venta ? $"la venta {Id}" : $"el préstamo {Id}";
+    public string Descripcion => Tipo switch
+    {
+        TipoExpediente.Venta => $"la venta {Id}",
+        TipoExpediente.Prestamo => $"el préstamo {Id}",
+        _ => $"el alquiler {Id}"
+    };
 }
 
 /// <summary>
@@ -51,13 +67,20 @@ public class DocumentoVenta
     public long Id { get; set; }
     /// <summary>Venta dueña, o null si el expediente es de un préstamo (026).</summary>
     public long? VentaId { get; set; }
-    /// <summary>Préstamo dueño, o null si el expediente es de una venta (026).</summary>
+    /// <summary>Préstamo dueño, o null si el expediente no es de un préstamo (026).</summary>
     public long? PrestamoId { get; set; }
+    /// <summary>Alquiler dueño, o null si el expediente no es de un alquiler (032).</summary>
+    public long? AlquilerId { get; set; }
 
-    /// <summary>De qué cuelga este documento. Siempre hay uno y solo uno.</summary>
+    /// <summary>
+    /// De qué cuelga este documento. Siempre hay uno y solo uno: lo garantiza
+    /// el CHECK ck_documento_un_dueno_3 en la base.
+    /// </summary>
     public DuenoExpediente Dueno => VentaId is { } venta
         ? DuenoExpediente.DeVenta(venta)
-        : DuenoExpediente.DePrestamo(PrestamoId ?? 0);
+        : PrestamoId is { } prestamo
+            ? DuenoExpediente.DePrestamo(prestamo)
+            : DuenoExpediente.DeAlquiler(AlquilerId ?? 0);
     /// <summary>Nombre original del archivo, tal como lo ve el usuario.</summary>
     public string Nombre { get; set; } = string.Empty;
     /// <summary>
