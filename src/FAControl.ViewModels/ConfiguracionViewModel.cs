@@ -567,6 +567,9 @@ public partial class ConfiguracionViewModel : ObservableObject
     {
         ArranqueDirectoActivo = _ajustes.ArranqueDirecto == SesionActual.Modo;
         ActualizarArranqueTexto();
+        // Hay secciones que solo existen en un modo (las de préstamos no van en
+        // el punto de venta y viceversa): al cambiar de estancia se reevalúan.
+        OnPropertyChanged(nameof(EsPos500));
     }
 
     private void ActualizarArranqueTexto() =>
