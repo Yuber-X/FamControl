@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.ReportesDealView"
+﻿<UserControl x:Class="FAControl.Views.ReportesDealView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF">
@@ -32,12 +32,45 @@
           <Button Content="Año" Style="{DynamicResource Boton.Terciario}" Margin="4,0,0,0"
                   Command="{Binding AnioCommand}" />
         </StackPanel>
+
+        <!-- Filtros por usuario y por cliente (pedido de Yuber 2026-07-31).
+             Regeneran el reporte al elegir: no hace falta apretar "Generar". -->
+        <StackPanel Margin="0,0,12,6">
+          <TextBlock Text="Usuario" Style="{DynamicResource Input.Label}" />
+          <ComboBox Width="190" Height="36"
+                    ItemsSource="{Binding Usuarios}"
+                    SelectedItem="{Binding UsuarioSeleccionado}"
+                    DisplayMemberPath="Nombre"
+                    ToolTip="Ver solo lo que registró este usuario" />
+        </StackPanel>
+        <StackPanel Margin="0,0,12,6">
+          <TextBlock Text="Cliente" Style="{DynamicResource Input.Label}" />
+          <ComboBox Width="210" Height="36"
+                    ItemsSource="{Binding Clientes}"
+                    SelectedItem="{Binding ClienteSeleccionado}"
+                    DisplayMemberPath="Nombre"
+                    ToolTip="Ver solo los ingresos de este cliente" />
+        </StackPanel>
+        <StackPanel VerticalAlignment="Bottom" Margin="0,0,0,6">
+          <Button Content="Quitar filtros" Style="{DynamicResource Boton.Terciario}"
+                  Command="{Binding LimpiarFiltrosCommand}"
+                  Visibility="{Binding HayFiltro, Converter={StaticResource BoolAVisibilidad}}" />
+        </StackPanel>
       </WrapPanel>
     </Border>
 
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
       <StackPanel Visibility="{Binding TieneReporte, Converter={StaticResource BoolAVisibilidad}}">
+
+        <!-- Con un filtro puesto, decir QUE quedo afuera. El inventario es del
+             negocio entero; sin este cartel se leeria como del cliente elegido. -->
+        <Border CornerRadius="8" Padding="14,10" Margin="0,0,0,12"
+                Background="{DynamicResource Brush.PrimarioSutil}"
+                Visibility="{Binding HayFiltro, Converter={StaticResource BoolAVisibilidad}}">
+          <TextBlock Text="{Binding FiltroTexto}" Style="{DynamicResource Texto.Caption}"
+                     TextWrapping="Wrap" />
+        </Border>
 
         <!-- KPIs de ventas del período -->
         <UniformGrid Rows="1" Columns="4" Margin="0,0,0,12">

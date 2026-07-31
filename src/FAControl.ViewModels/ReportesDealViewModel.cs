@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -46,6 +46,41 @@ public partial class ReportesDealViewModel : ObservableObject
 
     public ObservableCollection<ComisionFila> PorVendedor { get; } = [];
 
+    // ---------- Filtros por usuario y por cliente (pedido 2026-07-30) ----------
+    // "los filtros por usuario (lo que vendio y etc.), tambien otro para los
+    // clientes (para observar los ingresos de tal cliente)."
+
+    /// <summary>Opcion "todos", primera de los dos combos. Id null = sin filtro.</summary>
+    public static readonly OpcionFiltroReporte Todos = new(null, "Todos");
+
+    public ObservableCollection<OpcionFiltroReporte> Usuarios { get; } = [Todos];
+    public ObservableCollection<OpcionFiltroReporte> Clientes { get; } = [Todos];
+
+    [ObservableProperty] private OpcionFiltroReporte _usuarioSeleccionado = Todos;
+    [ObservableProperty] private OpcionFiltroReporte _clienteSeleccionado = Todos;
+
+    /// <summary>
+    /// El inventario (vehiculos disponibles, capital invertido) NO se filtra:
+    /// es del negocio, no de una persona. Con un filtro puesto la pantalla lo
+    /// aclara, si no el dueño lee "capital invertido" al lado de "cliente: Juan"
+    /// como si fuera de Juan.
+    /// </summary>
+    [ObservableProperty] private bool _hayFiltro;
+    [ObservableProperty] private string _filtroTexto = string.Empty;
+
+    partial void OnUsuarioSeleccionadoChanged(OpcionFiltroReporte value) => _ = GenerarAsync();
+    partial void OnClienteSeleccionadoChanged(OpcionFiltroReporte value) => _ = GenerarAsync();
+
+    /// <summary>Vuelve a "todos" en los dos combos.</summary>
+    [RelayCommand]
+    private void LimpiarFiltros()
+    {
+        // Se cambia el de cliente primero y el de usuario despues: cada uno
+        // dispara su recarga, y asi la ultima que corre ya tiene los dos limpios.
+        ClienteSeleccionado = Todos;
+        UsuarioSeleccionado = Todos;
+    }
+
     [ObservableProperty] private DateTime _desde;
     [ObservableProperty] private DateTime _hasta;
     [ObservableProperty] private bool _tieneReporte;
@@ -77,7 +112,45 @@ public partial class ReportesDealViewModel : ObservableObject
     private static readonly SKColor ColorAlquiler = SKColor.Parse("#C9A15A");
     private static readonly SKColor ColorEtiquetas = SKColor.Parse("#888780");
 
-    public async Task CargarAsync() => await GenerarAsync();
+    public async Task CargarAsync()
+    {
+        await CargarFiltrosAsync();
+        await GenerarAsync();
+    }
+
+    /// <summary>
+    /// Llena los combos. Se recargan en cada visita a la pantalla: entre una y
+    /// otra pudo entrar un cliente nuevo o venderse el primer auto de alguien.
+    /// Se conserva lo elegido si sigue existiendo, para no perder el filtro al
+    /// volver.
+    /// </summary>
+    private async Task CargarFiltrosAsync()
+    {
+        try
+        {
+            var usuarioElegido = UsuarioSeleccionado?.Id;
+            var clienteElegido = ClienteSeleccionado?.Id;
+
+            var usuarios = await _reportes.ObtenerUsuariosDelDealerAsync();
+            Usuarios.Clear();
+            Usuarios.Add(Todos);
+            foreach (var u in usuarios) Usuarios.Add(u);
+
+            var clientes = await _reportes.ObtenerClientesDelDealerAsync();
+            Clientes.Clear();
+            Clientes.Add(Todos);
+            foreach (var c in clientes) Clientes.Add(c);
+
+            UsuarioSeleccionado = Usuarios.FirstOrDefault(u => u.Id == usuarioElegido) ?? Todos;
+            ClienteSeleccionado = Clientes.FirstOrDefault(c => c.Id == clienteElegido) ?? Todos;
+        }
+        catch (Exception ex)
+        {
+            // Sin combos el reporte sigue sirviendo sin filtrar: no vale la pena
+            // tumbar la pantalla entera por esto.
+            Log.Warning(ex, "No se pudieron cargar los filtros del reporte del dealer");
+        }
+    }
 
     // ---------- Atajos de rango ----------
 
@@ -124,9 +197,11 @@ public partial class ReportesDealViewModel : ObservableObject
         try
         {
             var reporte = await _reportes.ObtenerReporteAsync(
-                DateOnly.FromDateTime(Desde), DateOnly.FromDateTime(Hasta));
+                DateOnly.FromDateTime(Desde), DateOnly.FromDateTime(Hasta),
+                UsuarioSeleccionado?.Id, ClienteSeleccionado?.Id);
 
             RangoTexto = $"{reporte.Desde:dd/MM/yyyy} – {reporte.Hasta:dd/MM/yyyy}";
+            ArmarTextoDeFiltro(reporte);
             CantidadVentas = reporte.CantidadVentas;
             MontoVendido = reporte.MontoVendido;
             GananciaVentas = reporte.GananciaVentas;
@@ -229,5 +304,26 @@ public partial class ReportesDealViewModel : ObservableObject
                     : valor.ToString("0", Textos.CulturaRd)
             }
         ];
+    }
+
+    /// <summary>Deja claro sobre que se armo el reporte y que quedo afuera del filtro.</summary>
+    private void ArmarTextoDeFiltro(ReporteDeal reporte)
+    {
+        HayFiltro = reporte.HayFiltro;
+        if (!HayFiltro)
+        {
+            FiltroTexto = string.Empty;
+            return;
+        }
+
+        var partes = new List<string>();
+        if (UsuarioSeleccionado?.Id is not null)
+            partes.Add($"usuario: {UsuarioSeleccionado.Nombre}");
+        if (ClienteSeleccionado?.Id is not null)
+            partes.Add($"cliente: {ClienteSeleccionado.Nombre}");
+
+        FiltroTexto = $"Filtrado por {string.Join(" y ", partes)}. " +
+                      "Los vehículos disponibles y el capital invertido son del negocio entero: " +
+                      "no dependen del filtro.";
     }
 }

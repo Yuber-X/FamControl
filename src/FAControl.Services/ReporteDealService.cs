@@ -48,13 +48,39 @@ public class ReporteDealService
     /// Reporte del dealer en un rango. El % de comisión sale de Configuración:
     /// es una regla del negocio, no una constante de la app.
     /// </summary>
+    /// <param name="usuarioId">
+    /// Filtra por quién registró la operación — "lo que vendió tal usuario"
+    /// (pedido del cliente 2026-07-30). Null = todos.
+    /// </param>
+    /// <param name="clienteId">
+    /// Filtra por cliente — "los ingresos de tal cliente". Null = todos.
+    /// </param>
     public Task<ReporteDeal> ObtenerReporteAsync(DateOnly desde, DateOnly hasta,
-        CancellationToken ct = default)
+        long? usuarioId = null, long? clienteId = null, CancellationToken ct = default)
     {
         if (!SesionActual.TienePermiso(Permisos.Reportes))
             throw new UnauthorizedAccessException("No tenés permiso para ver los reportes del dealer.");
         if (hasta < desde)
             throw new ArgumentException("La fecha final no puede ser anterior a la inicial.");
-        return _repositorio.ObtenerReporteAsync(desde, hasta, _ajustes.PorcentajeComisionVendedor, ct);
+        return _repositorio.ObtenerReporteAsync(desde, hasta, _ajustes.PorcentajeComisionVendedor,
+            usuarioId, clienteId, ct);
+    }
+
+    /// <summary>Usuarios que registraron ventas o alquileres, para el combo de filtro.</summary>
+    public Task<IReadOnlyList<OpcionFiltroReporte>> ObtenerUsuariosDelDealerAsync(
+        CancellationToken ct = default)
+    {
+        if (!SesionActual.TienePermiso(Permisos.Reportes))
+            throw new UnauthorizedAccessException("No tenés permiso para ver los reportes del dealer.");
+        return _repositorio.ObtenerUsuariosDelDealerAsync(ct);
+    }
+
+    /// <summary>Clientes con operaciones en el dealer, para el combo de filtro.</summary>
+    public Task<IReadOnlyList<OpcionFiltroReporte>> ObtenerClientesDelDealerAsync(
+        CancellationToken ct = default)
+    {
+        if (!SesionActual.TienePermiso(Permisos.Reportes))
+            throw new UnauthorizedAccessException("No tenés permiso para ver los reportes del dealer.");
+        return _repositorio.ObtenerClientesDelDealerAsync(ct);
     }
 }

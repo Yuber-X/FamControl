@@ -82,4 +82,14 @@ public record ReporteDeal(
     decimal CapitalInvertido,
     // Financiamiento vivo
     decimal PendienteDeCobro,
-    IReadOnlyList<ComisionVendedor> PorVendedor);
+    IReadOnlyList<ComisionVendedor> PorVendedor,
+    /// <summary>
+    /// True si el reporte está filtrado por usuario o por cliente. Importa
+    /// porque el bloque de INVENTARIO (vehículos disponibles, capital
+    /// invertido) NO se filtra: es del negocio, no de una persona. La pantalla
+    /// lo aclara para que no se lea como "el capital de este cliente".
+    /// </summary>
+    bool HayFiltro = false);
+
+/// <summary>Opción de los combos de filtro del reporte del dealer.</summary>
+public record OpcionFiltroReporte(long? Id, string Nombre);

@@ -154,8 +154,61 @@ public class ReporteDealRepository
     /// Reporte del dealer en un rango. <paramref name="porcentajeComision"/> lo
     /// define el negocio en Configuración (la app no inventa la tasa).
     /// </summary>
+    /// <summary>
+    /// Usuarios que registraron ventas o alquileres, para el combo de filtro.
+    ///
+    /// Sale de las OPERACIONES y no de la tabla usuario: un combo con todos los
+    /// usuarios del sistema llenaria la lista de cajeros y cobradores que nunca
+    /// tocaron el dealer, y elegirlos daria siempre un reporte vacio.
+    /// </summary>
+    public async Task<IReadOnlyList<OpcionFiltroReporte>> ObtenerUsuariosDelDealerAsync(
+        CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT u.id, TRIM(CONCAT(u.nombre, ' ', COALESCE(u.apellido, ''))) AS nombre
+            FROM {DbNames.Usuario} u
+            WHERE EXISTS (SELECT 1 FROM {DbNames.VentaVehiculo} vv WHERE vv.created_by = u.id)
+               OR EXISTS (SELECT 1 FROM {DbNames.Alquiler} a WHERE a.created_by = u.id)
+            ORDER BY nombre;
+            """;
+
+        var lista = new List<OpcionFiltroReporte>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            lista.Add(new OpcionFiltroReporte(reader.GetInt64("id"), reader.GetString("nombre")));
+        return lista;
+    }
+
+    /// <summary>
+    /// Clientes con operaciones en el dealer, para el combo de filtro. Mismo
+    /// criterio que los usuarios: solo los que aparecen en alguna operacion.
+    /// </summary>
+    public async Task<IReadOnlyList<OpcionFiltroReporte>> ObtenerClientesDelDealerAsync(
+        CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT c.id, TRIM(CONCAT(c.nombre, ' ', COALESCE(c.apellido, ''))) AS nombre
+            FROM {DbNames.Cliente} c
+            WHERE c.deleted_at IS NULL
+              AND (EXISTS (SELECT 1 FROM {DbNames.VentaVehiculo} vv WHERE vv.cliente_id = c.id)
+                OR EXISTS (SELECT 1 FROM {DbNames.Alquiler} a WHERE a.cliente_id = c.id))
+            ORDER BY nombre;
+            """;
+
+        var lista = new List<OpcionFiltroReporte>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            lista.Add(new OpcionFiltroReporte(reader.GetInt64("id"), reader.GetString("nombre")));
+        return lista;
+    }
+
     public async Task<ReporteDeal> ObtenerReporteAsync(DateOnly desde, DateOnly hasta,
-        decimal porcentajeComision, CancellationToken ct = default)
+        decimal porcentajeComision, long? usuarioId = null, long? clienteId = null,
+        CancellationToken ct = default)
     {
         // Rango local [desde, hasta] → instantes UTC [inicio, fin)
         var inicioUtc = desde.ToDateTime(TimeOnly.MinValue).AddHours(OffsetRdHoras);
@@ -172,26 +225,46 @@ public class ReporteDealRepository
             cmd.CommandText = $"""
                 SELECT
                   (SELECT COUNT(*) FROM {DbNames.VentaVehiculo}
-                   WHERE fecha_venta >= @inicio AND fecha_venta < @fin) AS ventas,
+                   WHERE fecha_venta >= @inicio AND fecha_venta < @fin
+                     AND (@usuario IS NULL OR created_by = @usuario)
+                     AND (@cliente IS NULL OR cliente_id = @cliente)) AS ventas,
                   (SELECT COALESCE(SUM(precio), 0) FROM {DbNames.VentaVehiculo}
-                   WHERE fecha_venta >= @inicio AND fecha_venta < @fin) AS monto_vendido,
+                   WHERE fecha_venta >= @inicio AND fecha_venta < @fin
+                     AND (@usuario IS NULL OR created_by = @usuario)
+                     AND (@cliente IS NULL OR cliente_id = @cliente)) AS monto_vendido,
                   (SELECT COALESCE(SUM(vv.precio - (v.costo_adquisicion + v.gastos_importacion)), 0)
                    FROM {DbNames.VentaVehiculo} vv
                    JOIN {DbNames.Vehiculo} v ON v.id = vv.vehiculo_id
-                   WHERE vv.fecha_venta >= @inicio AND vv.fecha_venta < @fin) AS ganancia,
+                   WHERE vv.fecha_venta >= @inicio AND vv.fecha_venta < @fin
+                     AND (@usuario IS NULL OR vv.created_by = @usuario)
+                     AND (@cliente IS NULL OR vv.cliente_id = @cliente)) AS ganancia,
                   (SELECT COUNT(*) FROM {DbNames.Alquiler}
-                   WHERE estado <> 'cancelado' AND created_at >= @inicio AND created_at < @fin) AS alquileres,
-                  (SELECT COALESCE(SUM(monto_total), 0) FROM {DbNames.Alquiler}
-                   WHERE estado <> 'cancelado' AND created_at >= @inicio AND created_at < @fin) AS ingresos_alquiler,
+                   WHERE estado <> 'cancelado' AND created_at >= @inicio AND created_at < @fin
+                     AND (@usuario IS NULL OR created_by = @usuario)
+                     AND (@cliente IS NULL OR cliente_id = @cliente)) AS alquileres,
+                  -- Cerrado: vale lo que realmente correspondio cobrar (031).
+                  -- Abierto: lo pactado, que es lo mejor que se sabe todavia.
+                  (SELECT COALESCE(SUM(COALESCE(monto_final, monto_total)), 0) FROM {DbNames.Alquiler}
+                   WHERE estado <> 'cancelado' AND created_at >= @inicio AND created_at < @fin
+                     AND (@usuario IS NULL OR created_by = @usuario)
+                     AND (@cliente IS NULL OR cliente_id = @cliente)) AS ingresos_alquiler,
                   (SELECT COUNT(*) FROM {DbNames.Vehiculo}
                    WHERE deleted_at IS NULL AND estado = 'disponible') AS disponibles,
                   (SELECT COALESCE(SUM(costo_adquisicion + gastos_importacion), 0) FROM {DbNames.Vehiculo}
                    WHERE deleted_at IS NULL AND estado IN ('disponible','reservado','alquilado')) AS capital_invertido,
-                  (SELECT COALESCE(SUM(z.monto - z.monto_pagado), 0) FROM {DbNames.VentaPlazo} z
-                   WHERE z.estado = 'pendiente') AS pendiente_cobro;
+                  -- Lo que falta cobrar SI se filtra por cliente y por quien vendio:
+                  -- "cuanto me debe este cliente" es justo lo que se quiere ver.
+                  (SELECT COALESCE(SUM(z.monto - z.monto_pagado), 0)
+                   FROM {DbNames.VentaPlazo} z
+                   JOIN {DbNames.VentaVehiculo} vv ON vv.id = z.venta_id
+                   WHERE z.estado = 'pendiente'
+                     AND (@usuario IS NULL OR vv.created_by = @usuario)
+                     AND (@cliente IS NULL OR vv.cliente_id = @cliente)) AS pendiente_cobro;
                 """;
             cmd.Parameters.AddWithValue("@inicio", inicioUtc);
             cmd.Parameters.AddWithValue("@fin", finUtc);
+            cmd.Parameters.AddWithValue("@usuario", (object?)usuarioId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@cliente", (object?)clienteId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync(ct);
             if (await reader.ReadAsync(ct))
@@ -217,11 +290,15 @@ public class ReporteDealRepository
                 FROM {DbNames.VentaVehiculo} vv
                 LEFT JOIN {DbNames.Usuario} u ON u.id = vv.created_by
                 WHERE vv.fecha_venta >= @inicio AND vv.fecha_venta < @fin
+                  AND (@usuario IS NULL OR vv.created_by = @usuario)
+                  AND (@cliente IS NULL OR vv.cliente_id = @cliente)
                 GROUP BY vendedor
                 ORDER BY monto DESC;
                 """;
             cmd.Parameters.AddWithValue("@inicio", inicioUtc);
             cmd.Parameters.AddWithValue("@fin", finUtc);
+            cmd.Parameters.AddWithValue("@usuario", (object?)usuarioId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@cliente", (object?)clienteId ?? DBNull.Value);
 
             using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -242,6 +319,10 @@ public class ReporteDealRepository
             alquileres, ingresosAlquiler,
             disponibles, capitalInvertido,
             pendienteDeCobro,
-            porVendedor);
+            porVendedor,
+            // El inventario es del NEGOCIO, no de un usuario ni de un cliente:
+            // se calcula sin filtrar. La pantalla lo aclara, si no el dueño ve
+            // "capital invertido" al lado de "cliente: Juan" y lo lee como de Juan.
+            HayFiltro: usuarioId is not null || clienteId is not null);
     }
 }
