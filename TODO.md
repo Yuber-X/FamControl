@@ -1,6 +1,25 @@
 # TODO.md — FAControl
 
-> Actualizado: 2026-07-30 (POS-500 integrado a la suite)
+> Actualizado: 2026-07-30 (POS-500 integrado + expediente de prestamos)
+
+## Ronda de correcciones y cierre de PrestControl (2026-07-30)
+
+- [x] Panel y Reportes visibles en el sidebar del POS
+- [x] Una sola base: las tablas del POS pasan a facontrol_db con prefijo pos_ (024)
+- [x] Roles y permisos del POS-500 en la pantalla de Usuarios
+- [x] Historial acotado por modulo, con filtro y columna de modulo (025)
+- [x] Comprobante fiscal a la derecha en el detalle del prestamo
+- [x] Seccion "Impresion del ticket" en Configuracion del POS (impresora, vista previa, copias)
+- [x] Instalador con los tres prerequisitos adentro
+- [x] Expediente digital tambien para prestamos (026)
+- [x] Contratos de PrestControl con su expediente
+- [x] Pagare e intimacion archivados solos al imprimirlos
+
+### Pendiente de probar a mano
+- [ ] Contratos: subir un contrato firmado, abrirlo con doble clic, bajar el ZIP
+- [ ] Imprimir un pagare y verificar que aparece solo en el expediente
+- [ ] Imprimir una intimacion y lo mismo
+- [ ] POS: elegir la impresora del mostrador y cobrar sin que pida guardar PDF
 
 ## POS-500 integrado a la suite (2026-07-30)
 

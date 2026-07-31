@@ -33,6 +33,6 @@ public static class DbNames
     // Financiamiento por plazos del dealer (016)
     public const string VentaPlazo = "venta_plazo";
     public const string VentaPlazoPago = "venta_plazo_pago";
-    /// <summary>Expediente digital del contrato (018).</summary>
-    public const string DocumentoVenta = "documento_venta";
+    /// <summary>Expediente digital: documentos de una venta o de un prestamo (018/026).</summary>
+    public const string Documento = "documento";
 }

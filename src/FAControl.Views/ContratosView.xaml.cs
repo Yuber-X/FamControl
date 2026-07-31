@@ -45,9 +45,59 @@ public partial class ContratosView : UserControl
             ? PagareDocumentFactory.Crear(pagare)
             : null;
 
+    // ---------- Expediente del cliente (026) ----------
+    // Mismos gestos que en DealControl: subir varios de una, bajar todo en ZIP
+    // y doble clic para abrir con la aplicación de Windows que corresponda.
+
+    private async void SubirDocumentos_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm?.DuenoDelSeleccionado is null)
+            return;
+
+        var dialogo = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Elegí los documentos firmados",
+            Multiselect = true,
+            Filter = ExpedienteViewModel.FiltroArchivos
+        };
+        if (dialogo.ShowDialog(Window.GetWindow(this)) == true)
+            await _vm.Expediente.AgregarArchivosAsync(dialogo.FileNames);
+    }
+
+    private async void ExportarExpediente_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm?.Seleccionado is not { } contrato)
+            return;
+
+        var dialogo = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "¿Dónde guardo el expediente?",
+            Filter = "Comprimido (*.zip)|*.zip",
+            FileName = $"Expediente_{contrato.Resumen.Codigo}.zip"
+        };
+        if (dialogo.ShowDialog(Window.GetWindow(this)) == true)
+            await _vm.Expediente.ExportarZipAsync(dialogo.FileName);
+    }
+
+    private void Documento_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (_vm is null || (sender as DataGrid)?.SelectedItem is not DocumentoFila fila)
+            return;
+
+        var ventana = new DocumentoAccionesWindow(_vm.Expediente, fila)
+        {
+            Owner = Window.GetWindow(this)
+        };
+        ventana.ShowDialog();
+    }
+
     private void MostrarPagare(PagareImpreso pagare)
     {
-        var ventana = new PagareWindow(pagare) { Owner = Window.GetWindow(this) };
+        // Se le pasa el préstamo para que la copia impresa quede archivada sola
+        var ventana = new PagareWindow(pagare, _vm?.DuenoDelSeleccionado, _vm?.Expediente)
+        {
+            Owner = Window.GetWindow(this)
+        };
         ventana.ShowDialog();
     }
 }

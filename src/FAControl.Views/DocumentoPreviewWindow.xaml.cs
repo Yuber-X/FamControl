@@ -16,14 +16,21 @@ public partial class DocumentoPreviewWindow : Window
 {
     private readonly Func<FlowDocument> _fabrica;
     private readonly string _descripcion;
+    private readonly Func<Task>? _archivar;
 
-    public DocumentoPreviewWindow(string titulo, string descripcion, Func<FlowDocument> fabrica)
+    /// <param name="archivar">
+    /// Qué hacer con el documento después de imprimirlo. Lo usa la intimación de
+    /// pago para quedar guardada sola en el expediente del cliente (026).
+    /// </param>
+    public DocumentoPreviewWindow(string titulo, string descripcion, Func<FlowDocument> fabrica,
+        Func<Task>? archivar = null)
     {
         InitializeComponent();
         ChromeVentana.OcultarBotones(this);
         Title = titulo;
         _descripcion = descripcion;
         _fabrica = fabrica;
+        _archivar = archivar;
         Visor.Document = fabrica();
     }
 
@@ -32,6 +39,10 @@ public partial class DocumentoPreviewWindow : Window
         try
         {
             ImpresoraRecibos.ImprimirDocumento(_fabrica(), _descripcion);
+            // Lo impreso queda archivado; si falla no se molesta al usuario,
+            // que ya tiene su papel (ver ArchivarImpresoAsync).
+            if (_archivar is not null)
+                _ = _archivar();
         }
         catch (Exception ex)
         {

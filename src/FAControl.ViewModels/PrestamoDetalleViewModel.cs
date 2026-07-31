@@ -29,7 +29,7 @@ public partial class PrestamoDetalleViewModel : ObservableObject
 
     public PrestamoDetalleViewModel(PrestamoService prestamos, ClienteService clientes,
         IDialogService dialogos, AjustesLocales ajustes, RecordatorioService recordatorios,
-        NcfService ncf)
+        NcfService ncf, ExpedienteViewModel expediente)
     {
         _prestamos = prestamos;
         _clientes = clientes;
@@ -37,6 +37,7 @@ public partial class PrestamoDetalleViewModel : ObservableObject
         _ajustes = ajustes;
         _recordatorios = recordatorios;
         _ncf = ncf;
+        Expediente = expediente;
     }
 
     public ObservableCollection<CuotaFila> Cuotas { get; } = [];
@@ -111,6 +112,14 @@ public partial class PrestamoDetalleViewModel : ObservableObject
             _dialogos.MostrarError("Detalle de préstamo", $"No se pudo cargar el préstamo.\n\n{ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Expediente de ESTE préstamo (026): donde queda archivada la intimación
+    /// de pago al imprimirla.
+    /// </summary>
+    public DuenoExpediente Dueno => DuenoExpediente.DePrestamo(_prestamoId);
+
+    public ExpedienteViewModel Expediente { get; }
 
     [RelayCommand]
     private void Cobrar() => CobrarSolicitado?.Invoke(_prestamoId);

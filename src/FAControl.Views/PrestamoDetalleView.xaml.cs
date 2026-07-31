@@ -40,10 +40,41 @@ public partial class PrestamoDetalleView : UserControl
         var ventana = new DocumentoPreviewWindow(
             "Intimación de pago",
             $"Requerimiento formal de pago para {intimacion.DeudorNombre} — préstamo {intimacion.CodigoPrestamo}.",
-            () => IntimacionDocumentFactory.Crear(intimacion))
+            () => IntimacionDocumentFactory.Crear(intimacion),
+            // Al imprimirla queda archivada sola en el expediente del cliente (026)
+            archivar: () => ArchivarIntimacionAsync(intimacion))
         {
             Owner = Window.GetWindow(this)
         };
         ventana.ShowDialog();
+    }
+
+    /// <summary>
+    /// Guarda un PDF de la intimación en el expediente del préstamo. Se genera
+    /// en un archivo temporal: el expediente guarda archivos, no documentos WPF.
+    /// </summary>
+    private async Task ArchivarIntimacionAsync(IntimacionImpresa intimacion)
+    {
+        if (_vm is null)
+            return;
+
+        var temporal = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+            $"Intimacion_{intimacion.CodigoPrestamo}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+        try
+        {
+            ImpresoraRecibos.GuardarDocumentoPdf(IntimacionDocumentFactory.Crear(intimacion),
+                temporal, $"Intimación {intimacion.CodigoPrestamo}");
+            await _vm.Expediente.ArchivarImpresoAsync(_vm.Dueno, temporal, TipoDocumento.Intimacion);
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Warning(ex, "No se pudo archivar la intimación de {Codigo}",
+                intimacion.CodigoPrestamo);
+        }
+        finally
+        {
+            try { if (System.IO.File.Exists(temporal)) System.IO.File.Delete(temporal); }
+            catch (Exception) { /* temporal: si queda, Windows lo limpia */ }
+        }
     }
 }

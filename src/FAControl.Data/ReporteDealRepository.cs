@@ -42,7 +42,7 @@ public class ReporteDealRepository
                       AND z.monto_pagado < z.monto) AS plazos_atrasados,
                    (SELECT COALESCE(SUM(z.monto - z.monto_pagado), 0) FROM {DbNames.VentaPlazo} z
                     WHERE z.venta_id = vv.id AND z.estado <> 'cancelado') AS pendiente,
-                   (SELECT COUNT(*) FROM {DbNames.DocumentoVenta} d
+                   (SELECT COUNT(*) FROM {DbNames.Documento} d
                     WHERE d.venta_id = vv.id AND d.deleted_at IS NULL) AS adjuntos
             FROM {DbNames.VentaVehiculo} vv
             JOIN {DbNames.Cliente} c ON c.id = vv.cliente_id

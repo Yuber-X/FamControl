@@ -1,3 +1,4 @@
+using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models;
 
@@ -14,24 +15,24 @@ public class DocumentoVentaRepository
     public DocumentoVentaRepository(ConexionFactory factory) => _factory = factory;
 
     private const string Columnas = """
-        d.id, d.venta_id, d.nombre, d.ruta_relativa, d.extension, d.tamano_bytes,
+        d.id, d.venta_id, d.prestamo_id, d.nombre, d.ruta_relativa, d.extension, d.tamano_bytes,
         d.tipo, d.notas, d.created_at,
         TRIM(CONCAT(COALESCE(u.nombre, ''), ' ', COALESCE(u.apellido, ''))) AS subido_por
         """;
 
-    public async Task<IReadOnlyList<DocumentoVenta>> ObtenerDeVentaAsync(long ventaId,
+    public async Task<IReadOnlyList<DocumentoVenta>> ObtenerDeAsync(DuenoExpediente dueno,
         CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT {Columnas}
-            FROM {DbNames.DocumentoVenta} d
+            FROM {DbNames.Documento} d
             LEFT JOIN {DbNames.Usuario} u ON u.id = d.created_by
-            WHERE d.venta_id = @venta AND d.deleted_at IS NULL
+            WHERE (d.venta_id <=> @venta) AND (d.prestamo_id <=> @prestamo) AND d.deleted_at IS NULL
             ORDER BY d.created_at DESC;
             """;
-        cmd.Parameters.AddWithValue("@venta", ventaId);
+        AgregarDueno(cmd, dueno);
 
         var lista = new List<DocumentoVenta>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -46,7 +47,7 @@ public class DocumentoVentaRepository
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT {Columnas}
-            FROM {DbNames.DocumentoVenta} d
+            FROM {DbNames.Documento} d
             LEFT JOIN {DbNames.Usuario} u ON u.id = d.created_by
             WHERE d.id = @id AND d.deleted_at IS NULL;
             """;
@@ -57,15 +58,15 @@ public class DocumentoVentaRepository
     }
 
     /// <summary>Cuántos documentos tiene cada venta (para el expediente de contratos).</summary>
-    public async Task<int> ContarDeVentaAsync(long ventaId, CancellationToken ct = default)
+    public async Task<int> ContarDeAsync(DuenoExpediente dueno, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
-            SELECT COUNT(*) FROM {DbNames.DocumentoVenta}
-            WHERE venta_id = @venta AND deleted_at IS NULL;
+            SELECT COUNT(*) FROM {DbNames.Documento}
+            WHERE (venta_id <=> @venta) AND (prestamo_id <=> @prestamo) AND deleted_at IS NULL;
             """;
-        cmd.Parameters.AddWithValue("@venta", ventaId);
+        AgregarDueno(cmd, dueno);
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct));
     }
 
@@ -74,19 +75,19 @@ public class DocumentoVentaRepository
     /// (el nombre del archivo en disco lo lleva delante), así que se guarda
     /// provisoria y se corrige con <see cref="ActualizarRutaAsync"/>.
     /// </summary>
-    public async Task<long> CrearAsync(long ventaId, string nombre, string rutaRelativa,
+    public async Task<long> CrearAsync(DuenoExpediente dueno, string nombre, string rutaRelativa,
         string extension, long tamanoBytes, TipoDocumento tipo, string? notas,
         long? usuarioId, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
-            INSERT INTO {DbNames.DocumentoVenta}
-              (venta_id, nombre, ruta_relativa, extension, tamano_bytes, tipo, notas, created_by)
+            INSERT INTO {DbNames.Documento}
+              (venta_id, prestamo_id, nombre, ruta_relativa, extension, tamano_bytes, tipo, notas, created_by)
             VALUES (@venta, @nombre, @ruta, @ext, @tamano, @tipo, @notas, @usuario);
             SELECT LAST_INSERT_ID();
             """;
-        cmd.Parameters.AddWithValue("@venta", ventaId);
+        AgregarDueno(cmd, dueno);
         cmd.Parameters.AddWithValue("@nombre", nombre);
         cmd.Parameters.AddWithValue("@ruta", rutaRelativa);
         cmd.Parameters.AddWithValue("@ext", extension);
@@ -101,24 +102,24 @@ public class DocumentoVentaRepository
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
-        cmd.CommandText = $"UPDATE {DbNames.DocumentoVenta} SET ruta_relativa = @ruta WHERE id = @id;";
+        cmd.CommandText = $"UPDATE {DbNames.Documento} SET ruta_relativa = @ruta WHERE id = @id;";
         cmd.Parameters.AddWithValue("@ruta", rutaRelativa);
         cmd.Parameters.AddWithValue("@id", id);
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
     /// <summary>Re-ubicar: el documento pasa al expediente de otra venta.</summary>
-    public async Task MoverAsync(long id, long ventaDestinoId, string rutaRelativa,
+    public async Task MoverAsync(long id, DuenoExpediente destino, string rutaRelativa,
         CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
-            UPDATE {DbNames.DocumentoVenta}
-            SET venta_id = @venta, ruta_relativa = @ruta
+            UPDATE {DbNames.Documento}
+            SET venta_id = @venta, prestamo_id = @prestamo, ruta_relativa = @ruta
             WHERE id = @id;
             """;
-        cmd.Parameters.AddWithValue("@venta", ventaDestinoId);
+        AgregarDueno(cmd, destino);
         cmd.Parameters.AddWithValue("@ruta", rutaRelativa);
         cmd.Parameters.AddWithValue("@id", id);
         await cmd.ExecuteNonQueryAsync(ct);
@@ -129,15 +130,29 @@ public class DocumentoVentaRepository
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
-        cmd.CommandText = $"UPDATE {DbNames.DocumentoVenta} SET deleted_at = UTC_TIMESTAMP() WHERE id = @id;";
+        cmd.CommandText = $"UPDATE {DbNames.Documento} SET deleted_at = UTC_TIMESTAMP() WHERE id = @id;";
         cmd.Parameters.AddWithValue("@id", id);
         await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Los dos parámetros del dueño. Van SIEMPRE los dos, uno en NULL: las
+    /// consultas comparan con &lt;=&gt; (igualdad que trata NULL como valor), así
+    /// una sola consulta sirve para ventas y para préstamos.
+    /// </summary>
+    private static void AgregarDueno(MySqlCommand cmd, DuenoExpediente dueno)
+    {
+        cmd.Parameters.AddWithValue("@venta",
+            dueno.Tipo == TipoExpediente.Venta ? dueno.Id : DBNull.Value);
+        cmd.Parameters.AddWithValue("@prestamo",
+            dueno.Tipo == TipoExpediente.Prestamo ? dueno.Id : DBNull.Value);
     }
 
     private static DocumentoVenta Mapear(MySqlConnector.MySqlDataReader reader) => new()
     {
         Id = reader.GetInt64("id"),
-        VentaId = reader.GetInt64("venta_id"),
+        VentaId = reader.IsDBNull(reader.GetOrdinal("venta_id")) ? null : reader.GetInt64("venta_id"),
+        PrestamoId = reader.IsDBNull(reader.GetOrdinal("prestamo_id")) ? null : reader.GetInt64("prestamo_id"),
         Nombre = reader.GetString("nombre"),
         RutaRelativa = reader.GetString("ruta_relativa"),
         Extension = reader.GetString("extension"),

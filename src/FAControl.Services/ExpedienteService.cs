@@ -64,10 +64,10 @@ public class ExpedienteService
     public string RutaAbsoluta(DocumentoVenta documento) =>
         Path.Combine(_raiz, documento.RutaRelativa.Replace('/', Path.DirectorySeparatorChar));
 
-    public Task<IReadOnlyList<DocumentoVenta>> ObtenerAsync(long ventaId, CancellationToken ct = default)
+    public Task<IReadOnlyList<DocumentoVenta>> ObtenerAsync(DuenoExpediente dueno, CancellationToken ct = default)
     {
         ExigirVer();
-        return _documentos.ObtenerDeVentaAsync(ventaId, ct);
+        return _documentos.ObtenerDeAsync(dueno, ct);
     }
 
     /// <summary>La factura escaneada que reemplaza a la del sistema, si la hay (D6).</summary>
@@ -75,7 +75,7 @@ public class ExpedienteService
         CancellationToken ct = default)
     {
         ExigirVer();
-        var documentos = await _documentos.ObtenerDeVentaAsync(ventaId, ct);
+        var documentos = await _documentos.ObtenerDeAsync(DuenoExpediente.DeVenta(ventaId), ct);
         return documentos.FirstOrDefault(d => d.Tipo == TipoDocumento.FacturaEscaneada);
     }
 
@@ -83,7 +83,7 @@ public class ExpedienteService
     /// Copia el archivo al expediente. El original del usuario NO se mueve ni
     /// se borra: si el expediente se corrompe, su archivo sigue donde estaba.
     /// </summary>
-    public async Task<DocumentoVenta> AgregarAsync(long ventaId, string rutaOrigen,
+    public async Task<DocumentoVenta> AgregarAsync(DuenoExpediente dueno, string rutaOrigen,
         TipoDocumento tipo = TipoDocumento.Otro, string? notas = null, CancellationToken ct = default)
     {
         ExigirVer();
@@ -101,10 +101,10 @@ public class ExpedienteService
                 $"{MaxBytesPorArchivo / (1024 * 1024)} MB. Comprimilo o subilo en partes.");
 
         // 1. Ficha primero: su id da el nombre único del archivo en disco
-        var id = await _documentos.CrearAsync(ventaId, info.Name, "pendiente", extension,
+        var id = await _documentos.CrearAsync(dueno, info.Name, "pendiente", extension,
             info.Length, tipo, notas, SesionActual.HaySesionActiva ? SesionActual.Id : null, ct);
 
-        var relativa = $"{ventaId}/{id}_{LimpiarNombre(info.Name)}";
+        var relativa = $"{dueno.Carpeta}/{id}_{LimpiarNombre(info.Name)}";
         var destino = Path.Combine(_raiz, relativa.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(destino)!);
 
@@ -120,9 +120,10 @@ public class ExpedienteService
         }
 
         await _documentos.ActualizarRutaAsync(id, relativa, ct);
-        await _auditoria.RegistrarAsync(AccionAuditoria.Crear, DbNames.DocumentoVenta, id,
-            $"Documento '{info.Name}' agregado al expediente de la venta {ventaId}", ct);
-        Log.Information("Expediente {Venta}: documento {Id} ({Nombre}) agregado", ventaId, id, info.Name);
+        await _auditoria.RegistrarAsync(AccionAuditoria.Crear, DbNames.Documento, id,
+            $"Documento '{info.Name}' agregado al expediente de {dueno.Descripcion}", ct);
+        Log.Information("Expediente {Dueno}: documento {Id} ({Nombre}) agregado",
+            dueno.Descripcion, id, info.Name);
 
         return await _documentos.ObtenerPorIdAsync(id, ct)
             ?? throw new InvalidOperationException("El documento se guardó pero no se pudo releer.");
@@ -164,45 +165,45 @@ public class ExpedienteService
         // El archivo se conserva en disco: el soft delete es reversible por
         // soporte, borrarlo del disco no lo sería.
         await _documentos.EliminarAsync(documentoId, ct);
-        await _auditoria.RegistrarAsync(AccionAuditoria.Eliminar, DbNames.DocumentoVenta, documentoId,
-            $"Documento '{documento.Nombre}' quitado del expediente de la venta {documento.VentaId}", ct);
+        await _auditoria.RegistrarAsync(AccionAuditoria.Eliminar, DbNames.Documento, documentoId,
+            $"Documento '{documento.Nombre}' quitado del expediente de {documento.Dueno.Descripcion}", ct);
     }
 
     /// <summary>
     /// RE-UBICAR — exclusivo del Admin: el papel era de otro cliente y hubo
     /// confusión. Mueve el archivo a la carpeta del expediente destino.
     /// </summary>
-    public async Task MoverAsync(long documentoId, long ventaDestinoId, CancellationToken ct = default)
+    public async Task MoverAsync(long documentoId, DuenoExpediente destino, CancellationToken ct = default)
     {
         ExigirAdmin("re-ubicar documentos");
 
         var documento = await _documentos.ObtenerPorIdAsync(documentoId, ct)
             ?? throw new InvalidOperationException("El documento ya no existe.");
-        if (documento.VentaId == ventaDestinoId)
+        if (documento.Dueno == destino)
             throw new InvalidOperationException("El documento ya está en ese expediente.");
 
-        var relativaNueva = $"{ventaDestinoId}/{documento.Id}_{LimpiarNombre(documento.Nombre)}";
+        var relativaNueva = $"{destino.Carpeta}/{documento.Id}_{LimpiarNombre(documento.Nombre)}";
         var origen = RutaAbsoluta(documento);
-        var destino = Path.Combine(_raiz, relativaNueva.Replace('/', Path.DirectorySeparatorChar));
-        Directory.CreateDirectory(Path.GetDirectoryName(destino)!);
+        var rutaNueva = Path.Combine(_raiz, relativaNueva.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(rutaNueva)!);
 
         if (File.Exists(origen))
-            File.Move(origen, destino, overwrite: true);
+            File.Move(origen, rutaNueva, overwrite: true);
 
-        await _documentos.MoverAsync(documentoId, ventaDestinoId, relativaNueva, ct);
-        await _auditoria.RegistrarAsync(AccionAuditoria.Modificar, DbNames.DocumentoVenta, documentoId,
-            $"Documento '{documento.Nombre}' movido del expediente {documento.VentaId} al {ventaDestinoId}", ct);
+        await _documentos.MoverAsync(documentoId, destino, relativaNueva, ct);
+        await _auditoria.RegistrarAsync(AccionAuditoria.Modificar, DbNames.Documento, documentoId,
+            $"Documento '{documento.Nombre}' movido de {documento.Dueno.Descripcion} a {destino.Descripcion}", ct);
     }
 
     /// <summary>
     /// Baja TODO el expediente en un ZIP (pedido: "descargarlo todo en un
     /// archivo zip o rar para migrar en cualquier momento").
     /// </summary>
-    public async Task<int> ExportarZipAsync(long ventaId, string rutaZip, CancellationToken ct = default)
+    public async Task<int> ExportarZipAsync(DuenoExpediente dueno, string rutaZip, CancellationToken ct = default)
     {
         ExigirVer();
 
-        var documentos = await _documentos.ObtenerDeVentaAsync(ventaId, ct);
+        var documentos = await _documentos.ObtenerDeAsync(dueno, ct);
         if (documentos.Count == 0)
             throw new InvalidOperationException("Este expediente todavía no tiene documentos.");
 
@@ -218,7 +219,7 @@ public class ExpedienteService
                 var ruta = RutaAbsoluta(documento);
                 if (!File.Exists(ruta))
                 {
-                    Log.Warning("Expediente {Venta}: falta el archivo de {Documento}", ventaId, documento.Id);
+                    Log.Warning("Expediente {Dueno}: falta el archivo de {Documento}", dueno.Descripcion, documento.Id);
                     continue;
                 }
 
@@ -243,8 +244,8 @@ public class ExpedienteService
                 "Ninguno de los archivos del expediente está en el disco. Restaurá un respaldo.");
         }
 
-        Log.Information("Expediente {Venta}: {Cantidad} documentos exportados a {Zip}",
-            ventaId, agregados, rutaZip);
+        Log.Information("Expediente {Dueno}: {Cantidad} documentos exportados a {Zip}",
+            dueno.Descripcion, agregados, rutaZip);
         return agregados;
     }
 

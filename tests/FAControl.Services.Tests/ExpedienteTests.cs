@@ -1,4 +1,5 @@
 using FAControl.Common;
+using FAControl.Models;
 using FAControl.Services;
 using FluentAssertions;
 using Xunit;
@@ -17,6 +18,9 @@ namespace FAControl.Services.Tests;
 public class ExpedienteTests : IDisposable
 {
     private readonly ExpedienteService _servicio = new(null!, null!, new AjustesLocales());
+
+    /// <summary>Expediente de una venta cualquiera: acá lo que importa son las puertas.</summary>
+    private static readonly DuenoExpediente Venta1 = DuenoExpediente.DeVenta(1);
     private readonly List<string> _temporales = [];
 
     public void Dispose()
@@ -49,7 +53,7 @@ public class ExpedienteTests : IDisposable
         IniciarComoVendedor();
         var archivo = CrearArchivo(extension);
 
-        var accion = () => _servicio.AgregarAsync(1, archivo);
+        var accion = () => _servicio.AgregarAsync(Venta1, archivo);
 
         await accion.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*no se permite*");
@@ -60,7 +64,7 @@ public class ExpedienteTests : IDisposable
     {
         IniciarComoVendedor();
 
-        var accion = () => _servicio.AgregarAsync(1, @"C:\no\existe\cedula.pdf");
+        var accion = () => _servicio.AgregarAsync(Venta1, @"C:\no\existe\cedula.pdf");
 
         await accion.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*No encuentro el archivo*");
@@ -72,8 +76,8 @@ public class ExpedienteTests : IDisposable
         SesionActual.Iniciar(2, "curioso", "Curioso", Roles.Cobrador,
             [Permisos.Cobros], DateTime.UtcNow, 2);
 
-        var ver = () => _servicio.ObtenerAsync(1);
-        var subir = () => _servicio.AgregarAsync(1, CrearArchivo(".pdf"));
+        var ver = () => _servicio.ObtenerAsync(Venta1);
+        var subir = () => _servicio.AgregarAsync(Venta1, CrearArchivo(".pdf"));
 
         await ver.Should().ThrowAsync<UnauthorizedAccessException>();
         await subir.Should().ThrowAsync<UnauthorizedAccessException>();
@@ -86,7 +90,7 @@ public class ExpedienteTests : IDisposable
         IniciarComoVendedor();
 
         var eliminar = () => _servicio.EliminarAsync(1);
-        var mover = () => _servicio.MoverAsync(1, 2);
+        var mover = () => _servicio.MoverAsync(1, DuenoExpediente.DeVenta(2));
 
         await eliminar.Should().ThrowAsync<UnauthorizedAccessException>()
             .WithMessage("*administrador*");

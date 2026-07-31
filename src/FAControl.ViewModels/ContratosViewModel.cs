@@ -33,11 +33,23 @@ public partial class ContratosViewModel : ObservableObject
     /// <summary>La App abre la vista completa/impresión del pagaré.</summary>
     public event Action<PagareImpreso>? PagareSolicitado;
 
-    public ContratosViewModel(ContratoService contratos, IDialogService dialogos)
+    public ContratosViewModel(ContratoService contratos, IDialogService dialogos,
+        ExpedienteViewModel expediente)
     {
         _contratos = contratos;
         _dialogos = dialogos;
+        Expediente = expediente;
     }
+
+    /// <summary>
+    /// Expediente del contrato elegido (026): los papeles firmados del cliente,
+    /// con la misma pantalla y las mismas reglas que en DealControl.
+    /// </summary>
+    public ExpedienteViewModel Expediente { get; }
+
+    /// <summary>Préstamo elegido, para archivar en su expediente lo que se imprime.</summary>
+    public DuenoExpediente? DuenoDelSeleccionado =>
+        Seleccionado is { } fila ? DuenoExpediente.DePrestamo(fila.Resumen.Id) : null;
 
     public ObservableCollection<ContratoFila> Contratos { get; } = [];
 
@@ -49,7 +61,14 @@ public partial class ContratosViewModel : ObservableObject
     /// <summary>Pagaré del contrato seleccionado (para la vista previa lateral).</summary>
     [ObservableProperty] private PagareImpreso? _vistaPrevia;
 
-    partial void OnSeleccionadoChanged(ContratoFila? value) => _ = CargarVistaPreviaAsync(value);
+    partial void OnSeleccionadoChanged(ContratoFila? value)
+    {
+        OnPropertyChanged(nameof(DuenoDelSeleccionado));
+        _ = CargarVistaPreviaAsync(value);
+        // El expediente sigue al contrato elegido
+        if (value is not null)
+            _ = Expediente.CargarAsync(DuenoExpediente.DePrestamo(value.Resumen.Id));
+    }
 
     partial void OnTextoBusquedaChanged(string value) => Filtrar();
 

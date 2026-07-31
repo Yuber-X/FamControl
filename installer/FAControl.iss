@@ -11,7 +11,7 @@
 ; =============================================================
 
 #define AppNombre "FAControl"
-#define AppVersion "1.7.1"
+#define AppVersion "1.8.0"
 #define AppEditor "Yuber Santana"
 #define AppExe "FAControl.App.exe"
 #define AppTelefono "849-438-0242"

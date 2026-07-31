@@ -22,6 +22,8 @@
       <conv:InverseBooleanConverter x:Key="InversorBool" />
       <conv:IgualdadConverter x:Key="Igualdad" />
       <BooleanToVisibilityConverter x:Key="BoolAVisibilidad" />
+      <!-- Visibilidad inversa: se ve cuando la condicion es FALSE -->
+      <conv:BooleanToVisibilityInversoConverter x:Key="InversorBoolVisibilidad" />
 
       <!-- Mapeo ViewModel → View del área principal del shell -->
       <DataTemplate DataType="{x:Type vm:PrestamosViewModel}">

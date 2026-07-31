@@ -14,12 +14,22 @@ namespace FAControl.Views;
 public partial class PagareWindow : Window
 {
     private readonly PagareImpreso _pagare;
+    private readonly DuenoExpediente? _expedienteDe;
+    private readonly ViewModels.ExpedienteViewModel? _expediente;
 
-    public PagareWindow(PagareImpreso pagare)
+    /// <param name="expedienteDe">
+    /// Préstamo en cuyo expediente se archiva una copia al imprimir (026).
+    /// Null cuando el pagaré todavía no tiene préstamo — la vista previa del
+    /// borrador, antes de crearlo.
+    /// </param>
+    public PagareWindow(PagareImpreso pagare, DuenoExpediente? expedienteDe = null,
+        ViewModels.ExpedienteViewModel? expediente = null)
     {
         InitializeComponent();
         ChromeVentana.OcultarBotones(this);
         _pagare = pagare;
+        _expedienteDe = expedienteDe;
+        _expediente = expediente;
         // Un documento nuevo para el visor: el mismo objeto no se puede
         // compartir entre el visor y la impresión (un FlowDocument tiene un
         // solo padre lógico).
@@ -69,12 +79,47 @@ public partial class PagareWindow : Window
         {
             var documento = PagareDocumentFactory.Crear(_pagare);
             ImpresoraRecibos.ImprimirDocumento(documento, $"Pagaré {_pagare.CodigoPrestamo}");
+            // Pedido de Yuber (2026-07-30): lo que se imprime queda guardado en
+            // el expediente del cliente, sin que nadie tenga que acordarse.
+            _ = ArchivarCopiaAsync();
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error imprimiendo el pagaré {Codigo}", _pagare.CodigoPrestamo);
             MessageBox.Show(this, $"No se pudo imprimir el pagaré.\n\n{ex.Message}",
                 "Imprimir pagaré", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Deja una copia del pagaré en el expediente del préstamo. Se genera un PDF
+    /// temporal porque el expediente guarda archivos, no documentos de WPF.
+    ///
+    /// Si algo falla no se le avisa al usuario: el pagaré YA se imprimió, que era
+    /// lo que pidió. El fallo queda en el log.
+    /// </summary>
+    private async Task ArchivarCopiaAsync()
+    {
+        if (_expedienteDe is not { } dueno || _expediente is null)
+            return;
+
+        var temporal = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+            $"Pagare_{_pagare.CodigoPrestamo}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+        try
+        {
+            ImpresoraRecibos.GuardarDocumentoPdf(PagareDocumentFactory.Crear(_pagare), temporal,
+                $"Pagaré {_pagare.CodigoPrestamo}");
+            await _expediente.ArchivarImpresoAsync(dueno, temporal, TipoDocumento.Pagare);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "No se pudo archivar el pagaré {Codigo} en el expediente",
+                _pagare.CodigoPrestamo);
+        }
+        finally
+        {
+            try { if (System.IO.File.Exists(temporal)) System.IO.File.Delete(temporal); }
+            catch (Exception) { /* archivo temporal: si queda, Windows lo limpia */ }
         }
     }
 

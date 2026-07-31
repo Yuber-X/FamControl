@@ -14,6 +14,17 @@ public record DocumentoFila(DocumentoVenta Documento)
     public long Id => Documento.Id;
     public string Nombre => Documento.Nombre;
     public string Familia => Documento.Familia;
+    /// <summary>Para qué sirve el papel, en castellano.</summary>
+    public string TipoTexto => Documento.Tipo switch
+    {
+        TipoDocumento.FacturaEscaneada => "Factura firmada",
+        TipoDocumento.Contrato => "Contrato",
+        TipoDocumento.Identificacion => "Identificación",
+        TipoDocumento.Pagare => "Pagaré",
+        TipoDocumento.Intimacion => "Intimación",
+        _ => "Otro"
+    };
+
     public string TamanoTexto => Documento.TamanoTexto;
     public string FechaTexto =>
         FechaNegocio.AUtcLocal(Documento.CreatedAtUtc).ToString(Textos.FormatoFecha, Textos.CulturaRd);
@@ -35,7 +46,7 @@ public record DocumentoFila(DocumentoVenta Documento)
 }
 
 /// <summary>Contrato al que se puede re-ubicar un documento.</summary>
-public record DestinoDocumento(long VentaId, string Texto);
+public record DestinoDocumento(DuenoExpediente Dueno, string Texto);
 
 /// <summary>
 /// Expediente digital del contrato (018, pedido del cliente 2026-07-27): acá se
@@ -51,7 +62,8 @@ public partial class ExpedienteViewModel : ObservableObject
     private readonly ExpedienteService _expedientes;
     private readonly ReporteDealService _contratos;
     private readonly IDialogService _dialogos;
-    private long _ventaId;
+    /// <summary>De qué cuelga el expediente abierto: una venta o un préstamo (026).</summary>
+    private DuenoExpediente _dueno = DuenoExpediente.DeVenta(0);
 
     public ExpedienteViewModel(ExpedienteService expedientes, ReporteDealService contratos,
         IDialogService dialogos)
@@ -88,16 +100,19 @@ public partial class ExpedienteViewModel : ObservableObject
         string.Join(";", ExpedienteService.ExtensionesPermitidas.Select(x => "*" + x)) +
         "|Todos los archivos|*.*";
 
-    public long VentaId => _ventaId;
+    public DuenoExpediente Dueno => _dueno;
 
-    public async Task CargarAsync(long ventaId)
+    public Task CargarAsync(long ventaId) => CargarAsync(DuenoExpediente.DeVenta(ventaId));
+
+    /// <summary>Carga el expediente de una venta o de un préstamo (026).</summary>
+    public async Task CargarAsync(DuenoExpediente dueno)
     {
-        _ventaId = ventaId;
+        _dueno = dueno;
         Mensaje = string.Empty;
         EsError = false;
         try
         {
-            var documentos = await _expedientes.ObtenerAsync(ventaId);
+            var documentos = await _expedientes.ObtenerAsync(dueno);
             Documentos.Clear();
             foreach (var documento in documentos)
                 Documentos.Add(new DocumentoFila(documento));
@@ -118,7 +133,7 @@ public partial class ExpedienteViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error cargando el expediente de la venta {Id}", ventaId);
+            Log.Error(ex, "Error cargando el expediente de {Dueno}", dueno.Descripcion);
             EsError = true;
             Mensaje = $"No se pudo cargar el expediente.\n{ex.Message}";
         }
@@ -148,7 +163,7 @@ public partial class ExpedienteViewModel : ObservableObject
             {
                 try
                 {
-                    await _expedientes.AgregarAsync(_ventaId, ruta, tipo);
+                    await _expedientes.AgregarAsync(_dueno, ruta, tipo);
                     agregados++;
                 }
                 catch (Exception ex) when (ex is InvalidOperationException or IOException)
@@ -167,7 +182,7 @@ public partial class ExpedienteViewModel : ObservableObject
             Ocupado = false;
         }
 
-        await CargarAsync(_ventaId);
+        await CargarAsync(_dueno);
 
         if (rechazados.Count > 0)
         {
@@ -211,9 +226,9 @@ public partial class ExpedienteViewModel : ObservableObject
         try
         {
             Ocupado = true;
-            var documento = await _expedientes.AgregarAsync(ventaId, rutaArchivo,
+            var documento = await _expedientes.AgregarAsync(DuenoExpediente.DeVenta(ventaId), rutaArchivo,
                 TipoDocumento.FacturaEscaneada, "Factura firmada escaneada por el usuario");
-            if (_ventaId == ventaId)
+            if (_dueno == DuenoExpediente.DeVenta(ventaId))
                 await CargarAsync(ventaId);
             return new DocumentoFila(documento);
         }
@@ -240,7 +255,7 @@ public partial class ExpedienteViewModel : ObservableObject
         try
         {
             Ocupado = true;
-            var cantidad = await _expedientes.ExportarZipAsync(_ventaId, rutaZip);
+            var cantidad = await _expedientes.ExportarZipAsync(_dueno, rutaZip);
             _dialogos.Informar("Expediente exportado",
                 $"Se guardaron {cantidad} documento(s) en:\n{rutaZip}");
         }
@@ -250,7 +265,7 @@ public partial class ExpedienteViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error exportando el expediente de la venta {Id}", _ventaId);
+            Log.Error(ex, "Error exportando el expediente de {Dueno}", _dueno.Descripcion);
             _dialogos.MostrarError("Exportar expediente", $"No se pudo crear el ZIP.\n\n{ex.Message}");
         }
         finally
@@ -306,7 +321,7 @@ public partial class ExpedienteViewModel : ObservableObject
         try
         {
             await _expedientes.EliminarAsync(fila.Id);
-            await CargarAsync(_ventaId);
+            await CargarAsync(_dueno);
             Mensaje = "Documento eliminado del expediente.";
             EsError = false;
         }
@@ -316,17 +331,48 @@ public partial class ExpedienteViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Archiva en el expediente un documento que la app acaba de generar (el
+    /// pagaré o la intimación al imprimirlos, 026). La Vista lo deja primero en
+    /// un archivo temporal porque generar el PDF es cosa de WPF.
+    ///
+    /// No molesta al usuario si falla: imprimir ya funcionó y lo importante era
+    /// eso. El fallo queda en el log.
+    /// </summary>
+    public async Task<bool> ArchivarImpresoAsync(DuenoExpediente dueno, string rutaArchivo,
+        TipoDocumento tipo)
+    {
+        try
+        {
+            await _expedientes.AgregarAsync(dueno, rutaArchivo, tipo);
+            if (_dueno == dueno)
+                await CargarAsync(dueno);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "No se pudo archivar el documento impreso en {Dueno}", dueno.Descripcion);
+            return false;
+        }
+    }
+
     /// <summary>Carga los contratos a los que se puede re-ubicar (solo Admin los ve).</summary>
     public async Task CargarDestinosAsync()
     {
         try
         {
             Destinos.Clear();
+            // Re-ubicar solo tiene sentido dentro del mismo módulo: un papel de
+            // una venta no se manda al expediente de un préstamo.
+            if (_dueno.Tipo != TipoExpediente.Venta)
+                return;
+
             foreach (var contrato in await _contratos.ObtenerContratosAsync())
             {
-                if (contrato.VentaId == _ventaId)
+                var destino = DuenoExpediente.DeVenta(contrato.VentaId);
+                if (destino == _dueno)
                     continue;   // el actual no es destino
-                Destinos.Add(new DestinoDocumento(contrato.VentaId,
+                Destinos.Add(new DestinoDocumento(destino,
                     $"{contrato.Codigo} · {contrato.ClienteNombre} · {contrato.VehiculoDescripcion}"));
             }
         }
@@ -341,8 +387,8 @@ public partial class ExpedienteViewModel : ObservableObject
     {
         try
         {
-            await _expedientes.MoverAsync(fila.Id, destino.VentaId);
-            await CargarAsync(_ventaId);
+            await _expedientes.MoverAsync(fila.Id, destino.Dueno);
+            await CargarAsync(_dueno);
             _dialogos.Informar("Documento re-ubicado",
                 $"'{fila.Nombre}' pasó al expediente:\n{destino.Texto}");
             return true;

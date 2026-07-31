@@ -491,23 +491,34 @@ CREATE TABLE vehiculo_reparacion (
 -- El ARCHIVO vive en disco (<app>\expedientes\<venta_id>\); acá va su ficha.
 -- Ver 018_expediente_documentos.sql para el porqué del diseño.
 -- -------------------------------------------------------------
-CREATE TABLE documento_venta (
-  id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  venta_id       BIGINT UNSIGNED NOT NULL,
-  nombre         VARCHAR(255)  NOT NULL,
-  ruta_relativa  VARCHAR(400)  NOT NULL,
-  extension      VARCHAR(15)   NOT NULL,
-  tamano_bytes   BIGINT UNSIGNED NOT NULL DEFAULT 0,
-  tipo           ENUM('otro','factura_escaneada','contrato','identificacion') NOT NULL DEFAULT 'otro',
-  notas          VARCHAR(300)  NULL,
-  created_at     DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
-  created_by     BIGINT UNSIGNED NULL,
-  deleted_at     DATETIME      NULL,
+CREATE TABLE documento (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  -- De que cuelga el expediente (026): una venta del dealer o un prestamo.
+  -- Va exactamente UNO de los dos; lo garantiza ck_documento_un_dueno.
+  venta_id      BIGINT UNSIGNED NULL,
+  prestamo_id   BIGINT UNSIGNED NULL,
+  nombre        VARCHAR(255) NOT NULL,
+  -- Ruta relativa a la carpeta de expedientes: 'ventas/<id>/...' o
+  -- 'prestamos/<id>/...'. Se guarda, no se recalcula.
+  ruta_relativa VARCHAR(500) NOT NULL,
+  extension     VARCHAR(10)  NOT NULL,
+  tamano_bytes  BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  tipo          ENUM('otro','factura_escaneada','contrato','identificacion','pagare','intimacion')
+                  NOT NULL DEFAULT 'otro',
+  notas         TEXT         NULL,
+  created_at    DATETIME     NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  created_by    BIGINT UNSIGNED NULL,
+  deleted_at    DATETIME     NULL,
   PRIMARY KEY (id),
-  KEY ix_docventa_venta (venta_id),
-  KEY ix_docventa_tipo (venta_id, tipo),
-  CONSTRAINT fk_docventa_venta   FOREIGN KEY (venta_id)   REFERENCES venta_vehiculo (id) ON DELETE RESTRICT,
-  CONSTRAINT fk_docventa_usuario FOREIGN KEY (created_by) REFERENCES usuario (id)        ON DELETE SET NULL
+  KEY ix_documento_venta (venta_id),
+  KEY ix_documento_prestamo (prestamo_id),
+  CONSTRAINT fk_documento_venta FOREIGN KEY (venta_id)
+    REFERENCES venta_vehiculo (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_documento_prestamo FOREIGN KEY (prestamo_id)
+    REFERENCES prestamo (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_documento_usuario FOREIGN KEY (created_by)
+    REFERENCES usuario (id) ON DELETE SET NULL,
+  CONSTRAINT ck_documento_un_dueno CHECK ((venta_id IS NULL) <> (prestamo_id IS NULL))
 ) ENGINE=InnoDB;
 
 -- =============================================================

@@ -2,6 +2,32 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [1.8.0] — 2026-07-30 · Contratos de PrestControl con expediente
+
+### Agregado
+
+- **El expediente digital ahora sirve a los dos módulos** (026). Nació atado a la
+  venta del dealer; ahora un expediente cuelga de una venta **o** de un préstamo.
+  La tabla pasó a llamarse `documento` y lleva las dos claves, de las cuales va
+  exactamente una — con clave foránea de verdad en ambos casos, que es lo que
+  evita expedientes huérfanos.
+- **Contratos de PrestControl tiene su expediente**, con la misma lógica que
+  DealControl: subir varios papeles de una vez, verlos en la lista, doble clic
+  para abrir con la aplicación de Windows que corresponda, y bajar todo en un ZIP.
+  Re-ubicar y eliminar siguen siendo solo del Admin.
+- **El pagaré y la intimación se archivan solos al imprimirlos**, en el
+  expediente del cliente correspondiente. Si el archivado falla no se molesta al
+  usuario: el papel ya salió, que era lo que pidió; el fallo queda en el log.
+
+### Notas
+
+- Los documentos que ya existían **conservan su ruta** y se abren igual: la ruta
+  se guarda por documento, no se recalcula. Los nuevos van a `ventas/<id>/` o
+  `prestamos/<id>/`, lo que además evita que la venta 5 y el préstamo 5
+  compartan carpeta.
+- Re-ubicar un papel solo ofrece destinos **del mismo módulo**: un documento de
+  una venta no se manda al expediente de un préstamo.
+
 ## [1.7.1] — 2026-07-30 · Correcciones tras la primera prueba del POS
 
 ### Impresión del ticket

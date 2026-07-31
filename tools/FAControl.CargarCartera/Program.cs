@@ -145,7 +145,7 @@ static async Task LimpiarDatosDeNegocioAsync(string cadena)
     string[] tablas =
     [
         DbNames.Pago, DbNames.Cuota, DbNames.Prestamo,
-        DbNames.VentaPlazoPago, DbNames.VentaPlazo, DbNames.DocumentoVenta,
+        DbNames.VentaPlazoPago, DbNames.VentaPlazo, DbNames.Documento,
         DbNames.Alquiler, DbNames.VentaVehiculo, DbNames.VehiculoGasto,
         DbNames.VehiculoReparacion, DbNames.Vehiculo,
         DbNames.Cliente, DbNames.Auditoria
