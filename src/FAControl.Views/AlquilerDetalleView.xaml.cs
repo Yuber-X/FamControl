@@ -1,16 +1,15 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using FAControl.Models;
 using FAControl.ViewModels;
-using Microsoft.Win32;
 
 namespace FAControl.Views;
 
 /// <summary>
-/// Detalle de un alquiler (031). Code-behind solo de UI: abrir diálogos y
-/// elegir archivos. Las reglas de qué se puede corregir y cómo se cierra el
-/// contrato viven en el servicio.
+/// Detalle de un alquiler (031). Code-behind solo de UI: abrir los diálogos de
+/// cierre y corrección. Las reglas de qué se puede corregir y cómo se cierra el
+/// contrato viven en el servicio; los archivos los maneja ExpedienteClienteView,
+/// que es el mismo control que usa DealControl.
 /// </summary>
 public partial class AlquilerDetalleView : UserControl
 {
@@ -42,48 +41,5 @@ public partial class AlquilerDetalleView : UserControl
     {
         var ventana = new EditarAlquilerWindow(datos) { Owner = Window.GetWindow(this) };
         return ventana.ShowDialog() == true ? ventana.Resultado : null;
-    }
-
-    /// <summary>Los archivos del alquiler, en la misma pantalla dedicada del resto.</summary>
-    private void VerContratos_Click(object sender, RoutedEventArgs e)
-    {
-        if (_vm is null)
-            return;
-
-        var ventana = new ExpedienteWindow(_vm.Expediente,
-            $"Contrato y documentos — {_vm.Codigo}", _vm.ClienteNombre)
-        {
-            Owner = Window.GetWindow(this)
-        };
-        ventana.ShowDialog();
-    }
-
-    private async void SubirDocumentos_Click(object sender, RoutedEventArgs e)
-    {
-        if (_vm is null)
-            return;
-
-        var dialogo = new OpenFileDialog
-        {
-            Title = "Elegí los documentos del alquiler",
-            Multiselect = true,
-            Filter = ExpedienteViewModel.FiltroArchivos
-        };
-        if (dialogo.ShowDialog(Window.GetWindow(this)) != true)
-            return;
-
-        await _vm.Expediente.AgregarArchivosAsync(dialogo.FileNames);
-    }
-
-    private void Documento_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-    {
-        if (_vm is null || (sender as DataGrid)?.SelectedItem is not DocumentoFila fila)
-            return;
-
-        var ventana = new DocumentoAccionesWindow(_vm.Expediente, fila)
-        {
-            Owner = Window.GetWindow(this)
-        };
-        ventana.ShowDialog();
     }
 }

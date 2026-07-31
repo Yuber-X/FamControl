@@ -1,4 +1,4 @@
-namespace FAControl.Common;
+﻿namespace FAControl.Common;
 
 /// <summary>
 /// Sesión del usuario autenticado (patrón SesionActual del POS-400, ahora
@@ -124,6 +124,13 @@ public static class Permisos
     /// </summary>
     public const string PrestamosEditar = "prestamos_editar";
     public const string Cobros = "cobros";
+    /// <summary>
+    /// Almacen de contratos de PrestControl (033). Antes esa pantalla se abria
+    /// con 'prestamos', asi que no se podia dar el acceso a los papeles sin dar
+    /// tambien toda la cartera. En DealControl los contratos siguen colgando de
+    /// 'ventas': ahi son el expediente de la venta.
+    /// </summary>
+    public const string Contratos = "contratos";
     public const string Reportes = "reportes";
     public const string Historial = "historial";
     public const string Usuarios = "usuarios";
@@ -178,7 +185,7 @@ public static class Permisos
     public static readonly string[] Todos =
     [
         Panel, Clientes, ClientesEditar, Prestamos, PrestamosCrear, PrestamosAutorizar,
-        PrestamosCancelar, PrestamosEditar, Cobros, Reportes, Historial, Usuarios, Configuracion,
+        PrestamosCancelar, PrestamosEditar, Cobros, Contratos, Reportes, Historial, Usuarios, Configuracion,
         Vehiculos, VehiculosEditar,
         Inventario, InventarioEditar, Ventas, VentasEditar, Alquileres, AlquileresEditar, Gastos,
         Vender, Productos, Almacen, Caducidad, Comprobantes, ComprobantesTodos,

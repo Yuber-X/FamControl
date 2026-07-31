@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using FAControl.Models;
@@ -38,12 +38,16 @@ public partial class EditarPrestamoWindow : Window
 
         TextoTitulo.Text = $"Corregir el préstamo {datos.Codigo}";
 
+        // Opcion<T> y NO un record privado de esta ventana: WPF no puede
+        // bindear a propiedades de tipos que no son publicos, asi que el combo
+        // caia al ToString() por defecto del record y mostraba
+        // "OpcionEnum { Valor = Mensual, Etiqueta = Mensual }" en vez de
+        // "Mensual". Opcion<T> ademas ya sobreescribe ToString(), asi que ni
+        // siquiera hace falta DisplayMemberPath.
         ComboModalidad.ItemsSource = Enum.GetValues<Modalidad>()
-            .Select(m => new OpcionEnum<Modalidad>(m, Textos.De(m))).ToList();
+            .Select(m => new Opcion<Modalidad>(m, Textos.De(m))).ToList();
         ComboMetodo.ItemsSource = Enum.GetValues<MetodoAmortizacion>()
-            .Select(m => new OpcionEnum<MetodoAmortizacion>(m, Textos.De(m))).ToList();
-        ComboModalidad.DisplayMemberPath = nameof(OpcionEnum<Modalidad>.Etiqueta);
-        ComboMetodo.DisplayMemberPath = nameof(OpcionEnum<MetodoAmortizacion>.Etiqueta);
+            .Select(m => new Opcion<MetodoAmortizacion>(m, Textos.De(m))).ToList();
 
         var actual = datos.Actual;
         CajaCapital.Text = actual.MontoCapital.ToString("0.##", Textos.CulturaRd);
@@ -106,9 +110,9 @@ public partial class EditarPrestamoWindow : Window
             return false;
         if (SelectorFecha.SelectedDate is not { } fecha)
             return false;
-        if (ComboModalidad.SelectedItem is not OpcionEnum<Modalidad> modalidad)
+        if (ComboModalidad.SelectedItem is not Opcion<Modalidad> modalidad)
             return false;
-        if (ComboMetodo.SelectedItem is not OpcionEnum<MetodoAmortizacion> metodo)
+        if (ComboMetodo.SelectedItem is not Opcion<MetodoAmortizacion> metodo)
             return false;
 
         parametros = new ParametrosAmortizacion(capital, tasa, plazo, modalidad.Valor, metodo.Valor,
@@ -150,6 +154,4 @@ public partial class EditarPrestamoWindow : Window
 
     private void Volver_Click(object sender, RoutedEventArgs e) => Close();
 
-    /// <summary>Opción de un combo: el valor del enum con su etiqueta en español.</summary>
-    private record OpcionEnum<T>(T Valor, string Etiqueta) where T : struct, Enum;
 }

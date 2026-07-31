@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using FAControl.Models;
@@ -34,9 +34,10 @@ public partial class EditarVentaWindow : Window
 
         TextoTitulo.Text = $"Corregir la venta {datos.Codigo}";
 
+        // Opcion<T> y NO un record privado: WPF no bindea a tipos no publicos,
+        // asi que el combo mostraba "OpcionMetodo { Valor = Efectivo, ... }".
         ComboMetodo.ItemsSource = Enum.GetValues<MetodoPago>()
-            .Select(m => new OpcionMetodo(m, Textos.De(m))).ToList();
-        ComboMetodo.DisplayMemberPath = nameof(OpcionMetodo.Etiqueta);
+            .Select(m => new Opcion<MetodoPago>(m, Textos.De(m))).ToList();
         ComboMetodo.SelectedIndex = Array.IndexOf(Enum.GetValues<MetodoPago>(), datos.Metodo);
 
         CajaPrecio.Text = datos.Precio.ToString("0.##", Textos.CulturaRd);
@@ -104,7 +105,7 @@ public partial class EditarVentaWindow : Window
             CajaMotivo.Focus();
             return;
         }
-        if (ComboMetodo.SelectedItem is not OpcionMetodo metodo)
+        if (ComboMetodo.SelectedItem is not Opcion<MetodoPago> metodo)
         {
             TextoError.Text = "Elegí el método de pago.";
             return;
@@ -139,6 +140,4 @@ public partial class EditarVentaWindow : Window
 
     private void Volver_Click(object sender, RoutedEventArgs e) => Close();
 
-    /// <summary>Opción del combo de método de pago.</summary>
-    private record OpcionMetodo(MetodoPago Valor, string Etiqueta);
 }

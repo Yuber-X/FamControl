@@ -45,31 +45,6 @@ public partial class ContratosView : UserControl
             ? PagareDocumentFactory.Crear(pagare)
             : null;
 
-    // ---------- Expediente del cliente (026) ----------
-
-    /// <summary>
-    /// Abre la pantalla dedicada a los archivos de este contrato (pedido de
-    /// Yuber 2026-07-31: "en vez de tener un mostrar al lateral, mejor
-    /// coloquemos un btn de 'ver contratos'"). El panel lateral se quedaba
-    /// corto apenas el cliente tenia mas de un papel.
-    ///
-    /// Es la MISMA ventana que usa DealControl: el expediente ya sabe de quien
-    /// es, asi que no hay una copia por estancia.
-    /// </summary>
-    private void VerContratos_Click(object sender, RoutedEventArgs e)
-    {
-        if (_vm?.Seleccionado is not { } contrato)
-            return;
-
-        var ventana = new ExpedienteWindow(_vm.Expediente,
-            $"Contratos y documentos — {contrato.Resumen.Codigo}",
-            contrato.Resumen.ClienteNombre)
-        {
-            Owner = Window.GetWindow(this)
-        };
-        ventana.ShowDialog();
-    }
-
     private void MostrarPagare(PagareImpreso pagare)
     {
         // Se le pasa el préstamo para que la copia impresa quede archivada sola

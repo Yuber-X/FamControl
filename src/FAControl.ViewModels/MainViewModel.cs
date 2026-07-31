@@ -255,7 +255,7 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     public bool PuedeVerContratos => EsDealerControl
         ? SesionActual.TienePermiso(Permisos.Ventas)
-        : EsCredito && SesionActual.TienePermiso(Permisos.Prestamos);
+        : EsCredito && SesionActual.TienePermiso(Permisos.Contratos);
     /// <summary>Reportes: cada estancia tiene los suyos, nunca datos cruzados.</summary>
     public bool PuedeVerReportes => (EsCredito || EsDealerControl || EsPos500)
         && SesionActual.TienePermiso(Permisos.Reportes);

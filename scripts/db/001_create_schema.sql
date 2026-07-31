@@ -589,6 +589,8 @@ INSERT INTO permiso (codigo, nombre, descripcion) VALUES
   -- con un recibo emitido, cambiar el contrato haria mentir a ese papel.
   ('prestamos_editar',    'Préstamos (editar)',        'Corregir un préstamo ya registrado (errores de digitación)'),
   ('cobros',              'Cobros',                    'Registrar pagos y emitir recibos'),
+  -- Almacen de contratos (033): pagares + expediente de papeles del cliente.
+  ('contratos',           'Contratos',                 'Almacén de contratos: pagarés y expediente de papeles del cliente'),
   ('reportes',            'Reportes',                  'Reportes por fecha y por cliente'),
   ('historial',           'Historial',                 'Auditoría de operaciones'),
   ('usuarios',            'Admin de usuarios',         'CRUD de usuarios, roles y overrides'),
@@ -630,8 +632,8 @@ INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Supervisor' AND r.modo = 'prestcontrol'
   AND p.codigo IN ('panel','clientes','clientes_editar','prestamos','prestamos_crear',
-                   'prestamos_cancelar','prestamos_editar','cobros','reportes','historial',
-                   'acceso_prestcontrol');
+                   'prestamos_cancelar','prestamos_editar','cobros','contratos','reportes',
+                   'historial','acceso_prestcontrol');
 
 -- Cobrador (PrestControl): cobra, consulta y crea préstamos (con autorización de Admin)
 INSERT INTO rol_permiso (rol_id, permiso_id)
@@ -658,7 +660,7 @@ INSERT INTO rol_permiso (rol_id, permiso_id)
 SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
 WHERE r.nombre = 'Encargado' AND r.modo = 'autocontrol'
   AND p.codigo IN ('prestamos','prestamos_crear','prestamos_cancelar','prestamos_editar','cobros',
-                   'clientes','clientes_editar','reportes','historial','acceso_autocontrol');
+                   'contratos','clientes','clientes_editar','reportes','historial','acceso_autocontrol');
 
 -- Vendedor (AutoControl): crea ventas financiadas y cobra
 INSERT INTO rol_permiso (rol_id, permiso_id)

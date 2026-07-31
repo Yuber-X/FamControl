@@ -1,6 +1,7 @@
 ﻿<UserControl x:Class="FAControl.Views.AlquilerDetalleView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:FAControl.Views"
              DataContextChanged="AlquilerDetalleView_DataContextChanged">
 
   <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,12,0">
@@ -38,9 +39,6 @@
                 Command="{Binding CerrarCommand}" Margin="0,0,8,8"
                 ToolTip="Registrar la devolución del vehículo o cancelar el contrato"
                 Visibility="{Binding PuedeOperar, Converter={StaticResource BoolAVisibilidad}}" />
-        <Button Content="Ver contratos" Style="{DynamicResource Boton.Secundario}"
-                Click="VerContratos_Click" Margin="0,0,0,8"
-                ToolTip="Abrir los archivos de este alquiler (contrato, licencia, fotos)" />
       </WrapPanel>
 
       <!-- ============ AVISO DE ATRASO (contrato abierto y vencido) ============ -->
@@ -136,41 +134,18 @@
         </StackPanel>
       </Border>
 
-      <!-- ============ EXPEDIENTE ============ -->
-      <Border Style="{DynamicResource Card}" DataContext="{Binding Expediente}">
-        <StackPanel>
-          <DockPanel>
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-              <Button Content="+ Subir" Style="{DynamicResource Boton.Secundario}"
-                      Click="SubirDocumentos_Click" />
-            </StackPanel>
-            <StackPanel>
-              <TextBlock Text="Contrato y documentos" Style="{DynamicResource Texto.Titulo3}" />
-              <TextBlock Style="{DynamicResource Texto.Caption}"
-                         Text="Contrato firmado, licencia del conductor y fotos del auto al salir y al volver." />
-            </StackPanel>
-          </DockPanel>
+      <!-- ============ EXPEDIENTE DEL CLIENTE ============
+           El mismo control que DealControl, con el ExpedienteViewModel del
+           ALQUILER (pedido de Yuber 2026-07-31: "cambialo por algo parecido a
+           expediente del cliente ya que es el mas completo de todos los
+           intentos hasta ahora").
 
-          <TextBlock Margin="0,10,0,0" Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap"
-                     Text="Todavía no hay archivos. Las fotos del estado del vehículo al entregarlo son las que evitan discusiones por un golpe que ya venía."
-                     Visibility="{Binding SinDocumentos, Converter={StaticResource BoolAVisibilidad}}" />
+           Aca van el contrato firmado, la licencia del conductor y las fotos
+           del auto al salir y al volver — las que evitan discusiones por un
+           golpe que ya venia. Los datos no se mezclan con los de las ventas:
+           cada expediente cuelga de su propio contrato. -->
+      <local:ExpedienteClienteView DataContext="{Binding Expediente}" />
 
-          <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Documentos}"
-                    Margin="0,10,0,0" MaxHeight="240"
-                    MouseDoubleClick="Documento_MouseDoubleClick"
-                    Visibility="{Binding SinDocumentos, Converter={StaticResource InversorBoolVisibilidad}}">
-            <DataGrid.Columns>
-              <DataGridTextColumn Header="Documento" Binding="{Binding Nombre}" Width="*" MinWidth="220"
-                                  HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-              <DataGridTextColumn Header="Formato" Binding="{Binding Familia}" Width="110"
-                                  HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-              <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="110" />
-              <DataGridTextColumn Header="Subió" Binding="{Binding SubidoPorTexto}" Width="150"
-                                  HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
-            </DataGrid.Columns>
-          </DataGrid>
-        </StackPanel>
-      </Border>
     </StackPanel>
   </ScrollViewer>
 </UserControl>
