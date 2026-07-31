@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -25,6 +26,8 @@ public partial class ConfiguracionViewModel : ObservableObject
     private readonly FAControl.Services.Pos.RecordatorioCaducidadService _caducidad;
     private readonly EmailService _email;
     private readonly NcfService _ncf;
+    /// <summary>Configuracion del NEGOCIO del punto de venta (vive en la BD, no en ajustes.json).</summary>
+    private readonly FAControl.Services.Pos.ConfiguracionNegocioService _negocioPos;
 
     /// <summary>El shell escala la UI cuando cambia el tamaño de texto.</summary>
     public event Action<double>? EscalaCambiada;
@@ -36,7 +39,7 @@ public partial class ConfiguracionViewModel : ObservableObject
         ExportacionService exportacion, AjustesLocales ajustes, IDialogService dialogos,
         IAvisoVencidos avisoVencidos, RecordatorioService recordatorios,
         FAControl.Services.Pos.RecordatorioCaducidadService caducidad, EmailService email,
-        NcfService ncf)
+        NcfService ncf, FAControl.Services.Pos.ConfiguracionNegocioService negocioPos)
     {
         _auth = auth;
         _respaldo = respaldo;
@@ -48,6 +51,7 @@ public partial class ConfiguracionViewModel : ObservableObject
         _caducidad = caducidad;
         _email = email;
         _ncf = ncf;
+        _negocioPos = negocioPos;
 
         Tamanos =
         [
@@ -94,6 +98,101 @@ public partial class ConfiguracionViewModel : ObservableObject
         ActualizarUltimoRespaldo();
         ActualizarUltimoRecordatorio();
         ActualizarSilenciados();
+    }
+
+    // ---------- ITBIS del punto de venta (pedido de Yuber 2026-07-31) ----------
+    // "se necesita un checkbox para deshabilitar el uso del ITBIS, junto a un
+    //  textbox para saber cuanto % de itbis se usara."
+    //
+    // El motor ya sabia apagarlo (ItbisTasaEfectiva devuelve 0 con el ITBIS en
+    // OFF); lo que faltaba era la pantalla: al portar POS-500 a la suite no se
+    // trajo su Configuracion del negocio.
+    //
+    // Esto NO vive en ajustes.json como el resto de esta pantalla: es del
+    // NEGOCIO, no de la PC. Si el dueño apaga el ITBIS, se apaga en todas las
+    // terminales, no solo en la caja donde lo toco.
+
+    [ObservableProperty] private bool _itbisActivo = true;
+    [ObservableProperty] private string _itbisTasaTexto = "18";
+    [ObservableProperty] private string _itbisEstadoTexto = string.Empty;
+
+    /// <summary>
+    /// La seccion se ve solo en el punto de venta y solo al Admin: el impuesto
+    /// es una decision del negocio, no de quien esta en la caja. Se resuelve
+    /// aca y no con un MultiBinding en XAML porque es una regla, no una
+    /// decoracion, y ademas no hay converter multi-valor en el proyecto.
+    /// </summary>
+    public bool PuedeConfigurarItbis => EsPos500 && SesionActual.EsAdmin;
+
+    /// <summary>La View lo llama al cargarse (la configuracion vive en la BD).</summary>
+    public async Task CargarItbisAsync()
+    {
+        if (!EsPos500)
+            return;
+        try
+        {
+            await _negocioPos.CargarAsync();
+            var cfg = _negocioPos.Actual;
+            _recargando = true;
+            try
+            {
+                ItbisActivo = cfg.ItbisActivo;
+                ItbisTasaTexto = cfg.ItbisTasa.ToString("0.##", Textos.CulturaRd);
+            }
+            finally { _recargando = false; }
+            ActualizarEstadoItbis();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error cargando la configuracion de ITBIS");
+            ItbisEstadoTexto = "No se pudo leer la configuración del ITBIS.";
+        }
+    }
+
+    private void ActualizarEstadoItbis() =>
+        ItbisEstadoTexto = ItbisActivo
+            ? $"Se cobra {ItbisTasaTexto}% de ITBIS en cada venta y sale detallado en el ticket."
+            : "El ITBIS está APAGADO: las ventas no lo cobran y el ticket no lo muestra.";
+
+    partial void OnItbisActivoChanged(bool value) => ActualizarEstadoItbis();
+    partial void OnItbisTasaTextoChanged(string value) => ActualizarEstadoItbis();
+
+    /// <summary>
+    /// Guarda el ITBIS. Con boton y no al vuelo como el resto de esta pantalla:
+    /// cambia lo que se le cobra al cliente en TODAS las terminales, no es una
+    /// preferencia de esta PC.
+    /// </summary>
+    [RelayCommand]
+    private async Task GuardarItbisAsync()
+    {
+        try
+        {
+            if (!decimal.TryParse(ItbisTasaTexto, NumberStyles.Number, Textos.CulturaRd, out var tasa)
+                || tasa is < 0m or > 100m)
+            {
+                _dialogos.MostrarError("ITBIS", "La tasa debe ser un número entre 0 y 100 (en RD son 18).");
+                return;
+            }
+
+            var cfg = _negocioPos.Actual;
+            cfg.ItbisActivo = ItbisActivo;
+            cfg.ItbisTasa = tasa;
+            await _negocioPos.GuardarAsync(cfg);
+
+            ActualizarEstadoItbis();
+            _dialogos.Informar("ITBIS", ItbisActivo
+                ? $"Listo: de ahora en más se cobra {tasa:0.##}% de ITBIS."
+                : "Listo: el ITBIS quedó apagado. Las ventas nuevas no lo cobran.");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or ArgumentException)
+        {
+            _dialogos.MostrarError("ITBIS", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error guardando la configuracion de ITBIS");
+            _dialogos.MostrarError("ITBIS", $"No se pudo guardar.\n\n{ex.Message}");
+        }
     }
 
     // ---------- Comprobante fiscal / secuencia NCF (cliente 2026-07-25) ----------
@@ -272,6 +371,14 @@ public partial class ConfiguracionViewModel : ObservableObject
     // se está por vencer. La sección es la misma; cambia a quién le escribe y
     // de qué.
 
+    /// <summary>
+    /// La comision del vendedor SOLO la usa el reporte de DealControl
+    /// (ReporteDealService la aplica sobre el monto vendido). En PrestControl y
+    /// en el punto de venta no la lee nadie, asi que mostrarla ahi es ofrecer
+    /// una perilla que no hace nada — verificado el 2026-07-31 a pedido de Yuber.
+    /// </summary>
+    public bool MuestraComisionVendedor => SesionActual.Modo == ModoApp.DealerControl;
+
     public string RecordatoriosTitulo => EsPos500
         ? "Aviso de caducidad por correo (Gmail)"
         : "Recordatorios por correo (Gmail)";
@@ -314,6 +421,8 @@ public partial class ConfiguracionViewModel : ObservableObject
         OnPropertyChanged(nameof(RecordatoriosDiasEtiqueta));
         OnPropertyChanged(nameof(RecordatoriosBotonTexto));
         OnPropertyChanged(nameof(CorreoDuenoEtiqueta));
+        OnPropertyChanged(nameof(PuedeConfigurarItbis));
+        OnPropertyChanged(nameof(MuestraComisionVendedor));
 
         // Los "días antes" salen de un ajuste distinto en cada estancia: hay que
         // releerlo, si no la caja queda mostrando el número de la anterior.

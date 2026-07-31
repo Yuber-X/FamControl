@@ -118,13 +118,44 @@
               <TextBox Width="200" Style="{DynamicResource Input.Texto}" Height="34"
                        Text="{Binding NegocioEmail, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
-            <StackPanel Margin="0,0,16,8">
+            <!-- La comision solo la usa el reporte de DealControl: en las
+                 demas estancias no la lee nadie (Yuber 2026-07-31) -->
+            <StackPanel Margin="0,0,16,8"
+                        Visibility="{Binding MuestraComisionVendedor, Converter={StaticResource BoolAVisibilidad}}">
               <TextBlock Text="Comisión del vendedor (%)" Style="{DynamicResource Input.Label}" />
               <TextBox Width="140" Style="{DynamicResource Input.Texto}" Height="34"
                        ToolTip="DealControl: % sobre el monto vendido que se muestra en el reporte de comisiones"
                        Text="{Binding ComisionVendedorTexto, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
           </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ============ ITBIS (POS-500, pedido de Yuber 2026-07-31) ============ -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12"
+              Visibility="{Binding PuedeConfigurarItbis, Converter={StaticResource BoolAVisibilidad}}">
+        <StackPanel>
+          <TextBlock Text="ITBIS" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="Impuesto que se cobra en cada venta del punto de venta. Es del NEGOCIO, no de esta computadora: al cambiarlo cambia en todas las terminales. No toca las facturas ya emitidas." />
+          <CheckBox Content="Cobrar ITBIS en las ventas" FontSize="13"
+                    IsChecked="{Binding ItbisActivo}" />
+          <StackPanel Orientation="Horizontal" Margin="24,10,0,0"
+                      IsEnabled="{Binding ItbisActivo}">
+            <StackPanel>
+              <TextBlock Text="Tasa (%)" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="90" Height="34" Style="{DynamicResource Input.Texto}"
+                       Text="{Binding ItbisTasaTexto, UpdateSourceTrigger=PropertyChanged}"
+                       ToolTip="En República Dominicana el ITBIS general es 18%" />
+            </StackPanel>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+            <Button Content="Guardar ITBIS" Style="{DynamicResource Boton.Primario}"
+                    Command="{Binding GuardarItbisCommand}" />
+            <TextBlock Text="{Binding ItbisEstadoTexto}" Style="{DynamicResource Texto.Caption}"
+                       VerticalAlignment="Center" Margin="12,0,0,0"
+                       TextWrapping="Wrap" MaxWidth="420" />
+          </StackPanel>
         </StackPanel>
       </Border>
 

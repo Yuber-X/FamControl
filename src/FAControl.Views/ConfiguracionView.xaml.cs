@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Navigation;
@@ -26,6 +26,8 @@ public partial class ConfiguracionView : UserControl
             // sistema operativo, no lógica de negocio, y el ViewModel no conoce WPF.
             vm.EstablecerImpresoras(ImpresorasInstaladas());
             await vm.CargarNcfAsync();
+            // El ITBIS tambien vive en la BD (es del negocio, no de esta PC)
+            await vm.CargarItbisAsync();
         };
     }
 
