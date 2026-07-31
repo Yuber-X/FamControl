@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using MySqlConnector;
 using FAControl.Common;
 using FAControl.Data;
@@ -305,5 +305,130 @@ public class FlujoVentaPlazosTests : IAsyncLifetime
 
         var sinMotivo = () => _plazos.CancelarVentaAsync(new CancelacionVenta(ventaId, "  ", 20m));
         await sinMotivo.Should().ThrowAsync<ArgumentException>();
+    }
+
+    // ---------- Correccion de una venta (033) ----------
+
+    /// <summary>
+    /// El caso que pidio el cliente: se digito mal el precio y todavia no se
+    /// cobro nada. Se corrige y el calendario de plazos se rehace.
+    /// </summary>
+    [Fact]
+    public async Task CorregirVentaSinAbonos_RegeneraElCalendario()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9101", 600_000m);
+        // Se quiso poner 600,000 y se escribio 900,000
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 900_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(100_000m, 4, FechaNegocio.Hoy.AddDays(30))));
+
+        var permitido = await _plazos.ConsultarEdicionPermitidaAsync(ventaId);
+        permitido.Todo.Should().BeTrue("no hay un solo abono registrado");
+
+        await _plazos.EditarVentaAsync(new EdicionVenta(
+            ventaId, Precio: 600_000m, Inicial: 100_000m, MetodoPago.Transferencia,
+            Notas: "Corregido", Motivo: "Se digito 900,000 en vez de 600,000"));
+
+        var estado = await _plazos.ObtenerEstadoAsync(ventaId);
+        estado.Precio.Should().Be(600_000m);
+        estado.TotalAPlazos.Should().Be(500_000m, "600,000 menos 100,000 de inicial");
+        estado.CantidadPlazos.Should().Be(4, "la cantidad pactada no cambia: no es lo que se corrige");
+        estado.Plazos.Should().OnlyContain(p => p.Monto == 125_000m);
+
+        // Las fechas pactadas se conservan
+        estado.Plazos[0].FechaVencimiento.Should().Be(FechaNegocio.Hoy.AddDays(30));
+        estado.Plazos[1].FechaVencimiento.Should().Be(FechaNegocio.Hoy.AddDays(60));
+    }
+
+    /// <summary>
+    /// Con un abono hecho, el precio queda congelado: el recibo impreso que
+    /// tiene el cliente declara un saldo. Solo se corrige lo descriptivo.
+    /// </summary>
+    [Fact]
+    public async Task CorregirVentaConAbonos_NoTocaLosMontos_PeroSiLasNotas()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9102", 600_000m);
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 600_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(0m, 3, FechaNegocio.Hoy.AddDays(30))));
+
+        var estado = await _plazos.ObtenerEstadoAsync(ventaId);
+        await _plazos.CobrarPlazoAsync(estado.Plazos[0].Id, 200_000m, MetodoPago.Efectivo);
+
+        var permitido = await _plazos.ConsultarEdicionPermitidaAsync(ventaId);
+        permitido.Todo.Should().BeFalse();
+        permitido.AbonosRegistrados.Should().Be(1);
+
+        // Se intenta cambiar el precio Y las notas de una sola vez
+        await _plazos.EditarVentaAsync(new EdicionVenta(
+            ventaId, Precio: 999_000m, Inicial: 50_000m, MetodoPago.Cheque,
+            Notas: "Telefono nuevo", Motivo: "Actualizar datos"));
+
+        var despues = await _plazos.ObtenerEstadoAsync(ventaId);
+        despues.Precio.Should().Be(600_000m, "hay un recibo emitido con estos numeros");
+        despues.Inicial.Should().Be(0m);
+        despues.CantidadPlazos.Should().Be(3);
+        despues.Plazos.Should().OnlyContain(p => p.Monto == 200_000m);
+        // Y el abono sigue ahi
+        despues.Pagado.Should().Be(200_000m);
+    }
+
+    /// <summary>Sin motivo no se corrige: el historial quedaria sin explicacion.</summary>
+    [Fact]
+    public async Task CorregirVentaSinMotivo_SeRechaza()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9103", 400_000m);
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 400_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(0m, 2, FechaNegocio.Hoy.AddDays(30))));
+
+        var editar = async () => await _plazos.EditarVentaAsync(new EdicionVenta(
+            ventaId, 300_000m, 0m, MetodoPago.Efectivo, null, Motivo: "   "));
+
+        await editar.Should().ThrowAsync<ArgumentException>();
+        (await _plazos.ObtenerEstadoAsync(ventaId)).Precio.Should().Be(400_000m, "no se guardo nada");
+    }
+
+    /// <summary>Una venta cancelada ya se liquido con su retencion: no se corrige.</summary>
+    [Fact]
+    public async Task NoSePuedeCorregirUnaVentaCancelada()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9104", 500_000m);
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 500_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(100_000m, 2, FechaNegocio.Hoy.AddDays(30))));
+
+        await _plazos.CancelarVentaAsync(new CancelacionVenta(
+            ventaId, "El cliente devolvio el vehiculo", 20m));
+
+        var editar = async () => await _plazos.EditarVentaAsync(new EdicionVenta(
+            ventaId, 400_000m, 100_000m, MetodoPago.Efectivo, null, "Intento tardio"));
+
+        (await editar.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*cancelada*");
+    }
+
+    /// <summary>Sin el permiso no se corrige, aunque la pantalla lo dejara pasar.</summary>
+    [Fact]
+    public async Task CorregirVentaSinPermiso_SeRechaza()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9105", 400_000m);
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 400_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(0m, 2, FechaNegocio.Hoy.AddDays(30))));
+
+        // Un vendedor: vende, pero no corrige ventas ajenas
+        SesionActual.Iniciar(SesionActual.Id, "vendedor", "Vendedor", Roles.Vendedor,
+            [Permisos.Ventas, Permisos.Inventario], DateTime.UtcNow, 1);
+
+        var editar = async () => await _plazos.EditarVentaAsync(new EdicionVenta(
+            ventaId, 300_000m, 0m, MetodoPago.Efectivo, null, "Prueba"));
+
+        await editar.Should().ThrowAsync<UnauthorizedAccessException>();
     }
 }

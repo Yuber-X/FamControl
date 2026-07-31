@@ -368,8 +368,21 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     public Func<string, decimal, decimal, bool, (string Motivo, decimal Porcentaje, bool Fijar)?>?
         CancelacionSolicitada { get; set; }
 
+    /// <summary>
+    /// La View abre el formulario de corrección (033) y devuelve lo confirmado,
+    /// o null si el usuario se arrepintió. Propiedad y no `event` porque
+    /// DEVUELVE un valor: un evento con retorno da CS0079.
+    /// </summary>
+    public Func<VentaParaEditar, EdicionVenta?>? EdicionSolicitada { get; set; }
+
     /// <summary>Cancelar mueve plata y devuelve un vehículo: es de Admin.</summary>
     public bool PuedeCancelar => SesionActual.EsAdmin;
+
+    /// <summary>
+    /// Muestra el botón "Editar" (033). El Admin lo tiene siempre; a los demás
+    /// se los habilita él con el permiso ventas_editar, igual que en préstamos.
+    /// </summary>
+    public bool PuedeEditar => SesionActual.EsAdmin || SesionActual.TienePermiso(Permisos.VentasEditar);
 
     /// <summary>Ya cancelada: se muestra el cartel y se esconde el botón.</summary>
     [ObservableProperty] private bool _estaCancelada;
@@ -494,6 +507,86 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Corrige la venta (033). Antes de abrir el formulario le pregunta al
+    /// servicio hasta dónde se puede editar, para que la pantalla no ofrezca
+    /// cambiar montos que después van a ser rechazados.
+    /// </summary>
+    [RelayCommand]
+    private async Task EditarAsync()
+    {
+        if (EdicionSolicitada is null || _estado is not { } estado || _datosVenta is not { } d)
+            return;
+
+        try
+        {
+            var permitido = await _plazos.ConsultarEdicionPermitidaAsync(_ventaId);
+
+            var cambios = EdicionSolicitada(new VentaParaEditar(
+                _ventaId, estado.Codigo, estado.Tipo, estado.Precio, estado.Inicial,
+                d.MetodoPago, d.Notas, permitido, PrevisualizarCalendario));
+            if (cambios is null)
+                return;   // se arrepintió
+
+            await _plazos.EditarVentaAsync(cambios);
+            await CargarAsync(_ventaId);
+            _dialogos.Informar("Venta corregida",
+                $"La venta {estado.Codigo} quedó corregida." +
+                (permitido.Todo && estado.Tipo == TipoVenta.Plazos
+                    ? "\n\nEl calendario de plazos se rehizo con los datos nuevos."
+                    : ""));
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            _dialogos.MostrarError("Corregir venta", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error corrigiendo la venta {Id}", _ventaId);
+            _dialogos.MostrarError("Corregir venta", $"No se pudo corregir la venta.\n\n{ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Cómo queda el calendario con lo que el usuario está tipeando. Usa el
+    /// MISMO cálculo que persiste el servicio, así lo que se ve en pantalla es
+    /// exactamente lo que se va a guardar.
+    /// </summary>
+    private string PrevisualizarCalendario(decimal precio, decimal inicial)
+    {
+        if (inicial > precio)
+            return "La inicial no puede ser mayor que el precio de venta.";
+
+        var saldo = precio - inicial;
+        if (_estado is not { } estado || estado.Tipo != TipoVenta.Plazos)
+            return $"Saldo tras lo recibido: {saldo.ToString("N2", Textos.CulturaRd)} DOP.";
+
+        if (Plazos.Count == 0)
+            return "Esta venta no tiene plazos cargados.";
+
+        try
+        {
+            // Se conservan la cantidad, la fecha del primero y el intervalo: es
+            // lo que se pactó con el cliente y no es lo que se está corrigiendo.
+            var cadaDias = Plazos.Count > 1
+                ? Math.Max(1, Plazos[1].Plazo.FechaVencimiento.DayNumber
+                            - Plazos[0].Plazo.FechaVencimiento.DayNumber)
+                : 30;
+            var nuevos = VentaPlazoService.CalcularPlazos(precio,
+                new PlanPlazos(inicial, Plazos.Count, Plazos[0].Plazo.FechaVencimiento, cadaDias));
+
+            return $"{nuevos.Count} plazo(s) de {nuevos[0].Monto.ToString("N2", Textos.CulturaRd)} DOP " +
+                   $"(el último, {nuevos[^1].Monto.ToString("N2", Textos.CulturaRd)}). " +
+                   $"Total a plazos: {saldo.ToString("N2", Textos.CulturaRd)} DOP.";
+        }
+        catch (ArgumentException ex)
+        {
+            // El cálculo valida los rangos; se muestra su mensaje tal cual en
+            // vez de inventar uno propio que diga otra cosa.
+            return ex.Message;
+        }
+    }
+
+    /// <summary>
     /// Junta los papeles que corresponden a ESTA venta y se los pasa a la View
     /// para imprimir y archivar (033).
     ///
@@ -604,3 +697,20 @@ public record PapelesDeVenta(
     FacturaVentaImpresa Factura,
     CartaCompromisoImpresa? Carta,
     ReciboSeparacionImpreso? Separacion);
+
+/// <summary>
+/// Lo que el diálogo de corrección de una venta necesita. Incluye el delegado
+/// de vista previa porque la capa de Views NO referencia Services (lo impide el
+/// grafo de proyectos, a propósito): el cálculo baja del ViewModel.
+/// </summary>
+public record VentaParaEditar(
+    long VentaId,
+    string Codigo,
+    TipoVenta Tipo,
+    decimal Precio,
+    decimal Inicial,
+    MetodoPago Metodo,
+    string? Notas,
+    EdicionVentaPermitida Permitido,
+    /// <summary>(precio, inicial) → cómo queda el calendario, en una línea.</summary>
+    Func<decimal, decimal, string> Previsualizar);

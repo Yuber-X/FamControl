@@ -1,4 +1,4 @@
-namespace FAControl.Models;
+﻿namespace FAControl.Models;
 
 /// <summary>
 /// Cómo se pactó la venta del dealer (016). Coincide con ENUM venta_vehiculo.tipo_venta.
@@ -125,4 +125,39 @@ public record EstadoFinanciamiento(
     /// <summary>Separación vencida: pasó la fecha límite y aún debe (derecho de 15 días).</summary>
     public bool SeparacionVencida(DateOnly hoy) =>
         Tipo == TipoVenta.Separacion && FechaLimite is { } limite && hoy > limite && !EstaSaldada;
+}
+
+/// <summary>
+/// Correccion de una venta ya registrada (033). Igual que en prestamos y
+/// alquileres, lo que se puede tocar depende de si ya hubo cobros — ver
+/// VentaPlazoService.EditarVentaAsync.
+/// </summary>
+public record EdicionVenta(
+    long VentaId,
+    decimal Precio,
+    decimal Inicial,
+    MetodoPago Metodo,
+    string? Notas,
+    /// <summary>Por que se corrige. Va a la auditoria; obligatorio.</summary>
+    string Motivo);
+
+/// <summary>
+/// Que tanto se puede corregir de una venta, segun si ya tiene abonos.
+///
+/// EL PORQUE es el mismo que en prestamos: cada abono emite un recibo numerado
+/// que se entrega impreso, y ese papel afirma un saldo. Si despues se cambiara
+/// el precio, el calendario de plazos se recalcula y el recibo que tiene el
+/// cliente pasa a decir algo que el sistema ya no sostiene.
+/// </summary>
+public record EdicionVentaPermitida(bool Todo, int AbonosRegistrados, string Motivo)
+{
+    public bool SoloDescriptivo => !Todo;
+
+    public static EdicionVentaPermitida Completa() =>
+        new(true, 0, "Esta venta todavía no tiene abonos: se puede corregir por completo.");
+
+    public static EdicionVentaPermitida Limitada(int abonos) => new(false, abonos,
+        $"Esta venta ya tiene {abonos} abono(s) con recibo emitido. El precio y la inicial " +
+        "quedan fijos —el recibo que tiene el cliente depende de ellos—; se pueden corregir " +
+        "el método de pago y las notas.");
 }

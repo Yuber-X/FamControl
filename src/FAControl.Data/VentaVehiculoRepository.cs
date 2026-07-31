@@ -1,4 +1,4 @@
-using MySqlConnector;
+﻿using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models;
 
@@ -223,5 +223,29 @@ public class VentaVehiculoRepository
                 reader.IsDBNull(1) ? 0m : reader.GetDecimal(1),
                 reader.IsDBNull(2) ? 0m : reader.GetDecimal(2),
                 reader.IsDBNull(3) ? 0m : reader.GetDecimal(3));
+    }
+
+    /// <summary>
+    /// Corrige los datos de una venta (033). El codigo, el vehiculo y el
+    /// cliente NO se tocan: el primero ya se emitio, y cambiar los otros dos no
+    /// es corregir un tipeo, es otra venta.
+    /// </summary>
+    public async Task ActualizarDatosAsync(long ventaId, decimal precio, decimal inicial,
+        MetodoPago metodo, string? notas, MySqlConnection conexion, MySqlTransaction transaccion,
+        CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            UPDATE {DbNames.VentaVehiculo}
+            SET precio = @precio, inicial = @inicial, metodo_pago = @metodo, notas = @notas
+            WHERE id = @id;
+            """;
+        cmd.Parameters.AddWithValue("@precio", precio);
+        cmd.Parameters.AddWithValue("@inicial", inicial);
+        cmd.Parameters.AddWithValue("@metodo", EnumMap.ADb(metodo));
+        cmd.Parameters.AddWithValue("@notas", (object?)notas ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@id", ventaId);
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 }

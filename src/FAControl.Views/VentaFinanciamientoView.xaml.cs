@@ -43,6 +43,7 @@ public partial class VentaFinanciamientoView : UserControl
                 _vm.CartaSolicitada += MostrarCarta;
                 _vm.SeparacionSolicitada += MostrarSeparacion;
                 _vm.CancelacionSolicitada = PedirCancelacion;
+                _vm.EdicionSolicitada = PedirCorreccion;
             }
         };
     }
@@ -233,6 +234,16 @@ public partial class VentaFinanciamientoView : UserControl
         {
             Serilog.Log.Warning(ex, "No se pudo mostrar {Titulo}", titulo);
         }
+    }
+
+    /// <summary>
+    /// Abre el formulario de corrección (033) y devuelve lo confirmado, o null
+    /// si el usuario se arrepintió: abrir el diálogo no cambia nada.
+    /// </summary>
+    private EdicionVenta? PedirCorreccion(VentaParaEditar datos)
+    {
+        var ventana = new EditarVentaWindow(datos) { Owner = Window.GetWindow(this) };
+        return ventana.ShowDialog() == true ? ventana.Resultado : null;
     }
 
     /// <summary>

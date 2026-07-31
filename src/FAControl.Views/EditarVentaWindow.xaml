@@ -1,0 +1,81 @@
+<Window x:Class="FAControl.Views.EditarVentaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Corregir venta"
+        Width="500" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource Brush.FondoApp}">
+
+  <Border Margin="24" Style="{DynamicResource Card}">
+    <StackPanel>
+      <TextBlock x:Name="TextoTitulo" Style="{DynamicResource Texto.Titulo3}" TextWrapping="Wrap" />
+      <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
+                 Text="Para arreglar errores de digitación. El vehículo y el cliente no se cambian acá: eso no es corregir un tipeo, es otra venta." />
+
+      <!-- Aviso cuando ya hay abonos: explica POR QUÉ hay campos bloqueados -->
+      <Border x:Name="AvisoLimite" Margin="0,12,0,0" CornerRadius="8" Padding="14,12"
+              Background="{DynamicResource Brush.EnMora.Fondo}" Visibility="Collapsed">
+        <TextBlock x:Name="TextoLimite" Style="{DynamicResource Texto.Caption}"
+                   Foreground="{DynamicResource Brush.EnMora.Texto}" TextWrapping="Wrap" />
+      </Border>
+
+      <Grid x:Name="ZonaMontos" Margin="0,16,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="12" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Precio de venta (DOP)"
+                   Style="{DynamicResource Input.Label}" />
+        <TextBox Grid.Row="1" Grid.Column="0" x:Name="CajaPrecio" Height="34"
+                 Style="{DynamicResource Input.Texto}" TextChanged="Campo_Changed" />
+
+        <TextBlock Grid.Row="0" Grid.Column="2" x:Name="EtiquetaInicial" Text="Inicial (DOP)"
+                   Style="{DynamicResource Input.Label}" />
+        <TextBox Grid.Row="1" Grid.Column="2" x:Name="CajaInicial" Height="34"
+                 Style="{DynamicResource Input.Texto}" TextChanged="Campo_Changed" />
+      </Grid>
+
+      <!-- Cómo queda el calendario con lo que se está tipeando -->
+      <Border x:Name="PanelCuenta" Margin="0,14,0,0" CornerRadius="8" Padding="14,12"
+              Background="{DynamicResource Brush.PrimarioSutil}">
+        <TextBlock x:Name="TextoCuenta" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                   TextWrapping="Wrap" />
+      </Border>
+
+      <TextBlock Text="Método de pago" Style="{DynamicResource Input.Label}" Margin="0,14,0,0" />
+      <ComboBox x:Name="ComboMetodo" Height="34" HorizontalAlignment="Left" Width="200" />
+
+      <TextBlock Text="Notas" Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
+      <TextBox x:Name="CajaNotas" Height="52" Style="{DynamicResource Input.Texto}"
+               TextWrapping="Wrap" AcceptsReturn="True"
+               VerticalContentAlignment="Top" Padding="10,8" />
+
+      <TextBlock Text="¿Por qué se corrige? (queda en el historial)"
+                 Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
+      <TextBox x:Name="CajaMotivo" Height="34" Style="{DynamicResource Input.Texto}" />
+
+      <TextBlock x:Name="TextoError" Style="{DynamicResource Texto.Caption}"
+                 Foreground="{DynamicResource Brush.Destructivo}"
+                 TextWrapping="Wrap" Margin="0,10,0,0" />
+
+      <Grid Margin="0,18,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="8" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Button Grid.Column="0" Content="Guardar corrección"
+                Style="{DynamicResource Boton.Primario}" Click="Confirmar_Click" />
+        <Button Grid.Column="2" Content="Volver" Style="{DynamicResource Boton.Secundario}"
+                IsCancel="True" Click="Volver_Click" />
+      </Grid>
+    </StackPanel>
+  </Border>
+</Window>

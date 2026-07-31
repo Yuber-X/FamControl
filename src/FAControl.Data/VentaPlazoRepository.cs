@@ -1,4 +1,4 @@
-using MySqlConnector;
+﻿using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models;
 
@@ -248,4 +248,40 @@ public class VentaPlazoRepository
         MontoPagado = reader.GetDecimal("monto_pagado"),
         Estado = EnumMap.EstadoPlazoDeDb(reader.GetString("estado"))
     };
+
+    /// <summary>
+    /// Cuantos abonos tiene la venta (033): decide hasta donde se puede
+    /// corregir. La inicial NO cuenta como abono — se recibe al firmar y no
+    /// emite recibo numerado.
+    /// </summary>
+    public async Task<int> ContarAbonosAsync(long ventaId, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT COUNT(*) FROM {DbNames.VentaPlazoPago} p
+            JOIN {DbNames.VentaPlazo} z ON z.id = p.plazo_id
+            WHERE z.venta_id = @venta;
+            """;
+        cmd.Parameters.AddWithValue("@venta", ventaId);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct));
+    }
+
+    /// <summary>
+    /// Borra el calendario de plazos para regenerarlo tras una correccion.
+    ///
+    /// El servicio solo llega aca cuando NO hay ningun abono, asi que ningun
+    /// plazo tiene recibo colgando: regenerar es recalcular, no borrar historia.
+    /// La FK de venta_plazo_pago es la ultima red — con un pago, MySQL rechaza
+    /// el DELETE y la transaccion se revierte.
+    /// </summary>
+    public async Task BorrarPlazosAsync(long ventaId, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"DELETE FROM {DbNames.VentaPlazo} WHERE venta_id = @venta;";
+        cmd.Parameters.AddWithValue("@venta", ventaId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
 }

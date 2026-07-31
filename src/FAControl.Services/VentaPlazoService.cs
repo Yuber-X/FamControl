@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 using Serilog;
@@ -310,5 +310,136 @@ public class VentaPlazoService
     {
         if (!SesionActual.TienePermiso(Permisos.Ventas))
             throw new UnauthorizedAccessException("No tenés permiso para cobrar plazos de ventas.");
+    }
+
+    /// <summary>
+    /// Hasta donde se puede corregir esta venta (033). La UI lo consulta para
+    /// bloquear campos; <see cref="EditarVentaAsync"/> lo vuelve a verificar por
+    /// su cuenta, porque la pantalla puede quedar abierta mientras otro cobra.
+    /// </summary>
+    public async Task<EdicionVentaPermitida> ConsultarEdicionPermitidaAsync(long ventaId,
+        CancellationToken ct = default)
+    {
+        var abonos = await _plazos.ContarAbonosAsync(ventaId, ct);
+        return abonos == 0 ? EdicionVentaPermitida.Completa() : EdicionVentaPermitida.Limitada(abonos);
+    }
+
+    /// <summary>
+    /// Corrige una venta ya registrada (033 — el boton "Editar" que pidio el
+    /// cliente junto al de cancelar).
+    ///
+    /// DOS NIVELES, segun si ya se cobro algo:
+    ///  * SIN abonos -> se corrigen precio, inicial, metodo y notas, y el
+    ///    calendario de plazos se REGENERA con los numeros nuevos. Se conservan
+    ///    la cantidad de plazos, la fecha del primero y el intervalo: son lo que
+    ///    se pacto con el cliente y no es lo que se esta corrigiendo.
+    ///  * CON abonos -> solo metodo y notas. Cada abono emitio un recibo
+    ///    numerado que se entrego impreso y afirma un saldo; recalcular el
+    ///    calendario por detras haria mentir a ese papel.
+    ///
+    /// Lo que NUNCA se toca: el codigo (VC-0001), el vehiculo y el cliente.
+    ///
+    /// Una venta CANCELADA no se corrige: ya se liquido con su retencion.
+    /// </summary>
+    public async Task EditarVentaAsync(EdicionVenta cambios, CancellationToken ct = default)
+    {
+        if (!SesionActual.EsAdmin && !SesionActual.TienePermiso(Permisos.VentasEditar))
+            throw new UnauthorizedAccessException("No tenes permiso para corregir ventas.");
+        if (string.IsNullOrWhiteSpace(cambios.Motivo))
+            throw new ArgumentException(
+                "Indica por que se corrige la venta: queda en el historial.", nameof(cambios));
+
+        var venta = await _ventas.ObtenerPorIdAsync(cambios.VentaId, ct)
+            ?? throw new InvalidOperationException($"No existe la venta con id {cambios.VentaId}.");
+        // Cancelada = tiene ficha de cancelacion (028). Se pregunta asi y no por
+        // una propiedad del modelo porque el estado vive en la base desde 028 y
+        // el modelo nunca lo necesito hasta ahora.
+        if (await _ventas.ObtenerCancelacionAsync(cambios.VentaId, ct) is not null)
+            throw new InvalidOperationException(
+                $"La venta {venta.Codigo} esta cancelada: ya se liquido con su retencion y no se corrige.");
+
+        // Se relee y no se confia en lo que trajo la pantalla: entre que se
+        // abrio el formulario y se guardo, otro usuario pudo cobrar un plazo.
+        var permitido = await ConsultarEdicionPermitidaAsync(cambios.VentaId, ct);
+
+        var detalle = new List<string>();
+        if (venta.MetodoPago != cambios.Metodo)
+            detalle.Add($"metodo {venta.MetodoPago} a {cambios.Metodo}");
+        if (venta.Notas != cambios.Notas)
+            detalle.Add("notas");
+
+        var precio = venta.Precio;
+        var inicial = venta.Inicial;
+        List<VentaPlazo>? plazosNuevos = null;
+
+        if (permitido.Todo)
+        {
+            precio = Math.Round(cambios.Precio, 2, MidpointRounding.AwayFromZero);
+            inicial = Math.Round(cambios.Inicial, 2, MidpointRounding.AwayFromZero);
+            if (precio <= 0m)
+                throw new ArgumentException("El precio de venta debe ser mayor que cero.", nameof(cambios));
+            if (inicial < 0m || inicial > precio)
+                throw new ArgumentException(
+                    "La inicial no puede ser negativa ni mayor que el precio.", nameof(cambios));
+
+            if (venta.Precio != precio)
+                detalle.Add($"precio {venta.Precio:N2} a {precio:N2}");
+            if (venta.Inicial != inicial)
+                detalle.Add($"inicial {venta.Inicial:N2} a {inicial:N2}");
+
+            // El calendario es un calculo derivado del precio y la inicial: si
+            // alguno cambio, se rehace. La cantidad de plazos, la fecha del
+            // primero y el intervalo se DEDUCEN de los plazos actuales — es lo
+            // que se pacto y no es lo que se esta corrigiendo.
+            if (venta.TipoVenta == TipoVenta.Plazos &&
+                (venta.Precio != precio || venta.Inicial != inicial))
+            {
+                var actuales = await _plazos.ObtenerDeVentaAsync(cambios.VentaId, ct);
+                if (actuales.Count == 0)
+                    throw new InvalidOperationException(
+                        "Esta venta figura como financiada pero no tiene plazos cargados. " +
+                        "Avisale al soporte antes de corregirla.");
+
+                var cadaDias = actuales.Count > 1
+                    ? Math.Max(1, actuales[1].FechaVencimiento.DayNumber - actuales[0].FechaVencimiento.DayNumber)
+                    : 30;
+                plazosNuevos = CalcularPlazos(precio,
+                    new PlanPlazos(inicial, actuales.Count, actuales[0].FechaVencimiento, cadaDias));
+                detalle.Add($"calendario regenerado ({actuales.Count} plazo(s))");
+            }
+        }
+
+        if (detalle.Count == 0)
+            return;   // Nada cambio: no se ensucia la auditoria con un registro vacio
+
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var transaccion = await conexion.BeginTransactionAsync(ct);
+        try
+        {
+            await _ventas.ActualizarDatosAsync(cambios.VentaId, precio, inicial, cambios.Metodo,
+                cambios.Notas, conexion, transaccion, ct);
+
+            if (plazosNuevos is not null)
+            {
+                await _plazos.BorrarPlazosAsync(cambios.VentaId, conexion, transaccion, ct);
+                await _plazos.InsertarPlazosAsync(cambios.VentaId, plazosNuevos, conexion, transaccion, ct);
+            }
+
+            await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Modificar,
+                DbNames.VentaVehiculo, cambios.VentaId,
+                $"Venta {venta.Codigo} corregida ({string.Join(", ", detalle)}). " +
+                $"Motivo: {cambios.Motivo.Trim()}" +
+                (permitido.Todo ? "" : " — sin tocar montos: ya tiene abonos"),
+                conexion, transaccion, ct);
+
+            await transaccion.CommitAsync(ct);
+            Log.Information("Venta {Codigo} corregida por {Usuario}: {Detalle}",
+                venta.Codigo, SesionActual.Username, string.Join(", ", detalle));
+        }
+        catch
+        {
+            await transaccion.RollbackAsync(CancellationToken.None);
+            throw;
+        }
     }
 }
