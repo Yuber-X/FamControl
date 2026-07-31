@@ -24,6 +24,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         ConfigurarSerilog();
+        ConfigurarRedDeSeguridad();
         _servicios = ConfigurarServicios();
 
         // El tema ya NO es global: depende del MODO elegido (DealControl arranca
@@ -44,6 +45,37 @@ public partial class App : Application
         // las ventanas van y vienen (launcher → login → shell → launcher...).
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         await CicloDeVidaAsync();
+    }
+
+    /// <summary>
+    /// Red de seguridad: cualquier error que nadie haya atrapado se registra y
+    /// se le muestra al usuario, en vez de cerrar la aplicación de golpe.
+    ///
+    /// Existe porque pasó: un error al subir un archivo al expediente cerraba
+    /// FAControl sin dejar rastro, y en la máquina del cliente eso es
+    /// indistinguible de "el programa se rompió". Perder una pantalla es
+    /// molesto; perder la aplicación entera sin explicación, mucho peor.
+    /// </summary>
+    private void ConfigurarRedDeSeguridad()
+    {
+        DispatcherUnhandledException += (_, e) =>
+        {
+            Log.Error(e.Exception, "Error no controlado en la interfaz");
+            MessageBox.Show(
+                "Ocurrió un error inesperado.\n\n" + e.Exception.Message +
+                "\n\nLa aplicación sigue abierta. Si se repite, avisá al soporte: " +
+                Soporte.Telefono,
+                "FAControl", MessageBoxButton.OK, MessageBoxImage.Warning);
+            e.Handled = true;   // no se cierra la app
+        };
+
+        // Tareas en segundo plano cuyo error nadie observó: se registran, pero
+        // no se le avisa al usuario — no interrumpen nada que él esté haciendo.
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Log.Error(e.Exception, "Error no observado en una tarea en segundo plano");
+            e.SetObserved();
+        };
     }
 
     /// <summary>

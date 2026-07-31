@@ -84,7 +84,7 @@ public class DocumentoVentaRepository
         cmd.CommandText = $"""
             INSERT INTO {DbNames.Documento}
               (venta_id, prestamo_id, nombre, ruta_relativa, extension, tamano_bytes, tipo, notas, created_by)
-            VALUES (@venta, @nombre, @ruta, @ext, @tamano, @tipo, @notas, @usuario);
+            VALUES (@venta, @prestamo, @nombre, @ruta, @ext, @tamano, @tipo, @notas, @usuario);
             SELECT LAST_INSERT_ID();
             """;
         AgregarDueno(cmd, dueno);

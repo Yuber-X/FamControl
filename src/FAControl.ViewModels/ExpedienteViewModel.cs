@@ -170,6 +170,15 @@ public partial class ExpedienteViewModel : ObservableObject
                 {
                     rechazados.Add($"• {Path.GetFileName(ruta)}: {ex.Message.Split('\n')[0]}");
                 }
+                catch (Exception ex)
+                {
+                    // Cualquier otra cosa (la base, el disco) se informa y se
+                    // sigue con el resto de los archivos. Antes escapaba de este
+                    // async void y CERRABA la aplicación sin decir una palabra:
+                    // pasó de verdad al subir un contrato.
+                    Log.Error(ex, "Error inesperado subiendo {Archivo} al expediente", ruta);
+                    rechazados.Add($"• {Path.GetFileName(ruta)}: {ex.Message.Split('\n')[0]}");
+                }
             }
         }
         catch (UnauthorizedAccessException ex)
