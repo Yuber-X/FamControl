@@ -210,10 +210,15 @@ public class FlujoPrestamoPagoTests : IAsyncLifetime
     [Fact]
     public async Task MetricasDeCliente_ReflejanPrestamosYCobros()
     {
-        // Préstamo 12,000 al 5% × 12 con la 1ra cuota vencida, más un abono de 1,600
+        // Préstamo 12,000 al 5% × 12 con la 1ra cuota vencida, más un abono de 1,600.
+        //
+        // La primera cuota vence hace TRES DÍAS, no hace un mes: con un mes, la
+        // segunda cuota cae justo sobre el día de hoy y en los días 29, 30 y 31
+        // queda vencida también, porque restar un mes a un 31 da un 30. Este test
+        // fallaba solo los días 31 — y así fue como apareció.
         var (prestamoId, _) = await _prestamos.CrearAsync(new NuevoPrestamo(
             _clienteId, 12_000m, 5m, 12, Modalidad.Mensual, MetodoAmortizacion.CuotaFija,
-            FechaNegocio.Hoy.AddMonths(-1), null, null));
+            FechaNegocio.Hoy.AddDays(-3), null, null));
         await _pagos.RegistrarPagoAsync(new SolicitudPago(
             prestamoId, 1_600m, MetodoPago.Efectivo, null));
 
