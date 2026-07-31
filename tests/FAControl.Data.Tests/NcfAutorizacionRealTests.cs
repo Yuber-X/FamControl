@@ -63,6 +63,9 @@ public class NcfAutorizacionRealTests : IAsyncLifetime
             var usuarioId = Convert.ToInt64(await cmd.ExecuteScalarAsync());
             SesionActual.Iniciar(usuarioId, "test", "Usuario Test", Roles.Admin,
                 Permisos.Todos, DateTime.UtcNow, 1);
+            // La secuencia es POR MODO (030): se fija explícito para no depender
+            // de lo que haya dejado otro test de la colección.
+            SesionActual.EstablecerModo(ModoApp.PrestControl);
         }
         using (var cmd = conexion.CreateCommand())
         {
@@ -148,7 +151,7 @@ public class NcfAutorizacionRealTests : IAsyncLifetime
             .WithMessage("*agotó*");
 
         // Y la secuencia quedó donde debía: 16 pedida sobre un tope de 15
-        var secuencia = await _ncfRepo.ObtenerActivaAsync();
+        var secuencia = await _ncfRepo.ObtenerActivaAsync(SesionActual.Modo);
         secuencia!.Proxima.Should().Be(Aprobados + 1);
         secuencia.EstaAgotada.Should().BeTrue();
         secuencia.Restantes.Should().Be(0);
@@ -165,12 +168,12 @@ public class NcfAutorizacionRealTests : IAsyncLifetime
         using var conexion = await _factory.AbrirAsync();
         using (var transaccion = await conexion.BeginTransactionAsync())
         {
-            var ncf = await _ncfRepo.ReservarSiguienteAsync(conexion, transaccion, FechaNegocio.Hoy);
+            var ncf = await _ncfRepo.ReservarSiguienteAsync(SesionActual.Modo, conexion, transaccion, FechaNegocio.Hoy);
             ncf.Should().Be("B0100000001");
             await transaccion.RollbackAsync();
         }
 
-        var secuencia = await _ncfRepo.ObtenerActivaAsync();
+        var secuencia = await _ncfRepo.ObtenerActivaAsync(SesionActual.Modo);
         secuencia!.Proxima.Should().Be(1);   // sigue disponible
     }
 
@@ -197,6 +200,55 @@ public class NcfAutorizacionRealTests : IAsyncLifetime
         resultado.Recibo.Ncf.Should().Be("B0100000001");
     }
 
+    /// <summary>
+    /// Cada estancia lleva su PROPIA secuencia (030). Es el pedido del cliente:
+    /// "en comprobante fiscal debe de estar vacío por cada modo... puede generar
+    /// conflictos por si son una empresa de multi-desempeños".
+    ///
+    /// Lo que se prueba: configurar el dealer no toca lo de PrestControl, los
+    /// dos pueden usar el mismo prefijo con rangos distintos, y consumir de uno
+    /// no mueve el contador del otro.
+    /// </summary>
+    [Fact]
+    public async Task CadaEstanciaLlevaSuPropiaSecuencia()
+    {
+        // PrestControl ya tiene la suya del setup (B01, próxima 1, tope 15).
+        // El dealer arranca VACÍO: es lo que se pidió.
+        SesionActual.EstablecerModo(ModoApp.DealerControl);
+        (await _ncfServicio.ObtenerSecuenciaAsync())
+            .Should().BeNull("cada estancia arranca sin secuencia configurada");
+
+        // Se le configura una con el MISMO prefijo pero otro rango: pasa,
+        // porque la clave única es (modo, prefijo).
+        await _ncfServicio.GuardarSecuenciaAsync(new NcfSecuencia
+        {
+            Prefijo = Prefijo, Largo = Largo, Proxima = 500, FinRango = 600, Activo = true
+        });
+
+        var delDealer = await _ncfServicio.ObtenerSecuenciaAsync();
+        delDealer!.Proxima.Should().Be(500);
+
+        // Y lo de préstamos quedó intacto
+        SesionActual.EstablecerModo(ModoApp.PrestControl);
+        var dePrestamos = await _ncfServicio.ObtenerSecuenciaAsync();
+        dePrestamos!.Proxima.Should().Be(1, "configurar el dealer no pisa la de préstamos");
+
+        // Consumir uno del dealer no mueve el contador de préstamos
+        SesionActual.EstablecerModo(ModoApp.DealerControl);
+        using (var conexion = await _factory.AbrirAsync())
+        using (var transaccion = await conexion.BeginTransactionAsync())
+        {
+            var ncf = await _ncfRepo.ReservarSiguienteAsync(
+                ModoApp.DealerControl, conexion, transaccion, FechaNegocio.Hoy);
+            ncf.Should().Be("B0100000500");
+            await transaccion.CommitAsync();
+        }
+
+        SesionActual.EstablecerModo(ModoApp.PrestControl);
+        (await _ncfServicio.ObtenerSecuenciaAsync())!.Proxima
+            .Should().Be(1, "los rangos no se comparten");
+    }
+
     /// <summary>Vencida la autorización, la app no emite aunque queden números.</summary>
     [Fact]
     public async Task VencidaLaAutorizacion_NoSeEmiteAunqueQuedenNumeros()
@@ -205,7 +257,7 @@ public class NcfAutorizacionRealTests : IAsyncLifetime
         using var transaccion = await conexion.BeginTransactionAsync();
 
         var despuesDelVencimiento = Vencimiento.AddDays(1);
-        var reservar = () => _ncfRepo.ReservarSiguienteAsync(conexion, transaccion, despuesDelVencimiento);
+        var reservar = () => _ncfRepo.ReservarSiguienteAsync(SesionActual.Modo, conexion, transaccion, despuesDelVencimiento);
 
         (await reservar.Should().ThrowAsync<InvalidOperationException>())
             .WithMessage("*venció*");

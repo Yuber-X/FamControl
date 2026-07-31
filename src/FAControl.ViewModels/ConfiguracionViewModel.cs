@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -21,6 +21,8 @@ public partial class ConfiguracionViewModel : ObservableObject
     private readonly IDialogService _dialogos;
     private readonly IAvisoVencidos _avisoVencidos;
     private readonly RecordatorioService _recordatorios;
+    /// <summary>Aviso de mercancia proxima a caducar: el equivalente del anterior en el POS.</summary>
+    private readonly FAControl.Services.Pos.RecordatorioCaducidadService _caducidad;
     private readonly EmailService _email;
     private readonly NcfService _ncf;
 
@@ -32,7 +34,8 @@ public partial class ConfiguracionViewModel : ObservableObject
 
     public ConfiguracionViewModel(AuthService auth, RespaldoService respaldo,
         ExportacionService exportacion, AjustesLocales ajustes, IDialogService dialogos,
-        IAvisoVencidos avisoVencidos, RecordatorioService recordatorios, EmailService email,
+        IAvisoVencidos avisoVencidos, RecordatorioService recordatorios,
+        FAControl.Services.Pos.RecordatorioCaducidadService caducidad, EmailService email,
         NcfService ncf)
     {
         _auth = auth;
@@ -42,6 +45,7 @@ public partial class ConfiguracionViewModel : ObservableObject
         _dialogos = dialogos;
         _avisoVencidos = avisoVencidos;
         _recordatorios = recordatorios;
+        _caducidad = caducidad;
         _email = email;
         _ncf = ncf;
 
@@ -71,7 +75,9 @@ public partial class ConfiguracionViewModel : ObservableObject
         _recordatoriosAutomaticos = ajustes.RecordatoriosAutomaticos;
         _gmailRemitente = ajustes.GmailRemitente;
         _correoDueno = ajustes.CorreoDueno;
-        _recordatorioDiasTexto = ajustes.RecordatorioDiasAntes.ToString();
+        _recordatorioDiasTexto = (SesionActual.Modo == ModoApp.Pos500
+            ? ajustes.AvisoCaducidadDias
+            : ajustes.RecordatorioDiasAntes).ToString();
         _negocioNombre = ajustes.NombreNegocio;
         _negocioPrestamista = ajustes.Prestamista;
         _negocioCiudad = ajustes.CiudadNegocio;
@@ -260,6 +266,73 @@ public partial class ConfiguracionViewModel : ObservableObject
     /// <summary>La contraseña de app llega de la View (PasswordBox no se bindea).</summary>
     public string GmailAppPassword { get; set; } = string.Empty;
 
+    // ---------- Textos de la sección de correo, según la estancia ----------
+    // Pedido del cliente (2026-07-30): en el punto de venta el correo no va a
+    // los clientes —no deben nada— sino al dueño, avisando de la mercancía que
+    // se está por vencer. La sección es la misma; cambia a quién le escribe y
+    // de qué.
+
+    public string RecordatoriosTitulo => EsPos500
+        ? "Aviso de caducidad por correo (Gmail)"
+        : "Recordatorios por correo (Gmail)";
+
+    public string RecordatoriosDescripcion => EsPos500
+        ? "Le envía UN correo al dueño con los productos ya caducados y los que están por caducar, " +
+          "con las unidades y el valor en riesgo. A los clientes no se les escribe: en el punto de " +
+          "venta no queda nada por cobrar. Si no hay nada que avisar, no se manda correo."
+        : "Envía un recordatorio de pago a cada cliente con cuota por vencer o vencida, y un resumen " +
+          "al dueño. El correo de cada cliente se pone en su ficha (pantalla Clientes).";
+
+    public string RecordatoriosActivarTexto => EsPos500
+        ? "Activar el aviso de caducidad por correo"
+        : "Activar recordatorios por correo";
+
+    public string RecordatoriosDiasEtiqueta => EsPos500
+        ? "Avisar (días antes de caducar)"
+        : "Avisar (días antes)";
+
+    public string RecordatoriosBotonTexto => EsPos500
+        ? "Enviar aviso ahora"
+        : "Enviar recordatorios ahora";
+
+    /// <summary>En el POS el destinatario es el único: no es "el del resumen", es EL correo.</summary>
+    public string CorreoDuenoEtiqueta => EsPos500
+        ? "Correo del dueño (destinatario)"
+        : "Correo del dueño (resumen)";
+
+    /// <summary>
+    /// Reevalúa todo lo que depende de la estancia activa. Hay secciones que
+    /// solo existen en un modo (las de préstamos no van en el punto de venta y
+    /// viceversa) y textos que cambian de significado.
+    /// </summary>
+    private void NotificarCambioDeEstancia()
+    {
+        OnPropertyChanged(nameof(EsPos500));
+        OnPropertyChanged(nameof(RecordatoriosTitulo));
+        OnPropertyChanged(nameof(RecordatoriosDescripcion));
+        OnPropertyChanged(nameof(RecordatoriosActivarTexto));
+        OnPropertyChanged(nameof(RecordatoriosDiasEtiqueta));
+        OnPropertyChanged(nameof(RecordatoriosBotonTexto));
+        OnPropertyChanged(nameof(CorreoDuenoEtiqueta));
+
+        // Los "días antes" salen de un ajuste distinto en cada estancia: hay que
+        // releerlo, si no la caja queda mostrando el número de la anterior.
+        // El guardado se suspende mientras tanto: escribir la propiedad dispara
+        // el guardado, y guardaría el número de la estancia vieja en el ajuste
+        // de la nueva.
+        _recargando = true;
+        try
+        {
+            RecordatorioDiasTexto = (EsPos500
+                ? _ajustes.AvisoCaducidadDias
+                : _ajustes.RecordatorioDiasAntes).ToString();
+        }
+        finally { _recargando = false; }
+    }
+
+    /// <summary>True mientras se recargan campos desde los ajustes (no guardar).</summary>
+    private bool _recargando;
+
     partial void OnRecordatoriosActivosChanged(bool value) => GuardarAjustesCorreo();
     partial void OnRecordatoriosAutomaticosChanged(bool value) => GuardarAjustesCorreo();
     partial void OnGmailRemitenteChanged(string value) => GuardarAjustesCorreo();
@@ -268,12 +341,25 @@ public partial class ConfiguracionViewModel : ObservableObject
 
     private void GuardarAjustesCorreo()
     {
+        if (_recargando)
+            return;
+
         _ajustes.RecordatoriosActivos = RecordatoriosActivos;
         _ajustes.RecordatoriosAutomaticos = RecordatoriosAutomaticos;
         _ajustes.GmailRemitente = GmailRemitente?.Trim() ?? string.Empty;
         _ajustes.CorreoDueno = CorreoDueno?.Trim() ?? string.Empty;
+        // Los "días antes" apuntan a cosas distintas según la estancia: acá se
+        // avisa de cuotas por vencer, en el POS de mercancía por caducar. Es la
+        // misma idea ("avisame N días antes"), así que se reusa el mismo campo
+        // en pantalla y se guarda en el ajuste que corresponde. Dos perillas
+        // separadas para lo mismo terminarían contradiciéndose.
         if (int.TryParse(RecordatorioDiasTexto, out var dias) && dias >= 0)
-            _ajustes.RecordatorioDiasAntes = dias;
+        {
+            if (EsPos500)
+                _ajustes.AvisoCaducidadDias = dias;
+            else
+                _ajustes.RecordatorioDiasAntes = dias;
+        }
         // La contraseña solo se guarda si el usuario escribió una (no la pisa con vacío)
         if (!string.IsNullOrEmpty(GmailAppPassword))
             _ajustes.GmailAppPassword = GmailAppPassword;
@@ -343,7 +429,15 @@ public partial class ConfiguracionViewModel : ObservableObject
         }
     }
 
-    /// <summary>Envía los recordatorios AHORA (manual).</summary>
+    /// <summary>
+    /// Envía los recordatorios AHORA (manual). QUÉ se envía depende de la
+    /// estancia (pedido del cliente 2026-07-30):
+    ///  * En el punto de venta, UN correo al dueño con los productos caducados
+    ///    o por caducar. Ahí el cliente no debe nada; lo que corre riesgo es la
+    ///    mercancía.
+    ///  * En las demás, el recordatorio de cuota a cada cliente más el resumen
+    ///    al dueño, que es lo que empuja a cobrar.
+    /// </summary>
     [RelayCommand]
     private async Task EnviarRecordatoriosAsync()
     {
@@ -356,6 +450,18 @@ public partial class ConfiguracionViewModel : ObservableObject
         try
         {
             Ocupado = true;
+
+            if (EsPos500)
+            {
+                var caducidad = await _caducidad.EnviarAsync();
+                ActualizarUltimoRecordatorio();
+                MensajeCorreo = caducidad.Total == 0
+                    ? caducidad.Detalle
+                    : $"{caducidad.Caducados} caducado(s) y {caducidad.PorCaducar} por caducar. " +
+                      caducidad.Detalle;
+                return;
+            }
+
             var r = await _recordatorios.EnviarAsync();
             ActualizarUltimoRecordatorio();
             MensajeCorreo =
@@ -507,7 +613,7 @@ public partial class ConfiguracionViewModel : ObservableObject
             ? guardada
             : ImpresoraPredeterminadaDelSistema;
 
-        OnPropertyChanged(nameof(EsPos500));
+        NotificarCambioDeEstancia();
     }
 
     /// <summary>Opción "usar la que Windows tenga como predeterminada".</summary>
@@ -569,7 +675,7 @@ public partial class ConfiguracionViewModel : ObservableObject
         ActualizarArranqueTexto();
         // Hay secciones que solo existen en un modo (las de préstamos no van en
         // el punto de venta y viceversa): al cambiar de estancia se reevalúan.
-        OnPropertyChanged(nameof(EsPos500));
+        NotificarCambioDeEstancia();
     }
 
     private void ActualizarArranqueTexto() =>

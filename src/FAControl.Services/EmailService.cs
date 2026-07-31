@@ -27,8 +27,14 @@ public class EmailService
         !string.IsNullOrWhiteSpace(_ajustes.GmailRemitente) &&
         !string.IsNullOrWhiteSpace(_ajustes.GmailAppPassword);
 
-    /// <summary>Envía un correo. Lanza si SMTP falla (el llamador decide cómo avisar).</summary>
-    public async Task EnviarAsync(string destinatario, string asunto, string cuerpo,
+    /// <summary>
+    /// Envía un correo. Lanza si SMTP falla (el llamador decide cómo avisar).
+    ///
+    /// Es `virtual` para que los tests puedan sustituirla: sin eso, probar qué
+    /// productos entran en el aviso de caducidad o qué clientes reciben
+    /// recordatorio exigiría abrir una conexión real a Gmail.
+    /// </summary>
+    public virtual async Task EnviarAsync(string destinatario, string asunto, string cuerpo,
         CancellationToken ct = default)
     {
         if (!EstaConfigurado)

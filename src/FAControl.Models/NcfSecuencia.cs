@@ -8,6 +8,11 @@ namespace FAControl.Models;
 /// </summary>
 public class NcfSecuencia
 {
+    // De qué estancia es esta secuencia (030) NO se guarda acá a propósito: este
+    // modelo describe la autorización de la DGII (prefijo, rango, vencimiento),
+    // y quién la usa es un asunto de ruteo. El modo viaja como parámetro en cada
+    // operación del repositorio. Además, FAControl.Models no referencia a
+    // FAControl.Common —es la capa sin dependencias— así que ModoApp no llega acá.
     public int Id { get; set; }
     public string Prefijo { get; set; } = "B02";
     /// <summary>Dígitos de la secuencia: 8 para NCF tradicional, 10 para e-CF.</summary>

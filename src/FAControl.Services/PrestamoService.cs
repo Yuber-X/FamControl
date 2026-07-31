@@ -94,7 +94,7 @@ public class PrestamoService
             // Gratuito DGII) o reservado de la secuencia local, DENTRO de la
             // misma transacción — un rollback no consume el número.
             var ncf = solicitud.AsignarNcfAuto
-                ? await _ncf.ReservarSiguienteAsync(conexion, transaccion, FechaNegocio.Hoy, ct)
+                ? await _ncf.ReservarSiguienteAsync(SesionActual.Modo, conexion, transaccion, FechaNegocio.Hoy, ct)
                 : string.IsNullOrWhiteSpace(solicitud.Ncf) ? null : solicitud.Ncf.Trim().ToUpperInvariant();
 
             var prestamo = new Prestamo

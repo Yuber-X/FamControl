@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.ConfiguracionView"
+﻿<UserControl x:Class="FAControl.Views.ConfiguracionView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -232,10 +232,10 @@
       <!-- ============ RECORDATORIOS POR CORREO ============ -->
       <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
         <StackPanel>
-          <TextBlock Text="Recordatorios por correo (Gmail)" Style="{DynamicResource Texto.Titulo3}"
+          <TextBlock Text="{Binding RecordatoriosTitulo}" Style="{DynamicResource Texto.Titulo3}"
                      Margin="0,0,0,4" />
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,4"
-                     Text="Envía un recordatorio de pago a cada cliente con cuota por vencer o vencida, y un resumen al dueño. El correo de cada cliente se pone en su ficha (pantalla Clientes)." />
+                     Text="{Binding RecordatoriosDescripcion}" />
           <!-- Guía del App Password: la causa #1 de fallos es usar la contraseña normal -->
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12">
             <Run Text="La 'Contraseña de aplicación' NO es tu contraseña de Gmail, ni tu PIN, ni la de FAControl: es un código de 16 letras que genera Google (la cuenta remitente debe tener la verificación en 2 pasos activada). Pasos: 1) abrí " />
@@ -244,7 +244,7 @@
             <Run Text="; 2) escribí un nombre (ej: FAControl) y tocá 'Crear'; 3) copiá las 16 letras que aparecen y pegalas acá (los espacios se quitan solos)." />
           </TextBlock>
 
-          <CheckBox Content="Activar recordatorios por correo" FontSize="13"
+          <CheckBox Content="{Binding RecordatoriosActivarTexto}" FontSize="13"
                     IsChecked="{Binding RecordatoriosActivos}" />
 
           <StackPanel Margin="24,10,0,0" IsEnabled="{Binding RecordatoriosActivos}">
@@ -267,12 +267,12 @@
             </WrapPanel>
             <WrapPanel Margin="0,4,0,0">
               <StackPanel Margin="0,0,16,8">
-                <TextBlock Text="Correo del dueño (resumen)" Style="{DynamicResource Input.Label}" />
+                <TextBlock Text="{Binding CorreoDuenoEtiqueta}" Style="{DynamicResource Input.Label}" />
                 <TextBox Width="240" Style="{DynamicResource Input.Texto}" Height="34"
                          Text="{Binding CorreoDueno, UpdateSourceTrigger=PropertyChanged}" />
               </StackPanel>
               <StackPanel Margin="0,0,16,8">
-                <TextBlock Text="Avisar (días antes)" Style="{DynamicResource Input.Label}" />
+                <TextBlock Text="{Binding RecordatoriosDiasEtiqueta}" Style="{DynamicResource Input.Label}" />
                 <TextBox Width="70" Style="{DynamicResource Input.Texto}" Height="34"
                          Text="{Binding RecordatorioDiasTexto, UpdateSourceTrigger=PropertyChanged}" />
               </StackPanel>
@@ -286,7 +286,7 @@
               <Button Content="Enviar prueba" Style="{DynamicResource Boton.Secundario}"
                       Command="{Binding EnviarPruebaCorreoCommand}" Margin="0,0,8,6"
                       IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}" />
-              <Button Content="Enviar recordatorios ahora" Style="{DynamicResource Boton.Primario}"
+              <Button Content="{Binding RecordatoriosBotonTexto}" Style="{DynamicResource Boton.Primario}"
                       Command="{Binding EnviarRecordatoriosCommand}" Margin="0,0,8,6"
                       IsEnabled="{Binding Ocupado, Converter={StaticResource InversorBool}}" />
             </WrapPanel>

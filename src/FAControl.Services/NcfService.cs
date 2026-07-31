@@ -31,8 +31,14 @@ public class NcfService
         _auditoria = auditoria;
     }
 
+    /// <summary>
+    /// La secuencia de LA ESTANCIA ACTIVA (030). Cada modo lleva la suya: un
+    /// negocio de varios rubros puede tener una autorización de la DGII por
+    /// cada uno, o hasta otro RNC. Null = esa estancia todavía no configuró
+    /// ninguna, que es como arrancan todas.
+    /// </summary>
     public Task<NcfSecuencia?> ObtenerSecuenciaAsync(CancellationToken ct = default) =>
-        _ncf.ObtenerActivaAsync(ct);
+        _ncf.ObtenerActivaAsync(SesionActual.Modo, ct);
 
     /// <summary>Guarda la configuración de la secuencia (solo Admin) + auditoría.</summary>
     public async Task GuardarSecuenciaAsync(NcfSecuencia secuencia, CancellationToken ct = default)
@@ -50,9 +56,12 @@ public class NcfService
         if (secuencia.FinRango is { } fin && fin < secuencia.Proxima)
             throw new ArgumentException("El fin del rango no puede ser menor que la próxima secuencia.");
 
-        await _ncf.GuardarAsync(secuencia, ct);
+        // Se guarda contra la estancia activa: la pantalla de Configuración
+        // siempre edita la secuencia del modo en el que se está trabajando.
+        await _ncf.GuardarAsync(SesionActual.Modo, secuencia, ct);
         await _auditoria.RegistrarAsync(AccionAuditoria.Modificar, DbNames.NcfSecuencia, null,
-            $"Secuencia NCF {secuencia.Prefijo}: próxima {secuencia.Proxima}" +
+            $"Secuencia NCF {secuencia.Prefijo} de {IdentidadModo.De(SesionActual.Modo).Nombre}: " +
+            $"próxima {secuencia.Proxima}" +
             (secuencia.FinRango is { } f ? $", fin {f}" : "") +
             (secuencia.Vencimiento is { } v ? $", vence {v:dd/MM/yyyy}" : "") +
             (secuencia.Activo ? "" : " — DESACTIVADA"), ct);
@@ -84,7 +93,7 @@ public class NcfService
         try
         {
             var ncf = string.IsNullOrWhiteSpace(manual)
-                ? await _ncf.ReservarSiguienteAsync(conexion, transaccion, FechaNegocio.Hoy, ct)
+                ? await _ncf.ReservarSiguienteAsync(SesionActual.Modo, conexion, transaccion, FechaNegocio.Hoy, ct)
                 : manual;
 
             await _prestamos.ActualizarNcfAsync(prestamoId, ncf, conexion, transaccion, ct);

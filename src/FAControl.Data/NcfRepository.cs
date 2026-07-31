@@ -1,4 +1,4 @@
-using MySqlConnector;
+﻿using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models;
 
@@ -9,6 +9,12 @@ namespace FAControl.Data;
 /// NCF es atómica (SELECT ... FOR UPDATE dentro de la transacción del préstamo):
 /// dos préstamos simultáneos jamás reciben el mismo comprobante, y un rollback
 /// no consume el número.
+///
+/// UNA SECUENCIA POR MODO (030). Cada estancia lleva su propio rango: un negocio
+/// de varios rubros puede tener una autorización de la DGII por cada uno, o hasta
+/// otro RNC. Compartir el rango entregaría comprobantes que la DGII espera de un
+/// único libro de ventas. El modo llega por parámetro y no se lee de SesionActual
+/// acá: así los tests pueden probar dos estancias sin simular logins.
 /// </summary>
 public class NcfRepository
 {
@@ -16,38 +22,40 @@ public class NcfRepository
 
     public NcfRepository(ConexionFactory factory) => _factory = factory;
 
-    /// <summary>La secuencia activa (hoy se maneja una sola), o null si no hay.</summary>
-    public async Task<NcfSecuencia?> ObtenerActivaAsync(CancellationToken ct = default)
+    /// <summary>La secuencia activa DE ESE MODO, o null si esa estancia no configuró ninguna.</summary>
+    public async Task<NcfSecuencia?> ObtenerActivaAsync(ModoApp modo, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT id, prefijo, largo, proxima, fin_rango, vencimiento, activo
             FROM {DbNames.NcfSecuencia}
-            WHERE activo = 1
+            WHERE modo = @modo AND activo = 1
             ORDER BY id
             LIMIT 1;
             """;
+        cmd.Parameters.AddWithValue("@modo", modo.ClaveDb());
         using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
             return null;
         return Mapear(reader);
     }
 
-    /// <summary>Crea o actualiza la configuración de la secuencia (upsert por prefijo).</summary>
-    public async Task GuardarAsync(NcfSecuencia secuencia, CancellationToken ct = default)
+    /// <summary>Crea o actualiza la secuencia de ese modo (upsert por modo + prefijo).</summary>
+    public async Task GuardarAsync(ModoApp modo, NcfSecuencia secuencia, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO {DbNames.NcfSecuencia}
-              (prefijo, largo, proxima, fin_rango, vencimiento, activo)
+              (modo, prefijo, largo, proxima, fin_rango, vencimiento, activo)
             VALUES
-              (@prefijo, @largo, @proxima, @fin, @vencimiento, @activo)
+              (@modo, @prefijo, @largo, @proxima, @fin, @vencimiento, @activo)
             ON DUPLICATE KEY UPDATE
               largo = @largo, proxima = @proxima, fin_rango = @fin,
               vencimiento = @vencimiento, activo = @activo, updated_at = UTC_TIMESTAMP();
             """;
+        cmd.Parameters.AddWithValue("@modo", modo.ClaveDb());
         cmd.Parameters.AddWithValue("@prefijo", secuencia.Prefijo);
         cmd.Parameters.AddWithValue("@largo", secuencia.Largo);
         cmd.Parameters.AddWithValue("@proxima", secuencia.Proxima);
@@ -58,12 +66,18 @@ public class NcfRepository
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
-    /// <summary>Desactiva todas las secuencias (el negocio dejó de usar NCF local).</summary>
-    public async Task DesactivarTodasAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Desactiva las secuencias DE ESE MODO (esa estancia dejó de usar NCF
+    /// local). Las de las demás no se tocan: apagar el comprobante del punto de
+    /// venta no puede dejar sin numeración a los préstamos.
+    /// </summary>
+    public async Task DesactivarTodasAsync(ModoApp modo, CancellationToken ct = default)
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
-        cmd.CommandText = $"UPDATE {DbNames.NcfSecuencia} SET activo = 0, updated_at = UTC_TIMESTAMP();";
+        cmd.CommandText =
+            $"UPDATE {DbNames.NcfSecuencia} SET activo = 0, updated_at = UTC_TIMESTAMP() WHERE modo = @modo;";
+        cmd.Parameters.AddWithValue("@modo", modo.ClaveDb());
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
@@ -71,7 +85,7 @@ public class NcfRepository
     /// Reserva el siguiente NCF de la secuencia activa DENTRO de la transacción
     /// dada. Tira si no hay secuencia activa, está vencida o agotada.
     /// </summary>
-    public async Task<string> ReservarSiguienteAsync(MySqlConnection conexion,
+    public async Task<string> ReservarSiguienteAsync(ModoApp modo, MySqlConnection conexion,
         MySqlTransaction transaccion, DateOnly hoy, CancellationToken ct = default)
     {
         NcfSecuencia secuencia;
@@ -81,16 +95,18 @@ public class NcfRepository
             select.CommandText = $"""
                 SELECT id, prefijo, largo, proxima, fin_rango, vencimiento, activo
                 FROM {DbNames.NcfSecuencia}
-                WHERE activo = 1
+                WHERE modo = @modo AND activo = 1
                 ORDER BY id
                 LIMIT 1
                 FOR UPDATE;
                 """;
+            select.Parameters.AddWithValue("@modo", modo.ClaveDb());
             using var reader = await select.ExecuteReaderAsync(ct);
             if (!await reader.ReadAsync(ct))
                 throw new InvalidOperationException(
-                    "No hay una secuencia de comprobantes fiscales configurada. " +
-                    "Configurala en Configuración → Comprobante fiscal.");
+                    $"{IdentidadModo.De(modo).Nombre} no tiene una secuencia de comprobantes fiscales " +
+                    "configurada. Configurala en Configuración → Comprobante fiscal. " +
+                    "Cada estancia lleva la suya: la de otra estancia no sirve acá.");
             secuencia = Mapear(reader);
         }
 

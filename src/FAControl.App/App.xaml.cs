@@ -200,8 +200,14 @@ public partial class App : Application
         _ = servicios.GetRequiredService<ExportacionService>().EjecutarAutomaticoSiTocaAsync(ajustes);
         // Respaldo automático de la BD (si está activo y toca) — en segundo plano
         _ = servicios.GetRequiredService<RespaldoService>().EjecutarAutomaticoSiTocaAsync(ajustes);
-        // Recordatorios por correo (si están activos y toca) — en segundo plano
-        _ = servicios.GetRequiredService<RecordatorioService>().EjecutarAutomaticoSiTocaAsync();
+        // Correo automático (si está activo y toca) — en segundo plano. QUÉ se
+        // manda depende de la estancia: en el punto de venta, el aviso de
+        // mercancía por caducar al dueño; en las demás, los recordatorios de
+        // cuota a los clientes. Pedido del cliente 2026-07-30.
+        _ = SesionActual.Modo == ModoApp.Pos500
+            ? servicios.GetRequiredService<FAControl.Services.Pos.RecordatorioCaducidadService>()
+                .EjecutarAutomaticoSiTocaAsync()
+            : servicios.GetRequiredService<RecordatorioService>().EjecutarAutomaticoSiTocaAsync();
         // Aviso de clientes pasados de fecha
         servicios.GetRequiredService<NotificadorVencidos>().Iniciar();
 
@@ -474,6 +480,7 @@ public partial class App : Application
         servicios.AddSingleton<ContratoService>();
         servicios.AddSingleton<EmailService>();
         servicios.AddSingleton<RecordatorioService>();
+        servicios.AddSingleton<FAControl.Services.Pos.RecordatorioCaducidadService>();
         servicios.AddSingleton<PagoService>();
         servicios.AddSingleton<DashboardService>();
         servicios.AddSingleton<ReporteService>();

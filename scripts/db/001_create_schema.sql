@@ -339,6 +339,10 @@ INSERT INTO contador (nombre, valor) VALUES
 -- -------------------------------------------------------------
 CREATE TABLE ncf_secuencia (
   id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  -- Una secuencia POR MODO (030). Un negocio de varios rubros puede tener una
+  -- autorizacion de la DGII por estancia, o hasta otro RNC; compartir el rango
+  -- entregaria comprobantes que la DGII espera de un unico libro de ventas.
+  modo        ENUM('prestcontrol','dealercontrol','autocontrol','pos500') NOT NULL,
   prefijo     VARCHAR(5)  NOT NULL,
   largo       TINYINT UNSIGNED NOT NULL DEFAULT 8,
   proxima     BIGINT UNSIGNED NOT NULL DEFAULT 1,
@@ -348,7 +352,9 @@ CREATE TABLE ncf_secuencia (
   created_at  DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
   updated_at  DATETIME NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_ncf_secuencia_prefijo (prefijo)
+  -- Dos estancias pueden usar el mismo prefijo B02 con rangos distintos: es lo
+  -- normal cuando la DGII autoriza por separado.
+  UNIQUE KEY uq_ncf_secuencia_modo_prefijo (modo, prefijo)
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
