@@ -199,4 +199,29 @@ public class VentaVehiculoRepository
             reader.GetDecimal("precio"),
             EnumMap.MetodoPagoDeDb(reader.GetString("metodo_pago")));
     }
+
+    /// <summary>
+    /// Cómo quedó una venta cancelada (028): motivo y reparto de lo cobrado.
+    /// Null si la venta sigue activa.
+    /// </summary>
+    public async Task<(string Motivo, decimal Porcentaje, decimal Retenido, decimal Devuelto)?>
+        ObtenerCancelacionAsync(long ventaId, CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT cancelada_motivo, retencion_porcentaje, retenido, devuelto
+            FROM {DbNames.VentaVehiculo}
+            WHERE id = @id AND estado = 'cancelada';
+            """;
+        cmd.Parameters.AddWithValue("@id", ventaId);
+
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+            return null;
+        return (reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
+                reader.IsDBNull(1) ? 0m : reader.GetDecimal(1),
+                reader.IsDBNull(2) ? 0m : reader.GetDecimal(2),
+                reader.IsDBNull(3) ? 0m : reader.GetDecimal(3));
+    }
 }

@@ -27,6 +27,8 @@ public partial class VentaFinanciamientoView : UserControl
                 _vm.SeparacionSolicitada -= MostrarSeparacion;
             }
             _vm = e.NewValue as VentaFinanciamientoViewModel;
+        if (_vm is not null)
+            _vm.CancelacionSolicitada = PedirCancelacion;
             if (_vm is not null)
             {
                 _vm.CartaSolicitada += MostrarCarta;
@@ -110,5 +112,21 @@ public partial class VentaFinanciamientoView : UserControl
         var ventana = new DocumentoAccionesWindow(_vm.Expediente, fila)
         { Owner = Window.GetWindow(this) };
         ventana.ShowDialog();
+    }
+
+    /// <summary>
+    /// Pide motivo y porcentaje de retención para cancelar la venta (028).
+    /// Devuelve null si el usuario se arrepintió: abrir el diálogo no cancela nada.
+    /// </summary>
+    private (string Motivo, decimal Porcentaje, bool Fijar)? PedirCancelacion(
+        string codigo, decimal cobrado, decimal porcentaje, bool fija)
+    {
+        var ventana = new CancelarVentaWindow(codigo, cobrado, porcentaje, fija)
+        {
+            Owner = Window.GetWindow(this)
+        };
+        return ventana.ShowDialog() == true
+            ? (ventana.Motivo, ventana.Porcentaje, ventana.FijarPorcentaje)
+            : null;
     }
 }

@@ -116,6 +116,14 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
 
     public bool PuedeCobrar => SesionActual.TienePermiso(Permisos.Ventas);
 
+    /// <summary>
+    /// Cómo se va a repartir el monto que se está escribiendo (pedido de Yuber
+    /// 2026-07-31: "si tiene que pagar 66,666.67 y paga 70,000, mostrar en otro
+    /// textbox lo abonado"). Se calcula antes de cobrar para que el cajero vea
+    /// qué pasa con el excedente ANTES de confirmar, no después.
+    /// </summary>
+    [ObservableProperty] private string _repartoTexto = string.Empty;
+
     partial void OnPlazoSeleccionadoChanged(PlazoFila? value)
     {
         MensajeCobro = string.Empty;
@@ -123,6 +131,51 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
         MontoAbonoTexto = value is null || value.SaldoPendiente <= 0m
             ? string.Empty
             : value.SaldoPendiente.ToString("0.##", Textos.CulturaRd);
+        ActualizarReparto();
+    }
+
+    partial void OnMontoAbonoTextoChanged(string value) => ActualizarReparto();
+
+    private void ActualizarReparto()
+    {
+        RepartoTexto = string.Empty;
+        if (PlazoSeleccionado is not { } plazo || _estado is null)
+            return;
+        if (!decimal.TryParse(MontoAbonoTexto, NumberStyles.Number, Textos.CulturaRd, out var monto)
+            || monto <= 0m)
+            return;
+
+        var aEste = Math.Min(monto, plazo.SaldoPendiente);
+        var excedente = monto - aEste;
+
+        if (excedente <= 0m)
+        {
+            RepartoTexto = aEste >= plazo.SaldoPendiente
+                ? $"Salda el plazo #{plazo.Numero}."
+                : $"Abono parcial: al plazo #{plazo.Numero} le quedarían " +
+                  $"{plazo.SaldoPendiente - aEste:N2} DOP.";
+            return;
+        }
+
+        // Se reparte de más: se muestra a dónde va y qué queda del siguiente
+        var siguientes = _estado.Plazos
+            .Where(p => p.Numero > plazo.Numero && p.Estado == EstadoPlazo.Pendiente)
+            .OrderBy(p => p.Numero)
+            .ToList();
+        var deudaSiguiente = siguientes.Sum(p => p.SaldoPendiente);
+
+        if (excedente > deudaSiguiente)
+        {
+            RepartoTexto = $"⚠ Son {monto:N2} y todo lo que falta de la venta es " +
+                           $"{plazo.SaldoPendiente + deudaSiguiente:N2} DOP.";
+            return;
+        }
+
+        var proximo = siguientes.FirstOrDefault();
+        RepartoTexto = $"Salda el plazo #{plazo.Numero} y baja {excedente:N2} DOP a los siguientes." +
+            (proximo is null ? string.Empty
+             : $" Al plazo #{proximo.Numero} le quedarían " +
+               $"{Math.Max(0m, proximo.SaldoPendiente - excedente):N2} DOP.");
     }
 
     public async Task CargarAsync(long ventaId)
@@ -134,6 +187,16 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
             var datos = await _ventas.ObtenerFacturaAsync(ventaId);
             _estado = estado;
             _datosVenta = datos;
+
+            // ¿Está cancelada? El cartel manda: explica por qué los plazos
+            // aparecen cancelados y cuánta plata se devolvió (028).
+            var cancelacion = await _ventas.ObtenerCancelacionAsync(ventaId);
+            EstaCancelada = cancelacion is not null;
+            CancelacionTexto = cancelacion is { } c
+                ? $"VENTA CANCELADA — {c.Motivo}. De {estado.RecibidoTotal:N2} DOP cobrados, " +
+                  $"el negocio retuvo {c.Retenido:N2} ({c.Porcentaje:0.##}%) y se devolvieron " +
+                  $"{c.Devuelto:N2} DOP."
+                : string.Empty;
 
             Codigo = estado.Codigo;
             EsPlazos = estado.Tipo == TipoVenta.Plazos;
@@ -233,12 +296,23 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
 
         try
         {
-            var recibo = await _plazos.CobrarPlazoAsync(plazo.Id, monto,
+            var abono = await _plazos.CobrarPlazoAsync(plazo.Id, monto,
                 MetodoSeleccionado.Valor, NotasAbono);
             NotasAbono = string.Empty;
             await CargarAsync(_ventaId);
-            _dialogos.Informar("Cobro registrado",
-                $"Abono de {monto:N2} DOP al plazo #{plazo.Numero}.\nRecibo {recibo}.");
+
+            // Si el excedente bajó a los plazos siguientes hay que DECIRLO: el
+            // cajero necesita saber cuánto le queda por pagar al cliente.
+            var recibos = string.Join(", ", abono.Recibos);
+            var detalle = abono.TocoVariosPlazos
+                ? $"Abono de {abono.Aplicado:N2} DOP desde el plazo #{plazo.Numero}. " +
+                  $"El excedente bajó a los plazos siguientes.\n\nRecibos: {recibos}"
+                : $"Abono de {abono.Aplicado:N2} DOP al plazo #{plazo.Numero}.\nRecibo {recibos}.";
+            detalle += abono.VentaSaldada
+                ? "\n\nLa venta quedó SALDADA."
+                : $"\n\nQueda por pagar: {abono.SaldoRestante:N2} DOP.";
+
+            _dialogos.Informar("Cobro registrado", detalle);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {
@@ -248,6 +322,66 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
         {
             Log.Error(ex, "Error cobrando el plazo {Id}", plazo.Id);
             _dialogos.MostrarError("Cobro", $"No se pudo registrar el cobro.\n\n{ex.Message}");
+        }
+    }
+
+    // ---------- Cancelación: el cliente devolvió el vehículo (028) ----------
+
+    /// <summary>
+    /// La View pone acá cómo pedirle al usuario el motivo y el porcentaje.
+    /// Es una FUNCIÓN y no un evento porque devuelve un valor: null significa
+    /// que se arrepintió, y entonces no se cancela nada.
+    /// </summary>
+    public Func<string, decimal, decimal, bool, (string Motivo, decimal Porcentaje, bool Fijar)?>?
+        CancelacionSolicitada { get; set; }
+
+    /// <summary>Cancelar mueve plata y devuelve un vehículo: es de Admin.</summary>
+    public bool PuedeCancelar => SesionActual.EsAdmin;
+
+    /// <summary>Ya cancelada: se muestra el cartel y se esconde el botón.</summary>
+    [ObservableProperty] private bool _estaCancelada;
+    [ObservableProperty] private string _cancelacionTexto = string.Empty;
+
+    [RelayCommand]
+    private async Task CancelarVentaAsync()
+    {
+        if (_estado is not { } estado || CancelacionSolicitada is null)
+            return;
+
+        var respuesta = CancelacionSolicitada(estado.Codigo, estado.RecibidoTotal,
+            _ajustes.RetencionCancelacionPorcentaje, _ajustes.RetencionCancelacionFija);
+        if (respuesta is not { } datos)
+            return;
+
+        try
+        {
+            var resultado = await _plazos.CancelarVentaAsync(
+                new CancelacionVenta(_ventaId, datos.Motivo, datos.Porcentaje));
+
+            // El porcentaje queda propuesto para la próxima si así lo pidió
+            if (datos.Fijar)
+            {
+                _ajustes.RetencionCancelacionPorcentaje = datos.Porcentaje;
+                _ajustes.RetencionCancelacionFija = true;
+                _ajustes.Guardar();
+            }
+
+            await CargarAsync(_ventaId);
+            _dialogos.Informar("Venta cancelada",
+                $"La venta {estado.Codigo} quedó cancelada y el vehículo volvió al inventario.\n\n" +
+                $"Cobrado: {resultado.Cobrado:N2} DOP\n" +
+                $"Se queda el negocio: {resultado.Retenido:N2} DOP ({resultado.RetencionPorcentaje:0.##}%)\n" +
+                $"A devolver al cliente: {resultado.Devuelto:N2} DOP");
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException
+                                      or UnauthorizedAccessException)
+        {
+            _dialogos.MostrarError("Cancelar la venta", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error cancelando la venta {Id}", _ventaId);
+            _dialogos.MostrarError("Cancelar la venta", $"No se pudo cancelar.\n\n{ex.Message}");
         }
     }
 

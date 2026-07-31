@@ -39,6 +39,39 @@ public class VentaPlazo
         Estado == EstadoPlazo.Pendiente && FechaVencimiento < hoy && SaldoPendiente > 0m;
 }
 
+/// <summary>
+/// Lo que dejó un abono a una venta financiada (2026-07-31). Un solo cobro
+/// puede tocar VARIOS plazos: el excedente del plazo actual baja al siguiente,
+/// igual que el adelanto de PrestControl.
+/// </summary>
+public record AbonoVentaResultado(
+    IReadOnlyList<string> Recibos,
+    decimal Aplicado,
+    int PlazosSaldados,
+    /// <summary>Lo que queda por pagar de la venta después de este abono.</summary>
+    decimal SaldoRestante)
+{
+    public bool TocoVariosPlazos => Recibos.Count > 1;
+    public bool VentaSaldada => SaldoRestante <= 0m;
+}
+
+/// <summary>
+/// Cancelación de una venta financiada: el cliente devuelve el vehículo (028).
+/// </summary>
+/// <param name="RetencionPorcentaje">
+/// Lo que el negocio se queda de lo ya cobrado, en %. Lo digita el dueño: el
+/// contrato de cada dealer lo fija distinto y no es algo que deba decidir el
+/// programa (decisión de Yuber, 2026-07-31).
+/// </param>
+public record CancelacionVenta(long VentaId, string Motivo, decimal RetencionPorcentaje);
+
+/// <summary>Cómo quedó la plata al cancelar (028).</summary>
+public record ResultadoCancelacion(
+    decimal Cobrado,
+    decimal Retenido,
+    decimal Devuelto,
+    decimal RetencionPorcentaje);
+
 /// <summary>Abono a un plazo, con su recibo (016).</summary>
 public class VentaPlazoPago
 {

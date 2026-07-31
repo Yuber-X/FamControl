@@ -79,6 +79,93 @@ public class VentaPlazoRepository
         return await reader.ReadAsync(ct) ? Mapear(reader) : null;
     }
 
+    /// <summary>
+    /// Plazos pendientes de la venta desde un número en adelante, BLOQUEADOS
+    /// para el cobro (FOR UPDATE). Los necesita el abono que se pasa del plazo
+    /// actual: el excedente baja al siguiente, y al siguiente, en orden.
+    ///
+    /// Se bloquean todos de una: si se tomaran de a uno, otro cajero podría
+    /// cobrar el plazo 3 entre medio y el excedente se aplicaría dos veces.
+    /// </summary>
+    public async Task<IReadOnlyList<VentaPlazo>> ObtenerPendientesDesdeAsync(long ventaId, int numero,
+        MySqlConnection conexion, MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            SELECT id, venta_id, numero, fecha_vencimiento, monto, monto_pagado, estado
+            FROM {DbNames.VentaPlazo}
+            WHERE venta_id = @venta AND numero >= @numero AND estado = 'pendiente'
+            ORDER BY numero
+            FOR UPDATE;
+            """;
+        cmd.Parameters.AddWithValue("@venta", ventaId);
+        cmd.Parameters.AddWithValue("@numero", numero);
+
+        var lista = new List<VentaPlazo>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            lista.Add(Mapear(reader));
+        return lista;
+    }
+
+    /// <summary>
+    /// Marca como 'cancelado' los plazos que todavía se debían (028). Los
+    /// PAGADOS no se tocan: ya se cobraron y su recibo existe.
+    /// </summary>
+    public async Task<int> CancelarPendientesAsync(long ventaId, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            UPDATE {DbNames.VentaPlazo}
+            SET estado = 'cancelado'
+            WHERE venta_id = @venta AND estado = 'pendiente';
+            """;
+        cmd.Parameters.AddWithValue("@venta", ventaId);
+        return await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Deja la venta como cancelada con su motivo y el reparto de la plata (028).
+    /// Los montos se guardan CALCULADOS: si mañana cambia el porcentaje por
+    /// defecto, esta cancelación tiene que seguir contando lo mismo.
+    /// </summary>
+    public async Task MarcarVentaCanceladaAsync(long ventaId, string motivo,
+        decimal porcentaje, decimal retenido, decimal devuelto,
+        MySqlConnection conexion, MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            UPDATE {DbNames.VentaVehiculo}
+            SET estado = 'cancelada', cancelada_at = UTC_TIMESTAMP(), cancelada_motivo = @motivo,
+                retencion_porcentaje = @porcentaje, retenido = @retenido, devuelto = @devuelto
+            WHERE id = @id AND estado = 'activa';
+            """;
+        cmd.Parameters.AddWithValue("@motivo", motivo);
+        cmd.Parameters.AddWithValue("@porcentaje", porcentaje);
+        cmd.Parameters.AddWithValue("@retenido", retenido);
+        cmd.Parameters.AddWithValue("@devuelto", devuelto);
+        cmd.Parameters.AddWithValue("@id", ventaId);
+        if (await cmd.ExecuteNonQueryAsync(ct) == 0)
+            throw new InvalidOperationException("La venta no existe o ya estaba cancelada.");
+    }
+
+    /// <summary>Vehículo de una venta, para devolverlo al inventario al cancelar.</summary>
+    public async Task<long> ObtenerVehiculoDeVentaAsync(long ventaId, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"SELECT vehiculo_id FROM {DbNames.VentaVehiculo} WHERE id = @id;";
+        cmd.Parameters.AddWithValue("@id", ventaId);
+        var valor = await cmd.ExecuteScalarAsync(ct)
+            ?? throw new InvalidOperationException("La venta no existe.");
+        return Convert.ToInt64(valor);
+    }
+
     /// <summary>Actualiza lo acumulado y el estado del plazo tras un abono.</summary>
     public async Task ActualizarTrasPagoAsync(long plazoId, decimal montoPagado, EstadoPlazo estado,
         MySqlConnection conexion, MySqlTransaction transaccion, CancellationToken ct = default)

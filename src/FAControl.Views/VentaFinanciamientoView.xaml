@@ -30,8 +30,40 @@
                   Margin="8,0,0,0"
                   Visibility="{Binding EsSeparacion, Converter={StaticResource BoolAVisibilidad}}"
                   Command="{Binding VerReciboSeparacionCommand}" />
+          <!-- Cancelar la venta: el cliente devolvió el vehículo (028).
+               Va en rojo y separado a propósito — no es un botón que se toque
+               por error. Solo Admin, y desaparece si ya está cancelada. -->
+          <!-- El Style va en el bloque de abajo, NO inline: WPF solo deja
+               fijarlo una vez y con las dos formas tira MC3024 -->
+          <Button Content="Cancelar venta" Margin="16,0,0,0"
+                  Command="{Binding CancelarVentaCommand}">
+            <Button.Style>
+              <Style TargetType="Button" BasedOn="{StaticResource Boton.Destructivo}">
+                <Setter Property="Visibility" Value="Collapsed" />
+                <Style.Triggers>
+                  <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                      <Condition Binding="{Binding PuedeCancelar}" Value="True" />
+                      <Condition Binding="{Binding EstaCancelada}" Value="False" />
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Visibility" Value="Visible" />
+                  </MultiDataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Button.Style>
+          </Button>
         </StackPanel>
       </Grid>
+
+      <!-- Cartel de venta cancelada: explica por qué los plazos figuran
+           cancelados y cuánta plata se devolvió -->
+      <Border Margin="0,12,0,0" CornerRadius="8" Padding="14,10"
+              Background="{DynamicResource Brush.EnMora.Fondo}"
+              Visibility="{Binding EstaCancelada, Converter={StaticResource BoolAVisibilidad}}">
+        <TextBlock Text="{Binding CancelacionTexto}" TextWrapping="Wrap"
+                   FontWeight="SemiBold"
+                   Foreground="{DynamicResource Brush.EnMora.Texto}" />
+      </Border>
 
       <!-- Aviso (separación por vencer/vencida, plazos atrasados, saldada) -->
       <Border Background="#1AF59E0B" CornerRadius="8" Padding="12,10" Margin="0,0,0,12"
@@ -156,6 +188,12 @@
               <TextBox Width="260" Height="34" Style="{DynamicResource Input.Texto}"
                        Text="{Binding NotasAbono, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
+            <!-- Cómo se reparte lo que se está escribiendo, ANTES de confirmar
+                 (pedido de Yuber 2026-07-31) -->
+            <TextBlock Text="{Binding RepartoTexto}" TextWrapping="Wrap"
+                       Style="{DynamicResource Texto.Caption}"
+                       Foreground="{DynamicResource Brush.Primario}"
+                       Margin="0,4,0,8" />
             <Button Content="Registrar cobro" Style="{DynamicResource Boton.Primario}"
                     VerticalAlignment="Bottom" Margin="0,0,0,6"
                     Command="{Binding CobrarCommand}" />

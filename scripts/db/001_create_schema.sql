@@ -364,6 +364,15 @@ CREATE TABLE venta_vehiculo (
   precio      DECIMAL(15,2) NOT NULL,
   -- Financiamiento del dealer (016): contado, por plazos o separación/reserva
   tipo_venta   ENUM('contado','plazos','separacion') NOT NULL DEFAULT 'contado',
+  -- Cancelacion de la venta (028): el cliente devolvio el vehiculo. La venta
+  -- NO se borra, queda con su motivo y con los montos ya calculados — si
+  -- manana cambia el porcentaje por defecto, esta sigue contando lo mismo.
+  estado            ENUM('activa','cancelada') NOT NULL DEFAULT 'activa',
+  cancelada_at      DATETIME      NULL,
+  cancelada_motivo  VARCHAR(250)  NULL,
+  retencion_porcentaje DECIMAL(5,2) NULL,
+  retenido          DECIMAL(15,2) NULL,
+  devuelto          DECIMAL(15,2) NULL,
   inicial      DECIMAL(15,2) NOT NULL DEFAULT 0.00,   -- anticipo recibido al firmar
   fecha_limite DATE          NULL,                    -- separación: vence a los N días (15 por default)
   metodo_pago ENUM('efectivo','transferencia','cheque','otro') NOT NULL DEFAULT 'efectivo',

@@ -24,14 +24,16 @@ public class VentaPlazoService
     private readonly VentaVehiculoRepository _ventas;
     private readonly ContadorRepository _contador;
     private readonly AuditoriaService _auditoria;
+    private readonly VehiculoRepository _vehiculos;
 
     public VentaPlazoService(ConexionFactory factory, VentaPlazoRepository plazos,
-        VentaVehiculoRepository ventas, ContadorRepository contador, AuditoriaService auditoria)
+        VentaVehiculoRepository ventas, ContadorRepository contador, AuditoriaService auditoria, VehiculoRepository vehiculos)
     {
         _factory = factory;
         _plazos = plazos;
         _ventas = ventas;
         _contador = contador;
+        _vehiculos = vehiculos;
         _auditoria = auditoria;
     }
 
@@ -124,17 +126,25 @@ public class VentaPlazoService
     // ============================================================
 
     /// <summary>
-    /// Registra un abono a un plazo. Atómico: plazo FOR UPDATE → recibo
-    /// atómico RV-000001 → abono → actualización del plazo → auditoría.
-    /// Devuelve el número de recibo emitido.
+    /// Cobra un abono empezando por el plazo indicado. Si el cliente paga MÁS de
+    /// lo que falta de ese plazo, el excedente baja al siguiente plazo pendiente,
+    /// y al siguiente, en orden — igual que el adelanto de PrestControl (pedido
+    /// de Yuber 2026-07-31: "si tiene que pagar 66,666.67 y paga 70,000, al
+    /// registrar el cobro debe reducir lo que pagará en el próximo").
+    ///
+    /// Cada plazo tocado recibe su PROPIO recibo: el número de recibo es único y
+    /// además así el cliente ve a qué plazo fue cada peso.
+    ///
+    /// Todo va en UNA transacción, con los plazos bloqueados de entrada: sin eso,
+    /// dos cajeros cobrando a la vez aplicarían el mismo excedente dos veces.
     /// </summary>
-    public async Task<string> CobrarPlazoAsync(long plazoId, decimal monto, MetodoPago metodo,
-        string? notas = null, CancellationToken ct = default)
+    public async Task<AbonoVentaResultado> CobrarPlazoAsync(long plazoId, decimal monto,
+        MetodoPago metodo, string? notas = null, CancellationToken ct = default)
     {
         ExigirEscritura();
         if (monto <= 0m)
             throw new ArgumentException("El monto del abono debe ser mayor que cero.");
-        var montoRedondeado = Math.Round(monto, 2, MidpointRounding.AwayFromZero);
+        var porAplicar = Math.Round(monto, 2, MidpointRounding.AwayFromZero);
 
         using var conexion = await _factory.AbrirAsync(ct);
         using var transaccion = await conexion.BeginTransactionAsync(ct);
@@ -146,38 +156,142 @@ public class VentaPlazoService
                 throw new InvalidOperationException("Ese plazo está cancelado; no se puede cobrar.");
             if (plazo.SaldoPendiente <= 0m)
                 throw new InvalidOperationException($"El plazo #{plazo.Numero} ya está saldado.");
-            if (montoRedondeado > plazo.SaldoPendiente)
+
+            // El plazo elegido y los que siguen, todos bloqueados de una vez
+            var pendientes = await _plazos.ObtenerPendientesDesdeAsync(
+                plazo.VentaId, plazo.Numero, conexion, transaccion, ct);
+
+            var deudaTotal = pendientes.Sum(p => p.SaldoPendiente);
+            if (porAplicar > deudaTotal)
                 throw new InvalidOperationException(
-                    $"El abono ({montoRedondeado:N2}) supera lo que falta del plazo #{plazo.Numero} " +
-                    $"({plazo.SaldoPendiente:N2}). Cobrá el resto en el siguiente plazo.");
+                    $"El abono ({porAplicar:N2}) supera todo lo que falta de la venta ({deudaTotal:N2}). " +
+                    "Cobrá como máximo el saldo pendiente.");
 
-            var numero = await _contador.SiguienteAsync(ContadorRepository.ReciboVenta, conexion, transaccion, ct);
-            var recibo = $"RV-{numero:D6}";
+            var recibos = new List<string>();
+            var saldados = 0;
+            var aplicado = 0m;
 
-            await _plazos.InsertarPagoAsync(new VentaPlazoPago
+            foreach (var actual in pendientes)
             {
-                PlazoId = plazoId,
-                NumeroRecibo = recibo,
-                FechaPagoUtc = DateTime.UtcNow,
-                Monto = montoRedondeado,
-                MetodoPago = metodo,
-                Notas = string.IsNullOrWhiteSpace(notas) ? null : notas.Trim()
-            }, conexion, transaccion, ct);
+                if (porAplicar <= 0m)
+                    break;
 
-            var nuevoAcumulado = plazo.MontoPagado + montoRedondeado;
-            var nuevoEstado = nuevoAcumulado >= plazo.Monto ? EstadoPlazo.Pagado : EstadoPlazo.Pendiente;
-            await _plazos.ActualizarTrasPagoAsync(plazoId, nuevoAcumulado, nuevoEstado,
-                conexion, transaccion, ct);
+                var aEste = Math.Min(porAplicar, actual.SaldoPendiente);
+                if (aEste <= 0m)
+                    continue;
 
-            await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Crear, DbNames.VentaPlazoPago, plazoId,
-                $"Abono {recibo} de {montoRedondeado:N2} DOP al plazo #{plazo.Numero} " +
-                $"de la venta #{plazo.VentaId} ({metodo})" +
-                (nuevoEstado == EstadoPlazo.Pagado ? " — plazo saldado" : string.Empty),
+                var numero = await _contador.SiguienteAsync(
+                    ContadorRepository.ReciboVenta, conexion, transaccion, ct);
+                var recibo = $"RV-{numero:D6}";
+
+                await _plazos.InsertarPagoAsync(new VentaPlazoPago
+                {
+                    PlazoId = actual.Id,
+                    NumeroRecibo = recibo,
+                    FechaPagoUtc = DateTime.UtcNow,
+                    Monto = aEste,
+                    MetodoPago = metodo,
+                    Notas = string.IsNullOrWhiteSpace(notas) ? null : notas.Trim()
+                }, conexion, transaccion, ct);
+
+                var acumulado = actual.MontoPagado + aEste;
+                var estado = acumulado >= actual.Monto ? EstadoPlazo.Pagado : EstadoPlazo.Pendiente;
+                await _plazos.ActualizarTrasPagoAsync(actual.Id, acumulado, estado,
+                    conexion, transaccion, ct);
+
+                recibos.Add(recibo);
+                aplicado += aEste;
+                porAplicar -= aEste;
+                if (estado == EstadoPlazo.Pagado)
+                    saldados++;
+            }
+
+            var detalle = recibos.Count == 1
+                ? $"Abono {recibos[0]} de {aplicado:N2} DOP al plazo #{plazo.Numero}"
+                : $"Abono de {aplicado:N2} DOP repartido en {recibos.Count} plazos desde el " +
+                  $"#{plazo.Numero} (recibos {string.Join(", ", recibos)})";
+            await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Crear, DbNames.VentaPlazoPago,
+                plazoId, $"{detalle} de la venta #{plazo.VentaId} ({metodo})" +
+                (saldados > 0 ? $" — {saldados} plazo(s) saldado(s)" : string.Empty),
                 conexion, transaccion, ct);
 
             await transaccion.CommitAsync(ct);
-            Log.Information("Abono {Recibo} de {Monto:N2} DOP al plazo {PlazoId}", recibo, montoRedondeado, plazoId);
-            return recibo;
+            Log.Information("Abono de {Monto:N2} DOP en la venta {VentaId}: {Recibos}",
+                aplicado, plazo.VentaId, string.Join(", ", recibos));
+
+            return new AbonoVentaResultado(recibos, aplicado, saldados, deudaTotal - aplicado);
+        }
+        catch
+        {
+            await transaccion.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// CANCELA la venta: el cliente devolvió el vehículo (028, pedido de Yuber
+    /// 2026-07-31). En una sola transacción:
+    ///   1. los plazos que aún se debían quedan 'cancelado' (los pagados NO se
+    ///      tocan: ya se cobraron y su recibo existe);
+    ///   2. la venta queda 'cancelada' con su motivo y el reparto de la plata;
+    ///   3. el vehículo vuelve al inventario como disponible.
+    ///
+    /// La venta NUNCA se borra: queda en el historial como cancelada, igual que
+    /// un préstamo anulado. Lo cobrado tampoco se borra — se reparte.
+    ///
+    /// El PORCENTAJE de retención lo trae quien llama, digitado por el dueño: lo
+    /// fija el contrato de cada dealer y no es algo que el programa deba decidir.
+    /// </summary>
+    public async Task<ResultadoCancelacion> CancelarVentaAsync(CancelacionVenta datos,
+        CancellationToken ct = default)
+    {
+        // Cancelar mueve plata y devuelve un vehículo al inventario: es de Admin
+        if (!SesionActual.EsAdmin)
+            throw new UnauthorizedAccessException(
+                "Solo un administrador puede cancelar una venta y registrar la devolución.");
+        if (string.IsNullOrWhiteSpace(datos.Motivo))
+            throw new ArgumentException("Escribí el motivo de la cancelación: queda en el historial.");
+        if (datos.RetencionPorcentaje is < 0m or > 100m)
+            throw new ArgumentException("El porcentaje de retención va entre 0 y 100.");
+
+        var estado = await ObtenerEstadoAsync(datos.VentaId, ct);
+
+        // Lo cobrado es la inicial más todos los abonos: eso es lo que se reparte
+        var cobrado = estado.RecibidoTotal;
+        var retenido = Math.Round(cobrado * datos.RetencionPorcentaje / 100m, 2,
+            MidpointRounding.AwayFromZero);
+        var devuelto = Math.Round(cobrado - retenido, 2, MidpointRounding.AwayFromZero);
+
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var transaccion = await conexion.BeginTransactionAsync(ct);
+        try
+        {
+            var vehiculoId = await _plazos.ObtenerVehiculoDeVentaAsync(
+                datos.VentaId, conexion, transaccion, ct);
+
+            var cancelados = await _plazos.CancelarPendientesAsync(
+                datos.VentaId, conexion, transaccion, ct);
+
+            await _plazos.MarcarVentaCanceladaAsync(datos.VentaId, datos.Motivo.Trim(),
+                datos.RetencionPorcentaje, retenido, devuelto, conexion, transaccion, ct);
+
+            // El vehículo vuelve a estar a la venta
+            await _vehiculos.CambiarEstadoAsync(vehiculoId, EstadoVehiculo.Disponible,
+                conexion, transaccion, ct);
+
+            await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Anular,
+                DbNames.VentaVehiculo, datos.VentaId,
+                $"Venta {estado.Codigo} CANCELADA (devolución del vehículo). " +
+                $"Motivo: {datos.Motivo.Trim()}. Cobrado {cobrado:N2}, retenido {retenido:N2} " +
+                $"({datos.RetencionPorcentaje:0.##}%), a devolver {devuelto:N2} DOP. " +
+                $"{cancelados} plazo(s) pendientes cancelados; el vehículo volvió al inventario.",
+                conexion, transaccion, ct);
+
+            await transaccion.CommitAsync(ct);
+            Log.Warning("Venta {Codigo} cancelada: retenido {Retenido:N2}, devuelto {Devuelto:N2} DOP",
+                estado.Codigo, retenido, devuelto);
+
+            return new ResultadoCancelacion(cobrado, retenido, devuelto, datos.RetencionPorcentaje);
         }
         catch
         {

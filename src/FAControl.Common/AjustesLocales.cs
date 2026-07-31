@@ -102,6 +102,20 @@ public class AjustesLocales
     /// </summary>
     public decimal PorcentajeComisionVendedor { get; set; }
 
+    /// <summary>
+    /// Porcentaje que el negocio RETIENE de lo ya cobrado cuando se cancela una
+    /// venta y el cliente devuelve el vehículo (028).
+    ///
+    /// Lo digita el dueño en cada cancelación; esto es solo el valor que viene
+    /// propuesto. El programa no lo calcula por su cuenta a propósito: cuánto se
+    /// retiene por depreciación y uso lo fija el contrato de cada dealer, no el
+    /// software (decisión de Yuber, 2026-07-31).
+    /// </summary>
+    public decimal RetencionCancelacionPorcentaje { get; set; } = 20m;
+
+    /// <summary>True si ese porcentaje se propone siempre sin preguntar.</summary>
+    public bool RetencionCancelacionFija { get; set; }
+
     // ---------- Punto de venta (POS-500, integrado 2026-07-30) ----------
     // Preferencias POR PC: la impresora y el aviso al iniciar dependen de la
     // terminal, no del negocio. Lo del negocio (ITBIS, moneda, numeración de

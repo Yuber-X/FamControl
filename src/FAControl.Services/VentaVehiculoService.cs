@@ -153,6 +153,11 @@ public class VentaVehiculoService
             throw new UnauthorizedAccessException("No tenés permiso para ver las ventas de vehículos.");
     }
 
+    /// <summary>Cómo quedó una venta cancelada (028). Null si sigue activa.</summary>
+    public Task<(string Motivo, decimal Porcentaje, decimal Retenido, decimal Devuelto)?>
+        ObtenerCancelacionAsync(long ventaId, CancellationToken ct = default) =>
+        _ventas.ObtenerCancelacionAsync(ventaId, ct);
+
     private static void ExigirEscritura()
     {
         if (!SesionActual.TienePermiso(Permisos.Ventas))

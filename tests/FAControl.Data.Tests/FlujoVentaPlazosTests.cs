@@ -39,7 +39,7 @@ public class FlujoVentaPlazosTests : IAsyncLifetime
         _ventas = new VentaVehiculoService(new VentaVehiculoRepository(_factory), _vehiculos,
             new ClienteRepository(_factory), contador, _factory, auditoria, plazoRepo);
         _plazos = new VentaPlazoService(_factory, plazoRepo, new VentaVehiculoRepository(_factory),
-            contador, auditoria);
+            contador, auditoria, new VehiculoRepository(_factory));
 
         using var conexion = await _factory.AbrirAsync();
         using (var cmd = conexion.CreateCommand())
@@ -134,8 +134,9 @@ public class FlujoVentaPlazosTests : IAsyncLifetime
 
         // Abono parcial al primer plazo: queda pendiente, no pagado
         var primero = estado.Plazos[0];
-        var recibo = await _plazos.CobrarPlazoAsync(primero.Id, 50_000m, MetodoPago.Transferencia);
-        recibo.Should().StartWith("RV-");
+        var abono = await _plazos.CobrarPlazoAsync(primero.Id, 50_000m, MetodoPago.Transferencia);
+        abono.Recibos.Should().ContainSingle().Which.Should().StartWith("RV-");
+        abono.TocoVariosPlazos.Should().BeFalse("50,000 entra entero en el primer plazo");
 
         estado = await _plazos.ObtenerEstadoAsync(ventaId);
         estado.Pagado.Should().Be(50_000m);
@@ -161,8 +162,12 @@ public class FlujoVentaPlazosTests : IAsyncLifetime
         abonos.Select(a => a.NumeroRecibo).Should().OnlyHaveUniqueItems();
     }
 
+    /// <summary>
+    /// Lo que pidió Yuber (2026-07-31): si paga de más, el excedente baja al
+    /// plazo siguiente y reduce lo que le toca pagar la próxima vez.
+    /// </summary>
     [Fact]
-    public async Task NoSePuedeCobrar_MasDeLoQueFaltaDelPlazo()
+    public async Task PagarDeMas_BajaElExcedenteAlPlazoSiguiente()
     {
         var vehiculoId = await CrearVehiculoAsync("V-9002", 300_000m);
         var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
@@ -171,12 +176,41 @@ public class FlujoVentaPlazosTests : IAsyncLifetime
             Plan: new PlanPlazos(0m, 2, FechaNegocio.Hoy.AddDays(30))));
 
         var estado = await _plazos.ObtenerEstadoAsync(ventaId);
-        var plazo = estado.Plazos[0];   // 150,000
+        var plazo = estado.Plazos[0];   // 150,000 de 2 plazos
 
-        var cobroExcesivo = () => _plazos.CobrarPlazoAsync(plazo.Id, 200_000m, MetodoPago.Efectivo);
+        // Paga 200,000: salda el primero (150,000) y deja 50,000 en el segundo
+        var abono = await _plazos.CobrarPlazoAsync(plazo.Id, 200_000m, MetodoPago.Efectivo);
+
+        abono.Aplicado.Should().Be(200_000m);
+        abono.PlazosSaldados.Should().Be(1);
+        abono.TocoVariosPlazos.Should().BeTrue();
+        abono.Recibos.Should().HaveCount(2, "un recibo por plazo tocado");
+        abono.Recibos.Should().OnlyHaveUniqueItems();
+        abono.SaldoRestante.Should().Be(100_000m);
+
+        estado = await _plazos.ObtenerEstadoAsync(ventaId);
+        estado.Plazos[0].Estado.Should().Be(EstadoPlazo.Pagado);
+        estado.Plazos[1].SaldoPendiente.Should().Be(100_000m,
+            "de 150,000 ya tiene 50,000 abonados: la próxima paga 100,000");
+    }
+
+    /// <summary>Pagar más que TODA la deuda sigue estando prohibido.</summary>
+    [Fact]
+    public async Task NoSePuedeCobrar_MasDeLoQueFaltaDeLaVenta()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9003", 300_000m);
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 300_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(0m, 2, FechaNegocio.Hoy.AddDays(30))));
+
+        var estado = await _plazos.ObtenerEstadoAsync(ventaId);
+
+        var cobroExcesivo = () => _plazos.CobrarPlazoAsync(
+            estado.Plazos[0].Id, 400_000m, MetodoPago.Efectivo);
         await cobroExcesivo.Should().ThrowAsync<InvalidOperationException>();
 
-        // El rollback dejó el plazo intacto y NO consumió el número de recibo
+        // El rollback dejó todo intacto y NO consumió números de recibo
         (await _plazos.ObtenerEstadoAsync(ventaId)).Pagado.Should().Be(0m);
         (await _plazos.ObtenerPagosAsync(ventaId)).Should().BeEmpty();
     }
@@ -201,5 +235,75 @@ public class FlujoVentaPlazosTests : IAsyncLifetime
         estado.FechaLimite.Should().Be(FechaNegocio.Hoy.AddDays(15));
         estado.SeparacionVencida(FechaNegocio.Hoy).Should().BeFalse();
         estado.SeparacionVencida(FechaNegocio.Hoy.AddDays(16)).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Cancelar la venta porque el cliente devolvió el vehículo (028). Lo que
+    /// importa: la venta NO se borra, lo cobrado se reparte con el porcentaje que
+    /// digitó el dueño, los plazos pagados quedan intactos y el vehículo vuelve
+    /// al inventario listo para venderse de nuevo.
+    /// </summary>
+    [Fact]
+    public async Task CancelarVenta_RepartraLoCobrado_YDevuelveElVehiculoAlInventario()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9004", 400_000m);
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 400_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(100_000m, 3, FechaNegocio.Hoy.AddDays(30))));
+
+        // Inicial 100,000 + un plazo de 100,000 = 200,000 cobrados
+        var estado = await _plazos.ObtenerEstadoAsync(ventaId);
+        await _plazos.CobrarPlazoAsync(estado.Plazos[0].Id, 100_000m, MetodoPago.Efectivo);
+
+        var resultado = await _plazos.CancelarVentaAsync(new CancelacionVenta(
+            ventaId, "El cliente devolvió el vehículo", RetencionPorcentaje: 25m));
+
+        // 25% de 200,000 se queda el negocio, el resto se le devuelve
+        resultado.Cobrado.Should().Be(200_000m);
+        resultado.Retenido.Should().Be(50_000m);
+        resultado.Devuelto.Should().Be(150_000m);
+
+        // El vehículo vuelve a estar a la venta
+        (await _vehiculos.ObtenerPorIdAsync(vehiculoId))!.Estado
+            .Should().Be(EstadoVehiculo.Disponible);
+
+        // Los plazos que se debían quedan cancelados; el pagado NO se toca
+        estado = await _plazos.ObtenerEstadoAsync(ventaId);
+        estado.Plazos[0].Estado.Should().Be(EstadoPlazo.Pagado, "ya se había cobrado");
+        estado.Plazos.Skip(1).Should().OnlyContain(p => p.Estado == EstadoPlazo.Cancelado);
+
+        // Y los recibos siguen ahí: lo cobrado no se borra, se reparte
+        (await _plazos.ObtenerPagosAsync(ventaId)).Should().ContainSingle();
+    }
+
+    /// <summary>No se cancela dos veces: la segunda tiene que fallar.</summary>
+    [Fact]
+    public async Task NoSePuedeCancelarDosVeces()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9005", 200_000m);
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 200_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(0m, 2, FechaNegocio.Hoy.AddDays(30))));
+
+        await _plazos.CancelarVentaAsync(new CancelacionVenta(ventaId, "Devolución", 20m));
+
+        var segunda = () => _plazos.CancelarVentaAsync(new CancelacionVenta(ventaId, "Otra vez", 20m));
+        await segunda.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    /// <summary>El motivo es obligatorio: queda en el historial.</summary>
+    [Fact]
+    public async Task CancelarSinMotivo_SeRechaza()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9006", 200_000m);
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 200_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(0m, 2, FechaNegocio.Hoy.AddDays(30))));
+
+        var sinMotivo = () => _plazos.CancelarVentaAsync(new CancelacionVenta(ventaId, "  ", 20m));
+        await sinMotivo.Should().ThrowAsync<ArgumentException>();
     }
 }
