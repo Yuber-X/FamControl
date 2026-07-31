@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -78,6 +79,11 @@ public partial class ConfiguracionViewModel : ObservableObject
         _negocioEmail = ajustes.EmailNegocio;
         _negocioRnc = ajustes.RncNegocio;
         _comisionVendedorTexto = ajustes.PorcentajeComisionVendedor.ToString("0.##", Textos.CulturaRd);
+        // Impresión del ticket (POS-500)
+        _mostrarVistaPreviaTicket = ajustes.MostrarVistaPreviaTicket;
+        _copiasTicketTexto = ajustes.CopiasTicket.ToString();
+        _ticketEncabezado = ajustes.TicketEncabezado ?? string.Empty;
+        _ticketPie = ajustes.TicketPie ?? string.Empty;
         ActualizarUltimaExportacion();
         ActualizarUltimoRespaldo();
         ActualizarUltimoRecordatorio();
@@ -465,6 +471,82 @@ public partial class ConfiguracionViewModel : ObservableObject
     /// a lo sumo materializa el default del modo en el ajuste, sin efecto visible.
     /// </summary>
     public void SincronizarTema() => TemaOscuro = _ajustes.TemaOscuroDe(SesionActual.Modo);
+
+    // ---------- Impresión del ticket (POS-500, 2026-07-30) ----------
+    // Preferencias POR PC: la impresora del mostrador es de ESA terminal.
+    // Esta sección es la que faltaba portar del POS-500, y es la que resuelve
+    // el "me manda a guardar un PDF": sin impresora elegida, Windows usa la
+    // predeterminada del sistema — que en muchas PC es "Microsoft Print to PDF".
+
+    /// <summary>Solo tiene sentido dentro del punto de venta.</summary>
+    public bool EsPos500 => SesionActual.Modo == ModoApp.Pos500;
+
+    /// <summary>Impresoras instaladas. La llena la View: enumerarlas es cosa de UI.</summary>
+    public ObservableCollection<string> Impresoras { get; } = [];
+
+    [ObservableProperty] private string? _impresoraSeleccionada;
+    [ObservableProperty] private bool _mostrarVistaPreviaTicket;
+    [ObservableProperty] private string _copiasTicketTexto = "1";
+    [ObservableProperty] private string _ticketEncabezado = string.Empty;
+    [ObservableProperty] private string _ticketPie = string.Empty;
+
+    /// <summary>
+    /// Carga la lista de impresoras que le pasa la View y marca la guardada.
+    /// Si la guardada ya no está (se desinstaló, se cambió de PC), queda en
+    /// "la predeterminada de Windows" en vez de apuntar a algo que no existe.
+    /// </summary>
+    public void EstablecerImpresoras(IEnumerable<string> instaladas)
+    {
+        Impresoras.Clear();
+        Impresoras.Add(ImpresoraPredeterminadaDelSistema);
+        foreach (var nombre in instaladas.OrderBy(n => n))
+            Impresoras.Add(nombre);
+
+        var guardada = _ajustes.ImpresoraPredeterminada;
+        ImpresoraSeleccionada = !string.IsNullOrWhiteSpace(guardada) && Impresoras.Contains(guardada)
+            ? guardada
+            : ImpresoraPredeterminadaDelSistema;
+
+        OnPropertyChanged(nameof(EsPos500));
+    }
+
+    /// <summary>Opción "usar la que Windows tenga como predeterminada".</summary>
+    public const string ImpresoraPredeterminadaDelSistema = "(la predeterminada de Windows)";
+
+    partial void OnImpresoraSeleccionadaChanged(string? value)
+    {
+        _ajustes.ImpresoraPredeterminada =
+            value is null || value == ImpresoraPredeterminadaDelSistema ? null : value;
+        _ajustes.Guardar();
+    }
+
+    partial void OnMostrarVistaPreviaTicketChanged(bool value)
+    {
+        _ajustes.MostrarVistaPreviaTicket = value;
+        _ajustes.Guardar();
+    }
+
+    partial void OnCopiasTicketTextoChanged(string value)
+    {
+        // Entre 1 y 3: más copias de un ticket no tiene sentido y gasta papel
+        if (int.TryParse(value, out var copias) && copias is >= 1 and <= 3)
+        {
+            _ajustes.CopiasTicket = copias;
+            _ajustes.Guardar();
+        }
+    }
+
+    partial void OnTicketEncabezadoChanged(string value)
+    {
+        _ajustes.TicketEncabezado = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        _ajustes.Guardar();
+    }
+
+    partial void OnTicketPieChanged(string value)
+    {
+        _ajustes.TicketPie = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        _ajustes.Guardar();
+    }
 
     // ---------- Arranque directo (cliente 2026-07-29) ----------
     // Se prende marcando la casilla del launcher; acá se puede prender para la

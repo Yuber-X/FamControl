@@ -20,12 +20,36 @@ public partial class ConfiguracionView : UserControl
         // La secuencia NCF vive en la BD (no en ajustes.json): se carga al entrar
         Loaded += async (_, _) =>
         {
-            if (Vm is { } vm)
-                await vm.CargarNcfAsync();
+            if (Vm is not { } vm)
+                return;
+            // Las impresoras instaladas las enumera la VISTA: es una consulta al
+            // sistema operativo, no lógica de negocio, y el ViewModel no conoce WPF.
+            vm.EstablecerImpresoras(ImpresorasInstaladas());
+            await vm.CargarNcfAsync();
         };
     }
 
     private ConfiguracionViewModel? Vm => DataContext as ConfiguracionViewModel;
+
+    /// <summary>
+    /// Impresoras que ve esta PC. Si la consulta falla (servicio de cola caído,
+    /// equipo sin impresoras) se devuelve vacío: el POS igual funciona usando la
+    /// predeterminada de Windows.
+    /// </summary>
+    private static IEnumerable<string> ImpresorasInstaladas()
+    {
+        try
+        {
+            using var servidor = new System.Printing.LocalPrintServer();
+            return [.. servidor.GetPrintQueues().Select(c => c.FullName)];
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Warning(ex, "No se pudieron listar las impresoras instaladas");
+            return [];
+        }
+    }
+
 
     // Contraseña de app de Gmail: PasswordBox no se bindea (seguridad), se
     // empuja al VM que la cifra con DPAPI antes de guardarla.

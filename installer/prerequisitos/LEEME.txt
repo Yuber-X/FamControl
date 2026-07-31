@@ -9,13 +9,13 @@ QUÉ HAY QUE DEJAR EN ESTA CARPETA
 
 Los archivos tienen que llamarse EXACTAMENTE así (el .iss los busca por nombre):
 
-  mysql-installer-community.msi   MySQL Server 8.0 — instalador MSI
+  mysql-installer-web-community-8.0.46.0.msi   MySQL Server 8.0 (instalador WEB)
   AnyDesk.exe                     AnyDesk para Windows
   GoogleDriveSetup.exe            Google Drive para escritorio
 
 De dónde bajarlos:
 
-  MySQL   https://dev.mysql.com/downloads/installer/   (elegir el MSI, no el web)
+  MySQL   https://dev.mysql.com/downloads/installer/
   AnyDesk https://anydesk.com/es/downloads/windows
   Drive   https://www.google.com/intl/es/drive/download/
 
@@ -51,3 +51,12 @@ pasarlo por WhatsApp o por USB, la alternativa es dejar esta carpeta vacía y
 llevar los tres instaladores aparte, en la misma memoria.
 
 Esta carpeta está en .gitignore: los instaladores de terceros NO van al repositorio.
+
+OJO CON EL INSTALADOR **WEB** DE MYSQL
+--------------------------------------
+
+El que esta puesto (mysql-installer-web-community) pesa 2 MB porque descarga
+los componentes al ejecutarse: la PC del cliente necesita **internet durante la
+instalacion**. Si vas a instalar en un local sin conexion confiable, baja el
+instalador COMPLETO (el de ~450 MB, "mysql-installer-community-8.0.xx.msi"),
+dejalo en esta carpeta y cambiale el nombre en FAControl.iss (#define ExeMySql).

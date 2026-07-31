@@ -4,6 +4,22 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hor
 
 ## [1.7.1] — 2026-07-30 · Correcciones tras la primera prueba del POS
 
+### Impresión del ticket
+
+- **Sección "Impresión del ticket" en Configuración del POS**, que había quedado
+  fuera al portar el punto de venta: elegir la impresora del mostrador, ver o no
+  el ticket antes de imprimir, copias, y encabezado y pie del papel.
+- Eso explica el **"me mandó a guardar un PDF en vez de imprimir"**: sin
+  impresora elegida la app usa la predeterminada de Windows, que en muchas PC es
+  "Microsoft Print to PDF". Eligiendo la del mostrador, el ticket sale derecho.
+
+### Instalador
+
+- **1.7.1 con los tres prerequisitos adentro** (MySQL, AnyDesk y Google Drive):
+  282 MB. Se ofrecen como casillas antes de abrir FAControl y se pueden
+  desmarcar. Van con su ventana visible a propósito — MySQL pide la contraseña
+  de root y esa se elige con el cliente delante.
+
 ### Corregido
 
 - **No se podía vender.** Fallaba con "foreign key constraint fails

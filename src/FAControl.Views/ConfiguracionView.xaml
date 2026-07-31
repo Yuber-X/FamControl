@@ -37,6 +37,45 @@
         </StackPanel>
       </Border>
 
+      <!-- ============ IMPRESIÓN DEL TICKET (POS-500, 2026-07-30) ============ -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12"
+              Visibility="{Binding EsPos500, Converter={StaticResource BoolAVisibilidad}}">
+        <StackPanel>
+          <TextBlock Text="Impresión del ticket" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="Preferencias de ESTA computadora: cada terminal puede tener su propia impresora." />
+
+          <TextBlock Text="Impresora del ticket" Style="{DynamicResource Input.Label}" />
+          <ComboBox Width="360" Height="38" FontSize="13" HorizontalAlignment="Left"
+                    ItemsSource="{Binding Impresoras}"
+                    SelectedItem="{Binding ImpresoraSeleccionada}" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
+                     Text="Si dejás la predeterminada de Windows y esa es &quot;Microsoft Print to PDF&quot;, al cobrar te va a pedir guardar un archivo en vez de imprimir. Elegí acá la impresora del mostrador." />
+
+          <CheckBox Content="Ver el ticket antes de imprimir" FontSize="13" Margin="0,14,0,0"
+                    IsChecked="{Binding MostrarVistaPreviaTicket}" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
+                     Text="Apagado, el ticket sale directo al cobrar — con un cliente esperando es lo que conviene. Al reimprimir desde Comprobantes siempre se muestra primero, esté como esté esta casilla." />
+
+          <TextBlock Text="Copias del ticket (1 a 3)" Style="{DynamicResource Input.Label}" Margin="0,14,0,0" />
+          <TextBox Width="80" Height="34" HorizontalAlignment="Left"
+                   Style="{DynamicResource Input.Texto}"
+                   Text="{Binding CopiasTicketTexto, UpdateSourceTrigger=PropertyChanged}" />
+
+          <TextBlock Text="Encabezado del ticket (opcional)" Style="{DynamicResource Input.Label}" Margin="0,14,0,0" />
+          <TextBox Width="360" Height="52" HorizontalAlignment="Left"
+                   Style="{DynamicResource Input.Texto}" TextWrapping="Wrap" AcceptsReturn="True"
+                   VerticalContentAlignment="Top" Padding="10,8"
+                   Text="{Binding TicketEncabezado, UpdateSourceTrigger=LostFocus}" />
+
+          <TextBlock Text="Pie del ticket (opcional)" Style="{DynamicResource Input.Label}" Margin="0,14,0,0" />
+          <TextBox Width="360" Height="52" HorizontalAlignment="Left"
+                   Style="{DynamicResource Input.Texto}" TextWrapping="Wrap" AcceptsReturn="True"
+                   VerticalContentAlignment="Top" Padding="10,8"
+                   Text="{Binding TicketPie, UpdateSourceTrigger=LostFocus}" />
+        </StackPanel>
+      </Border>
+
       <!-- ============ DATOS DEL NEGOCIO (cliente 2026-07-25) ============ -->
       <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
         <StackPanel>
