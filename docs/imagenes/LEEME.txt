@@ -1,0 +1,63 @@
+CAPTURAS DE PANTALLA DE LOS MANUALES
+=====================================
+
+Aca van las fotos de las pantallas que despues se meten solas en los .docx.
+
+
+COMO NOMBRARLAS
+---------------
+El nombre sale del marcador que esta en el .md. Si el manual dice:
+
+    📷 IMAGEN 07 — Ventana de aviso de pagos vencidos
+
+el archivo tiene que llamarse:
+
+    imagen-07.png
+
+Los de la guia de instalacion llevan la I:
+
+    📷 IMAGEN I-04  ->  imagen-I-04.png
+
+Sirven .png, .jpg y .jpeg. PNG es la mejor opcion para capturas de pantalla:
+no borronea el texto.
+
+
+CUANTAS SON
+-----------
+    MANUAL.md    ->  imagen-01   ... imagen-43      (43 capturas)
+    INSTALL.md   ->  imagen-I-01 ... imagen-I-14    (14 capturas)
+
+
+COMO TOMARLAS
+-------------
+- Tecla Windows + Shift + S recorta lo que quieras y lo copia
+- Alt + Impr Pant fotografia SOLO la ventana activa (queda mas prolijo que
+  la pantalla entera)
+- Maximiza la ventana antes: una captura chica se ve borrosa al agrandarla
+  en Word
+- Usa datos de prueba, NUNCA datos reales de clientes. Esos manuales van a
+  circular.
+
+
+GENERAR LOS .docx
+-----------------
+Desde la carpeta del proyecto:
+
+    python scripts/docs/generar_docx.py
+
+Salen dos archivos en docs\:
+
+    FAControl - Manual de usuario.docx
+    FAControl - Guia de instalacion.docx
+
+No hace falta tener todas las capturas para generarlos. Las que falten
+quedan como un recuadro punteado que dice cual falta, y el script las lista
+al terminar. Se puede correr las veces que haga falta: siempre pisa el .docx
+anterior.
+
+
+POR QUE NO ESTAN EN EL REPOSITORIO
+-----------------------------------
+Las capturas estan en .gitignore. Son archivos pesados que cambian con cada
+version de la interfaz, y el repositorio se llenaria de imagenes viejas que
+ya no se parecen a lo que muestra el programa.

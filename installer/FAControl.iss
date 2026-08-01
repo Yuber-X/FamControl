@@ -11,7 +11,7 @@
 ; =============================================================
 
 #define AppNombre "FAControl"
-#define AppVersion "1.8.0"
+#define AppVersion "1.9.0"
 #define AppEditor "Yuber Santana"
 #define AppExe "FAControl.App.exe"
 #define AppTelefono "849-438-0242"
@@ -76,8 +76,12 @@ Name: "prereq_drive"; Description: "Instalar Google Drive (para subir los respal
 Source: "..\publish\*"; DestDir: "{app}"; \
   Excludes: "FAControl.App.dll.config"; \
   Flags: ignoreversion recursesubdirs createallsubdirs
-; La configuración (cadena de conexión) NUNCA se pisa en actualizaciones
-Source: "..\publish\FAControl.App.dll.config"; DestDir: "{app}"; \
+; La configuración (cadena de conexión) NUNCA se pisa en actualizaciones.
+; Se envía la de ESTA carpeta, no la de publish\: esa es la de desarrollo y
+; apunta a la base local con root/root. Mandársela al cliente sería decirle al
+; instalador que la password de MySQL tiene que ser "root". La que va lleva un
+; marcador que hay que reemplazar (paso 4.6 de INSTALL.md).
+Source: "FAControl.App.dll.config"; DestDir: "{app}"; \
   Flags: onlyifdoesntexist uninsneveruninstall
 ; Scripts de base de datos y documentación.
 ; Van TODAS las migraciones: una instalación nueva se arma sola con el esquema

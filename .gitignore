@@ -30,3 +30,9 @@ TestResults/
 # pesan cientos de MB y no son nuestros
 installer/prerequisitos/*
 !installer/prerequisitos/LEEME.txt
+
+# Capturas de los manuales: pesan y cambian con cada version de la UI (2026-08-02)
+docs/imagenes/*
+!docs/imagenes/LEEME.txt
+# Manuales generados: se rehacen con scripts/docs/generar_docx.py
+docs/*.docx
