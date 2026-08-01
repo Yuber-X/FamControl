@@ -199,6 +199,30 @@ public class AlquilerPago
 }
 
 /// <summary>
+/// Una cuota MENSUAL del alquiler (037). No se guarda en la base: se calcula
+/// del periodo pactado y la tarifa, igual que el semaforo de las cuotas de un
+/// prestamo.
+///
+/// POR QUE MENSUAL: "la idea del grid es que almacene la cantidad de cobros
+/// mensuales hasta el dia pactado (como si fueran plazos); usualmente estos
+/// cobros son mensuales" (Yuber 2026-08-01). Un alquiler largo no se paga de
+/// una: se cobra mes a mes.
+/// </summary>
+public record CuotaAlquiler(
+    int Numero,
+    DateOnly Desde,
+    DateOnly Hasta,
+    int Dias,
+    decimal Monto,
+    decimal Pagado)
+{
+    public decimal Pendiente => Math.Max(0m, Monto - Pagado);
+    public bool EstaPagada => Pagado >= Monto;
+    /// <summary>Vencida y sin cubrir: el mes ya paso y sigue debiendo.</summary>
+    public bool EstaAtrasada(DateOnly hoy) => !EstaPagada && Hasta < hoy;
+}
+
+/// <summary>
 /// Como va el cobro de un alquiler (034). Mientras el contrato esta abierto se
 /// mide contra lo PACTADO; una vez cerrado, contra lo que realmente
 /// correspondio (031), que puede ser mas si devolvio tarde.
@@ -206,7 +230,9 @@ public class AlquilerPago
 public record EstadoCobroAlquiler(
     decimal MontoACobrar,
     decimal Cobrado,
-    IReadOnlyList<AlquilerPago> Pagos)
+    IReadOnlyList<AlquilerPago> Pagos,
+    /// <summary>Las cuotas mensuales del periodo, con lo que se cubrio de cada una (037).</summary>
+    IReadOnlyList<CuotaAlquiler> Calendario)
 {
     public decimal Pendiente => Math.Max(0m, MontoACobrar - Cobrado);
     public bool EstaSaldado => Pendiente <= 0m;

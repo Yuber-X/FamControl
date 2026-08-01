@@ -379,4 +379,83 @@ public class FlujoAlquilerTests : IAsyncLifetime
         (await cobrar.Should().ThrowAsync<InvalidOperationException>())
             .WithMessage("*cancelado*");
     }
+
+    // ---------- Calendario mensual (037) ----------
+
+    /// <summary>
+    /// Un alquiler largo se cobra MES A MES, no de una: "la idea del grid es
+    /// que almacene la cantidad de cobros mensuales hasta el dia pactado".
+    /// </summary>
+    [Fact]
+    public async Task UnAlquilerDeTresMeses_SePartesEnTresCuotasMensuales()
+    {
+        var inicio = FechaNegocio.Hoy;
+        var (id, _) = await _alquileres.RegistrarAsync(new AlquilerDatos(
+            _vehiculoId, _clienteId, inicio, inicio.AddMonths(3), TarifaDia: 1_000m, Notas: null));
+
+        var estado = await _alquileres.ObtenerEstadoCobroAsync(id);
+
+        estado.Calendario.Should().HaveCount(3, "tres meses, tres cuotas");
+        estado.Calendario[0].Desde.Should().Be(inicio);
+        estado.Calendario[0].Hasta.Should().Be(inicio.AddMonths(1));
+        estado.Calendario[2].Hasta.Should().Be(inicio.AddMonths(3));
+
+        // La suma de las cuotas da EXACTO el monto a cobrar: repartir por
+        // division deja centavos sueltos y la ultima los absorbe.
+        estado.Calendario.Sum(c => c.Monto).Should().Be(estado.MontoACobrar);
+    }
+
+    /// <summary>
+    /// Lo cobrado se aplica en cascada sobre el calendario: satura la primera
+    /// cuota y sigue con la segunda. Y el alquiler NO queda saldado por pagar
+    /// un mes — que era justo lo que hacia desaparecer el formulario.
+    /// </summary>
+    [Fact]
+    public async Task CobrarUnMes_NoSaldaElAlquilerLargo()
+    {
+        var inicio = FechaNegocio.Hoy;
+        var (id, _) = await _alquileres.RegistrarAsync(new AlquilerDatos(
+            _vehiculoId, _clienteId, inicio, inicio.AddMonths(3), TarifaDia: 1_000m, Notas: null));
+
+        var estado = await _alquileres.ObtenerEstadoCobroAsync(id);
+        var primerMes = estado.Calendario[0].Monto;
+
+        await _alquileres.RegistrarCobroAsync(
+            new CobroAlquiler(id, primerMes, MetodoPago.Efectivo, "Primer mes"));
+
+        estado = await _alquileres.ObtenerEstadoCobroAsync(id);
+        estado.EstaSaldado.Should().BeFalse("faltan dos meses");
+        estado.Calendario[0].EstaPagada.Should().BeTrue();
+        estado.Calendario[1].EstaPagada.Should().BeFalse();
+        estado.Calendario[1].Pagado.Should().Be(0m);
+    }
+
+    /// <summary>Un abono parcial deja la cuota cubierta a medias, no saldada.</summary>
+    [Fact]
+    public async Task UnAbonoParcial_CubreLaCuotaAMedias()
+    {
+        var inicio = FechaNegocio.Hoy;
+        var (id, _) = await _alquileres.RegistrarAsync(new AlquilerDatos(
+            _vehiculoId, _clienteId, inicio, inicio.AddMonths(2), TarifaDia: 1_000m, Notas: null));
+
+        await _alquileres.RegistrarCobroAsync(new CobroAlquiler(id, 5_000m, MetodoPago.Efectivo));
+
+        var estado = await _alquileres.ObtenerEstadoCobroAsync(id);
+        estado.Calendario[0].Pagado.Should().Be(5_000m);
+        estado.Calendario[0].EstaPagada.Should().BeFalse();
+        estado.Calendario[0].Pendiente.Should().Be(estado.Calendario[0].Monto - 5_000m);
+    }
+
+    /// <summary>Un alquiler corto (menos de un mes) da una sola cuota.</summary>
+    [Fact]
+    public async Task UnAlquilerCorto_DaUnaSolaCuota()
+    {
+        var (id, _) = await CrearAlquilerAsync();   // 5 dias
+
+        var estado = await _alquileres.ObtenerEstadoCobroAsync(id);
+
+        estado.Calendario.Should().ContainSingle();
+        estado.Calendario[0].Monto.Should().Be(10_000m);
+        estado.Calendario[0].Dias.Should().Be(5);
+    }
 }

@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.PrestamoNuevoView"
+﻿<UserControl x:Class="FAControl.Views.PrestamoNuevoView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -158,11 +158,11 @@
                     IsChecked="{Binding NcfDeSecuencia}" />
 
           <!-- Préstamo antiguo autodetectado (pedido 2026-07-25) -->
-          <Border Background="#1AF59E0B" CornerRadius="8" Padding="12,10" Margin="0,14,0,0"
+          <Border Background="{DynamicResource Brush.Aviso.Fondo}" CornerRadius="8" Padding="12,10" Margin="0,14,0,0"
                   Visibility="{Binding EsPrestamoAntiguo, Converter={StaticResource BoolAVisibilidad}}">
             <StackPanel>
               <TextBlock Text="{Binding PrestamoAntiguoTexto}" FontSize="12.5" FontWeight="SemiBold"
-                         TextWrapping="Wrap" />
+                         TextWrapping="Wrap" Foreground="{DynamicResource Brush.Aviso.Texto}" />
               <CheckBox Content="El cliente está al día (marcar TODAS las cuotas vencidas como pagadas)"
                         FontSize="12" Margin="0,8,0,0"
                         IsChecked="{Binding ClienteAlDia}" />

@@ -24,6 +24,9 @@
       <BooleanToVisibilityConverter x:Key="BoolAVisibilidad" />
       <!-- Visibilidad inversa: se ve cuando la condicion es FALSE -->
       <conv:BooleanToVisibilityInversoConverter x:Key="InversorBoolVisibilidad" />
+      <!-- Colapsa el elemento cuando el texto esta vacio: un TextBlock vacio
+           igual ocupa su alto y empuja lo que tiene alrededor -->
+      <conv:TextoAVisibilidadConverter x:Key="TextoAVisibilidad" />
 
       <!-- Mapeo ViewModel → View del área principal del shell -->
       <DataTemplate DataType="{x:Type vm:PrestamosViewModel}">

@@ -36,7 +36,25 @@ public static class SesionActual
 
     public static bool EsAdmin => Rol == Roles.Admin || EsProgramador;
 
-    /// <summary>True si el usuario tiene el permiso (código de la tabla permiso).</summary>
+    /// <summary>
+    /// True si el usuario tiene el permiso (código de la tabla permiso).
+    ///
+    /// MANDA EL PERMISO EFECTIVO, NO EL ROL — a propósito. Un Admin al que se
+    /// le quitó un permiso puntual no lo tiene: es la regla que permite, por
+    /// ejemplo, dejar a un administrador sin poder autorizar préstamos. Hay un
+    /// test que la fija (AutorizacionPrestamoTests).
+    ///
+    /// Por eso el Admin NO se saltea esta comprobación, aunque sea tentador:
+    /// haría que "quitarle un permiso al Admin" no significara nada.
+    ///
+    /// La contracara es que un permiso NUEVO no le llega solo a los usuarios
+    /// que ya existían: usuario_permiso —la unión efectiva que lee el login— la
+    /// siembran los triggers al crear el usuario o cambiarle el rol. Eso mordió
+    /// el 2026-08-01: la 033 creó 'contratos' y se lo dio al ROL, pero nadie lo
+    /// tenía en usuario_permiso y la pantalla de Contratos desapareció para
+    /// todos. La regla que quedó: TODA migración que agregue un permiso tiene
+    /// que sembrarlo también en usuario_permiso (ver 036).
+    /// </summary>
     public static bool TienePermiso(string codigoPermiso) => _permisos.Contains(codigoPermiso);
 
     /// <summary>

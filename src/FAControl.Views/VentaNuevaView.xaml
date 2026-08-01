@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.VentaNuevaView"
+﻿<UserControl x:Class="FAControl.Views.VentaNuevaView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -97,11 +97,12 @@
         </Border>
 
         <!-- Separación / apartado -->
-        <Border Background="#1AF59E0B" CornerRadius="8" Padding="14,12" Margin="0,12,0,0"
+        <Border Background="{DynamicResource Brush.Aviso.Fondo}" CornerRadius="8" Padding="14,12" Margin="0,12,0,0"
                 Visibility="{Binding EsSeparacion, Converter={StaticResource BoolAVisibilidad}}">
           <StackPanel>
             <TextBlock Text="Separación: el vehículo queda reservado y el cliente tiene N días de derecho."
-                       Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                       Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,10"
+                       Foreground="{DynamicResource Brush.Aviso.Texto}" />
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />

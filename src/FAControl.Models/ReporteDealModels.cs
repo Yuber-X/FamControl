@@ -91,5 +91,16 @@ public record ReporteDeal(
     /// </summary>
     bool HayFiltro = false);
 
-/// <summary>Opción de los combos de filtro del reporte del dealer.</summary>
-public record OpcionFiltroReporte(long? Id, string Nombre);
+/// <summary>
+/// Opción de los combos de filtro del reporte del dealer.
+///
+/// Sobreescribe ToString() a propósito: sin eso el ComboBox muestra el texto
+/// que genera el compilador para un record —"OpcionFiltroReporte { Id = 3,
+/// Nombre = Ana }"— en vez del nombre. Es el mismo criterio que ya usa
+/// Opcion&lt;T&gt;, y evita depender de que cada XAML se acuerde de poner
+/// DisplayMemberPath.
+/// </summary>
+public record OpcionFiltroReporte(long? Id, string Nombre)
+{
+    public override string ToString() => Nombre;
+}

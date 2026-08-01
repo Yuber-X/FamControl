@@ -310,7 +310,71 @@ public class AlquilerService
             _ => alquiler.MontoTotal
         };
 
-        return new EstadoCobroAlquiler(aCobrar, pagos.Sum(p => p.Monto), pagos);
+        var cobrado = pagos.Sum(p => p.Monto);
+        return new EstadoCobroAlquiler(aCobrar, cobrado, pagos,
+            CalcularCalendario(alquiler, aCobrar, cobrado));
+    }
+
+    /// <summary>
+    /// Parte el periodo del alquiler en cuotas MENSUALES y reparte sobre ellas
+    /// lo ya cobrado (037).
+    ///
+    /// NO se guarda: se calcula del periodo y la tarifa, como el semaforo de un
+    /// prestamo. Guardarlo obligaria a mantenerlo sincronizado cada vez que se
+    /// corrige una fecha o se cierra el contrato, y seria una segunda fuente de
+    /// verdad para algo que ya se deduce.
+    ///
+    /// El ultimo mes se ajusta para que la suma de las cuotas de EXACTAMENTE el
+    /// monto a cobrar: repartir por division deja centavos sueltos.
+    /// </summary>
+    private static IReadOnlyList<CuotaAlquiler> CalcularCalendario(
+        Alquiler alquiler, decimal aCobrar, decimal cobrado)
+    {
+        if (aCobrar <= 0m)
+            return [];
+
+        // El periodo real: hasta la devolucion si ya volvio, si no hasta lo pactado
+        var fin = alquiler.FechaDevolucion ?? alquiler.FechaFin;
+        if (fin <= alquiler.FechaInicio)
+            fin = alquiler.FechaInicio.AddDays(1);
+
+        var tramos = new List<(DateOnly Desde, DateOnly Hasta)>();
+        var desde = alquiler.FechaInicio;
+        while (desde < fin)
+        {
+            // AddMonths respeta el fin de mes: del 31/01 pasa al 28/02, que es
+            // lo que espera cualquiera que cobre "el mismo dia del mes".
+            var siguiente = desde.AddMonths(1);
+            if (siguiente > fin) siguiente = fin;
+            tramos.Add((desde, siguiente));
+            desde = siguiente;
+        }
+
+        var totalDias = Math.Max(1, fin.DayNumber - alquiler.FechaInicio.DayNumber);
+        var cuotas = new List<CuotaAlquiler>(tramos.Count);
+        var restanteCobrado = cobrado;
+        var acumuladoMonto = 0m;
+
+        for (var i = 0; i < tramos.Count; i++)
+        {
+            var (d, h) = tramos[i];
+            var dias = Math.Max(1, h.DayNumber - d.DayNumber);
+            var esUltima = i == tramos.Count - 1;
+
+            // La ultima absorbe el redondeo, para que la suma cierre exacta
+            var monto = esUltima
+                ? aCobrar - acumuladoMonto
+                : Math.Round(aCobrar * dias / totalDias, 2, MidpointRounding.AwayFromZero);
+            acumuladoMonto += monto;
+
+            // Lo cobrado se aplica en cascada: satura la primera cuota, sigue
+            // con la segunda. Mismo criterio que un abono de venta.
+            var pagado = Math.Min(restanteCobrado, monto);
+            restanteCobrado -= pagado;
+
+            cuotas.Add(new CuotaAlquiler(i + 1, d, h, dias, monto, pagado));
+        }
+        return cuotas;
     }
 
     /// <summary>

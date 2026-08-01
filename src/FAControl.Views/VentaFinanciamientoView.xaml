@@ -75,9 +75,10 @@
       </Border>
 
       <!-- Aviso (separación por vencer/vencida, plazos atrasados, saldada) -->
-      <Border Background="#1AF59E0B" CornerRadius="8" Padding="12,10" Margin="0,0,0,12"
+      <Border Background="{DynamicResource Brush.Aviso.Fondo}" CornerRadius="8" Padding="12,10" Margin="0,0,0,12"
               Visibility="{Binding HayAviso, Converter={StaticResource BoolAVisibilidad}}">
-        <TextBlock Text="{Binding AvisoTexto}" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding AvisoTexto}" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"
+                   Foreground="{DynamicResource Brush.Aviso.Texto}" />
       </Border>
 
       <!-- Los 4 números en el orden que pidió el cliente:
@@ -197,18 +198,24 @@
               <TextBox Width="260" Height="34" Style="{DynamicResource Input.Texto}"
                        Text="{Binding NotasAbono, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
-            <!-- Cómo se reparte lo que se está escribiendo, ANTES de confirmar
-                 (pedido de Yuber 2026-07-31) -->
-            <TextBlock Text="{Binding RepartoTexto}" TextWrapping="Wrap"
-                       Style="{DynamicResource Texto.Caption}"
-                       Foreground="{DynamicResource Brush.Primario}"
-                       Margin="0,4,0,8" />
             <Button Content="Registrar cobro" Style="{DynamicResource Boton.Primario}"
                     VerticalAlignment="Bottom" Margin="0,0,0,6"
                     Command="{Binding CobrarCommand}" />
           </WrapPanel>
+
+          <!-- Los avisos van DEBAJO de los campos, nunca entre ellos.
+               Estaban dentro del WrapPanel, entre la última caja y el botón:
+               al aparecer un mensaje tomaban un lugar en el flujo y corrían el
+               botón de sitio (reportado 2026-08-01). Acá abajo el botón se
+               queda quieto pase lo que pase. -->
+          <TextBlock Text="{Binding RepartoTexto}" TextWrapping="Wrap"
+                     Style="{DynamicResource Texto.Caption}"
+                     Foreground="{DynamicResource Brush.Primario}"
+                     Margin="0,4,0,0"
+                     Visibility="{Binding RepartoTexto, Converter={StaticResource TextoAVisibilidad}}" />
           <TextBlock Text="{Binding MensajeCobro}" Foreground="{DynamicResource Brush.Destructivo}"
-                     Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                     Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
+                     Visibility="{Binding MensajeCobro, Converter={StaticResource TextoAVisibilidad}}" />
         </StackPanel>
       </Border>
 

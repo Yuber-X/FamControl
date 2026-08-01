@@ -71,6 +71,13 @@ public partial class AlquilerDetalleViewModel : ObservableObject
 
     public ObservableCollection<AlquilerPagoFila> Cobros { get; } = [];
 
+    /// <summary>
+    /// Las cuotas MENSUALES del periodo (037). Un alquiler no se cobra de una:
+    /// se cobra mes a mes hasta el dia pactado.
+    /// </summary>
+    public ObservableCollection<CuotaAlquilerFila> Calendario { get; } = [];
+    [ObservableProperty] private bool _hayCalendario;
+
     [ObservableProperty] private decimal _montoACobrar;
     [ObservableProperty] private decimal _cobrado;
     [ObservableProperty] private decimal _pendiente;
@@ -99,6 +106,13 @@ public partial class AlquilerDetalleViewModel : ObservableObject
     /// </summary>
     public bool PuedeCobrar => !EstaSaldado && !FueCancelado
                                && SesionActual.TienePermiso(Permisos.Alquileres);
+
+    /// <summary>
+    /// Ya se cobro todo. Se muestra un cartel EN LUGAR del formulario: antes el
+    /// formulario simplemente desaparecia y parecia que la pantalla se habia
+    /// roto (reportado 2026-08-01). Editar y Cerrar NO dependen de esto.
+    /// </summary>
+    public bool MostrarSaldado => EstaSaldado && !FueCancelado;
 
     [ObservableProperty] private string _codigo = string.Empty;
     [ObservableProperty] private string _clienteNombre = string.Empty;
@@ -383,7 +397,14 @@ public partial class AlquilerDetalleViewModel : ObservableObject
             Cobros.Add(new AlquilerPagoFila(p));
         SinCobros = Cobros.Count == 0;
 
+        var hoy = FechaNegocio.Hoy;
+        Calendario.Clear();
+        foreach (var c in estado.Calendario)
+            Calendario.Add(new CuotaAlquilerFila(c, hoy));
+        HayCalendario = Calendario.Count > 0;
+
         OnPropertyChanged(nameof(PuedeCobrar));
+        OnPropertyChanged(nameof(MostrarSaldado));
     }
 
     /// <summary>Registra un cobro contra el alquiler.</summary>
@@ -424,6 +445,24 @@ public partial class AlquilerDetalleViewModel : ObservableObject
         }
     }
 
+}
+
+/// <summary>Fila del calendario mensual del alquiler (037).</summary>
+public record CuotaAlquilerFila(CuotaAlquiler Cuota, DateOnly Hoy)
+{
+    public int Numero => Cuota.Numero;
+    public string PeriodoTexto =>
+        $"{Cuota.Desde.ToString(Textos.FormatoFecha, Textos.CulturaRd)} → " +
+        $"{Cuota.Hasta.ToString(Textos.FormatoFecha, Textos.CulturaRd)}";
+    public int Dias => Cuota.Dias;
+    public decimal Monto => Cuota.Monto;
+    public decimal Pagado => Cuota.Pagado;
+    public decimal Pendiente => Cuota.Pendiente;
+    public bool EstaPagada => Cuota.EstaPagada;
+    public bool EstaAtrasada => Cuota.EstaAtrasada(Hoy);
+    public string EstadoTexto => Cuota.EstaPagada
+        ? "Pagado"
+        : EstaAtrasada ? "Atrasado" : "Pendiente";
 }
 
 /// <summary>Fila del historial de cobros del alquiler (034).</summary>

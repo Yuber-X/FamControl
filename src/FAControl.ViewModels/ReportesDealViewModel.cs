@@ -221,8 +221,17 @@ public partial class ReportesDealViewModel : ObservableObject
                 ? $"Comisión configurada: {_ajustes.PorcentajeComisionVendedor:0.##}% del monto vendido."
                 : "Sin % de comisión configurado (Configuración → Datos del negocio): la columna irá en cero.";
 
-            ConstruirGraficos(reporte);
+            // El ORDEN importa: primero se muestra el panel, después se cargan
+            // las series.
+            //
+            // Todo el reporte cuelga de un StackPanel con Visibility atada a
+            // TieneReporte. Si las series se asignan mientras ese panel está
+            // Collapsed, LiveCharts mide el gráfico con tamaño cero y no vuelve
+            // a dibujarlo cuando el panel aparece: quedaba en blanco la PRIMERA
+            // vez y salía bien de la segunda en adelante, porque para entonces
+            // el panel ya estaba visible (reportado 2026-08-01).
             TieneReporte = true;
+            ConstruirGraficos(reporte);
         }
         catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
         {

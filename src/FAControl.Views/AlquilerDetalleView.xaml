@@ -180,6 +180,54 @@
                        Style="{DynamicResource Texto.Caption}" />
           </Border>
 
+          <!-- Calendario mensual: un alquiler se cobra mes a mes hasta el dia
+               pactado, no de una sola vez (pedido 2026-08-01). No se guarda en
+               la base: se calcula del periodo y la tarifa. -->
+          <TextBlock Text="Cuotas del período" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                     Margin="0,4,0,6"
+                     Visibility="{Binding HayCalendario, Converter={StaticResource BoolAVisibilidad}}" />
+          <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Calendario}"
+                    Margin="0,0,0,14" MaxHeight="200"
+                    Visibility="{Binding HayCalendario, Converter={StaticResource BoolAVisibilidad}}">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="#" Binding="{Binding Numero}" Width="Auto" MinWidth="45" />
+              <DataGridTextColumn Header="Período" Binding="{Binding PeriodoTexto}"
+                                  Width="Auto" MinWidth="200"
+                                  HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+              <DataGridTextColumn Header="Días" Binding="{Binding Dias}" Width="Auto" MinWidth="60" />
+              <DataGridTextColumn Header="Monto"
+                                  Binding="{Binding Monto, Converter={StaticResource Money}}"
+                                  Width="Auto" MinWidth="120">
+                <DataGridTextColumn.ElementStyle>
+                  <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+              <DataGridTextColumn Header="Cubierto"
+                                  Binding="{Binding Pagado, Converter={StaticResource Money}}"
+                                  Width="Auto" MinWidth="120">
+                <DataGridTextColumn.ElementStyle>
+                  <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+              <DataGridTextColumn Header="Estado" Binding="{Binding EstadoTexto}" Width="*" MinWidth="110"
+                                  HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
+                <DataGridTextColumn.ElementStyle>
+                  <Style TargetType="TextBlock">
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding EstaAtrasada}" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.EnMora.Texto}" />
+                        <Setter Property="FontWeight" Value="SemiBold" />
+                      </DataTrigger>
+                      <DataTrigger Binding="{Binding EstaPagada}" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.DeltaPositivo}" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+            </DataGrid.Columns>
+          </DataGrid>
+
           <!-- Registrar un cobro -->
           <Grid Visibility="{Binding PuedeCobrar, Converter={StaticResource BoolAVisibilidad}}">
             <Grid.ColumnDefinitions>
@@ -218,6 +266,16 @@
                     Style="{DynamicResource Boton.Primario}" Height="36"
                     Command="{Binding CobrarCommand}" />
           </Grid>
+
+          <!-- Cuando ya se cobro todo, el formulario se va pero se DICE por que.
+               Antes desaparecia sin explicacion y parecia que la pantalla se
+               habia roto. Editar y Cerrar siguen estando: no dependen de esto. -->
+          <Border CornerRadius="8" Padding="14,10" Margin="0,4,0,0"
+                  Background="{DynamicResource Brush.PrimarioSutil}"
+                  Visibility="{Binding MostrarSaldado, Converter={StaticResource BoolAVisibilidad}}">
+            <TextBlock Style="{DynamicResource Texto.CuerpoEnfatizado}" TextWrapping="Wrap"
+                       Text="Este alquiler ya está cobrado por completo. Si el cliente devuelve tarde, al cerrarlo se recalcula lo que falta y vas a poder cobrar la diferencia." />
+          </Border>
 
           <TextBlock Margin="0,12,0,0" Style="{DynamicResource Texto.Caption}"
                      Text="Todavía no se registró ningún cobro de este alquiler."

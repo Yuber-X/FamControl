@@ -129,4 +129,46 @@ public class VerificadorBaseDatosTests : IAsyncLifetime
         sql.Should().NotContainEquivalentOf("USE facontrol_db");
         sql.Should().ContainEquivalentOf("CREATE TABLE usuario");
     }
+
+    /// <summary>
+    /// El usuario con rol GLOBAL que se siembra (el Programador) tiene TODOS los
+    /// permisos del catalogo.
+    ///
+    /// POR QUE EXISTE: el 01/08/2026 se agrego el permiso 'contratos' al rol
+    /// Admin, pero el menu no lee rol_permiso sino usuario_permiso —la union
+    /// efectiva por usuario, que los triggers siembran al crear el usuario—.
+    /// Nadie lo tenia y la pantalla de Contratos desaparecio para todos,
+    /// incluido el dueño. No fallo ninguna prueba: no habia ninguna que mirara
+    /// esto.
+    ///
+    /// Este test cubre la instalacion NUEVA. Para las bases que ya existen la
+    /// regla es de disciplina y esta escrita en 036: toda migracion que agregue
+    /// un permiso tiene que sembrarlo tambien en usuario_permiso.
+    /// </summary>
+    [Fact]
+    public async Task CrearEsquema_DejaAlUsuarioGlobalConTodosLosPermisos()
+    {
+        await new VerificadorBaseDatos(CadenaProvision).CrearEsquemaAsync();
+
+        await using var conexion = new MySqlConnection(CadenaProvision);
+        await conexion.OpenAsync();
+        await using var cmd = conexion.CreateCommand();
+        cmd.CommandText = """
+            SELECT
+              (SELECT COUNT(*) FROM permiso) AS catalogo,
+              (SELECT COUNT(*) FROM usuario_permiso up
+               JOIN usuario u ON u.id = up.usuario_id
+               JOIN rol r     ON r.id = u.rol_id AND r.modo IS NULL) AS del_admin;
+            """;
+        await using var reader = await cmd.ExecuteReaderAsync();
+        (await reader.ReadAsync()).Should().BeTrue();
+
+        var catalogo = Convert.ToInt32(reader["catalogo"]);
+        var delAdmin = Convert.ToInt32(reader["del_admin"]);
+
+        catalogo.Should().BeGreaterThan(0, "el catalogo de permisos no puede estar vacio");
+        delAdmin.Should().Be(catalogo,
+            "a un rol global le tienen que llegar TODOS los permisos: si falta uno, la " +
+            "pantalla que lo usa desaparece del menu sin aviso");
+    }
 }
