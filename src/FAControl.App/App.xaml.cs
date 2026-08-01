@@ -529,6 +529,7 @@ public partial class App : Application
         servicios.AddTransient<LoginViewModel>();
         servicios.AddSingleton<UsuariosViewModel>();
         servicios.AddSingleton<ContratosViewModel>();
+        servicios.AddSingleton<ExpedienteContratoViewModel>();
         servicios.AddSingleton<ClientesViewModel>();
         servicios.AddSingleton<ClienteFichaViewModel>();
         servicios.AddSingleton<ClienteFichaDealViewModel>();

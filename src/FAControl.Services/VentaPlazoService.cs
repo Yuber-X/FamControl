@@ -256,6 +256,20 @@ public class VentaPlazoService
 
         var estado = await ObtenerEstadoAsync(datos.VentaId, ct);
 
+        // Una venta SALDADA no se cancela (2026-08-01). El cliente pagó todo y
+        // el vehículo es suyo: cancelarla lo devolvería al inventario y
+        // retendría un porcentaje de lo cobrado, es decir, rompería el
+        // histórico y el inventario de un tirón.
+        //
+        // La regla vive ACÁ y no solo en la pantalla: ocultar un botón no es
+        // una regla, es una sugerencia. Si de verdad hay que revertir una venta
+        // cobrada, eso es una devolución y se registra como tal.
+        if (estado.EstaSaldada && estado.CantidadPlazos > 0)
+            throw new InvalidOperationException(
+                $"La venta {estado.Codigo} ya está saldada: el cliente pagó todo. " +
+                "Una venta cobrada por completo no se cancela; si hubo una devolución, " +
+                "registrala como tal.");
+
         // Lo cobrado es la inicial más todos los abonos: eso es lo que se reparte
         var cobrado = estado.RecibidoTotal;
         var retenido = Math.Round(cobrado * datos.RetencionPorcentaje / 100m, 2,

@@ -215,6 +215,10 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
             _estado = estado;
             _datosVenta = datos;
 
+            // Saldada = no queda nada por cobrar. Apaga el boton de cancelar:
+            // cancelar una venta ya pagada rompe el historico (2026-08-01).
+            EstaSaldada = estado.EstaSaldada;
+
             // ¿Está cancelada? El cartel manda: explica por qué los plazos
             // aparecen cancelados y cuánta plata se devolvió (028).
             var cancelacion = await _ventas.ObtenerCancelacionAsync(ventaId);
@@ -376,7 +380,25 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     public Func<VentaParaEditar, EdicionVenta?>? EdicionSolicitada { get; set; }
 
     /// <summary>Cancelar mueve plata y devuelve un vehículo: es de Admin.</summary>
-    public bool PuedeCancelar => SesionActual.EsAdmin;
+    /// <summary>
+    /// Solo el Admin puede cancelar, y SOLO si la venta no está saldada
+    /// (2026-08-01).
+    ///
+    /// Cancelar una venta ya cobrada por completo no es una operación válida:
+    /// el cliente pagó todo y el vehículo es suyo. Dejar el botón vivo ahí solo
+    /// habilita romper el histórico por un clic de más — y la cancelación
+    /// devuelve el vehículo al inventario y retiene un porcentaje de lo
+    /// cobrado, así que deshacerla no es trivial.
+    ///
+    /// Si de verdad hubo que revertir una venta saldada, eso es una devolución
+    /// y se registra como tal, no como una cancelación.
+    /// </summary>
+    public bool PuedeCancelar => SesionActual.EsAdmin && !EstaSaldada;
+
+    /// <summary>Venta cobrada por completo: manda el estado, no la pantalla.</summary>
+    [ObservableProperty] private bool _estaSaldada;
+
+    partial void OnEstaSaldadaChanged(bool value) => OnPropertyChanged(nameof(PuedeCancelar));
 
     /// <summary>
     /// Muestra el botón "Editar" (033). El Admin lo tiene siempre; a los demás

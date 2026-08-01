@@ -1,57 +1,27 @@
-﻿using System.ComponentModel;
-using System.Windows;
 using System.Windows.Controls;
-using FAControl.Models;
-using FAControl.Printing;
+using System.Windows.Input;
 using FAControl.ViewModels;
 
 namespace FAControl.Views;
 
 /// <summary>
-/// Almacén de contratos. Muestra la vista previa del pagaré del contrato
-/// seleccionado y abre la ventana completa para verlo/imprimirlo.
-/// El FlowDocument se reconstruye en code-behind porque no se puede bindear.
+/// Almacén de contratos. Code-behind solo de UI: el doble clic en una fila
+/// entra a los archivos de ese contrato, que es la acción más frecuente.
+///
+/// La vista previa del pagaré vivía acá y se quitó el 2026-08-01; con ella se
+/// fue todo el manejo del FlowDocument, que era la única razón por la que esta
+/// clase tenía lógica.
 /// </summary>
 public partial class ContratosView : UserControl
 {
-    private ContratosViewModel? _vm;
-
     public ContratosView() => InitializeComponent();
 
-    private void ContratosView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    private void Tabla_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (_vm is not null)
+        if (sender is DataGrid { SelectedItem: ContratoFila fila } &&
+            DataContext is ContratosViewModel vm)
         {
-            _vm.PropertyChanged -= Vm_PropertyChanged;
-            _vm.PagareSolicitado -= MostrarPagare;
+            vm.VerArchivosCommand.Execute(fila);
         }
-        _vm = e.NewValue as ContratosViewModel;
-        if (_vm is not null)
-        {
-            _vm.PropertyChanged += Vm_PropertyChanged;
-            _vm.PagareSolicitado += MostrarPagare;
-        }
-        ActualizarVistaPrevia();
-    }
-
-    private void Vm_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(ContratosViewModel.VistaPrevia))
-            ActualizarVistaPrevia();
-    }
-
-    private void ActualizarVistaPrevia() =>
-        Visor.Document = _vm?.VistaPrevia is { } pagare
-            ? PagareDocumentFactory.Crear(pagare)
-            : null;
-
-    private void MostrarPagare(PagareImpreso pagare)
-    {
-        // Se le pasa el préstamo para que la copia impresa quede archivada sola
-        var ventana = new PagareWindow(pagare, _vm?.DuenoDelSeleccionado, _vm?.Expediente)
-        {
-            Owner = Window.GetWindow(this)
-        };
-        ventana.ShowDialog();
     }
 }

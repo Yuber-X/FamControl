@@ -51,6 +51,7 @@ public partial class MainViewModel : ObservableObject
     private readonly HistorialViewModel _historialVm;
     private readonly UsuariosViewModel _usuariosVm;
     private readonly ContratosViewModel _contratosVm;
+    private readonly ExpedienteContratoViewModel _expedienteContratoVm;
     private readonly ConfiguracionViewModel _configuracionVm;
     private readonly VehiculosViewModel _vehiculosVm;
     private readonly VehiculoFormViewModel _vehiculoFormVm;
@@ -73,7 +74,8 @@ public partial class MainViewModel : ObservableObject
         PrestamoDetalleViewModel detalleVm, CobrosViewModel cobrosVm,
         ClientesViewModel clientesVm, ClienteFichaViewModel fichaVm, ClienteFormViewModel clienteFormVm,
         PanelViewModel panelVm, ReportesViewModel reportesVm, HistorialViewModel historialVm,
-        UsuariosViewModel usuariosVm, ContratosViewModel contratosVm, ConfiguracionViewModel configuracionVm,
+        UsuariosViewModel usuariosVm, ContratosViewModel contratosVm,
+        ExpedienteContratoViewModel expedienteContratoVm, ConfiguracionViewModel configuracionVm,
         VehiculosViewModel vehiculosVm, VehiculoFormViewModel vehiculoFormVm,
         VentasViewModel ventasVm, VentaNuevaViewModel ventaNuevaVm,
         AlquileresViewModel alquileresVm, AlquilerNuevoViewModel alquilerNuevoVm,
@@ -93,6 +95,11 @@ public partial class MainViewModel : ObservableObject
         _historialVm = historialVm;
         _usuariosVm = usuariosVm;
         _contratosVm = contratosVm;
+        _expedienteContratoVm = expedienteContratoVm;
+        // Contratos → archivos del contrato → ficha del cliente (2026-08-01)
+        _contratosVm.ArchivosSolicitados += id => _ = AbrirExpedienteContratoAsync(id);
+        _expedienteContratoVm.VolverSolicitado += () => _ = NavegarAsync(Pagina.Contratos);
+        _expedienteContratoVm.FichaClienteSolicitada += id => _ = AbrirFichaAsync(id);
         _configuracionVm = configuracionVm;
         _vehiculosVm = vehiculosVm;
         _vehiculoFormVm = vehiculoFormVm;
@@ -523,6 +530,25 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             Log.Error(ex, "Error abriendo la ficha del vehículo {Id}", vehiculoId);
+        }
+    }
+
+    /// <summary>
+    /// Archivos de UN contrato (2026-08-01). Es una pagina propia: se pidio
+    /// expresamente que no fuera una ventana aparte.
+    /// </summary>
+    private async Task AbrirExpedienteContratoAsync(long prestamoId)
+    {
+        try
+        {
+            PaginaActual = Pagina.Contratos;
+            TituloPagina = "Expediente del cliente";
+            await _expedienteContratoVm.CargarAsync(prestamoId);
+            PaginaActualVm = _expedienteContratoVm;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error abriendo el expediente del contrato {Id}", prestamoId);
         }
     }
 

@@ -498,4 +498,37 @@ public class FlujoVentaPlazosTests : IAsyncLifetime
         (await editar.Should().ThrowAsync<UnauthorizedAccessException>())
             .WithMessage("*administrador*");
     }
+
+    /// <summary>
+    /// Una venta ya cobrada por completo NO se cancela (2026-08-01): el cliente
+    /// pago todo y el vehiculo es suyo. Cancelarla lo devolveria al inventario
+    /// y retendria parte de lo cobrado — romperia el historico.
+    ///
+    /// La regla se prueba en el SERVICIO, no en la pantalla: ocultar un boton
+    /// es una sugerencia, no una regla.
+    /// </summary>
+    [Fact]
+    public async Task NoSePuedeCancelarUnaVentaYaSaldada()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9108", 400_000m);
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 400_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(0m, 2, FechaNegocio.Hoy.AddDays(30))));
+
+        // Se cobra TODO
+        var estado = await _plazos.ObtenerEstadoAsync(ventaId);
+        await _plazos.CobrarPlazoAsync(estado.Plazos[0].Id, 400_000m, MetodoPago.Efectivo);
+        (await _plazos.ObtenerEstadoAsync(ventaId)).EstaSaldada.Should().BeTrue();
+
+        var cancelar = async () => await _plazos.CancelarVentaAsync(new CancelacionVenta(
+            ventaId, "Cancelacion por error", 20m));
+
+        (await cancelar.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*saldada*");
+
+        // Y el vehiculo NO volvio al inventario
+        (await _vehiculos.ObtenerPorIdAsync(vehiculoId))!.Estado
+            .Should().Be(EstadoVehiculo.Vendido);
+    }
 }

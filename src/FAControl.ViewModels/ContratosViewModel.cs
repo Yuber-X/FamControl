@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -20,9 +20,12 @@ public record ContratoFila(PrestamoResumen Resumen)
 }
 
 /// <summary>
-/// Almacén de contratos (cliente 2026-07-17): lista de todos los contratos con
-/// vista previa lateral del seleccionado y botones para reimprimir y ver
-/// completo. El contrato es el pagaré del préstamo.
+/// Almacén de contratos de PrestControl. El contrato es el pagaré del préstamo.
+///
+/// La vista previa lateral se quitó el 2026-08-01 ("ya es innecesaria"):
+/// ocupaba media pantalla para mostrar en miniatura algo que igual había que
+/// abrir grande para leer. Ahora la lista usa todo el ancho y cada fila lleva
+/// sus acciones: Archivos (el expediente, en su propia pantalla) y Pagaré.
 /// </summary>
 public partial class ContratosViewModel : ObservableObject
 {
@@ -33,42 +36,21 @@ public partial class ContratosViewModel : ObservableObject
     /// <summary>La App abre la vista completa/impresión del pagaré.</summary>
     public event Action<PagareImpreso>? PagareSolicitado;
 
-    public ContratosViewModel(ContratoService contratos, IDialogService dialogos,
-        ExpedienteViewModel expediente)
+    /// <summary>El shell navega a la pantalla del expediente de ese contrato.</summary>
+    public event Action<long>? ArchivosSolicitados;
+
+    public ContratosViewModel(ContratoService contratos, IDialogService dialogos)
     {
         _contratos = contratos;
         _dialogos = dialogos;
-        Expediente = expediente;
     }
-
-    /// <summary>
-    /// Expediente del contrato elegido (026): los papeles firmados del cliente,
-    /// con la misma pantalla y las mismas reglas que en DealControl.
-    /// </summary>
-    public ExpedienteViewModel Expediente { get; }
-
-    /// <summary>Préstamo elegido, para archivar en su expediente lo que se imprime.</summary>
-    public DuenoExpediente? DuenoDelSeleccionado =>
-        Seleccionado is { } fila ? DuenoExpediente.DePrestamo(fila.Resumen.Id) : null;
 
     public ObservableCollection<ContratoFila> Contratos { get; } = [];
 
     [ObservableProperty] private ContratoFila? _seleccionado;
     [ObservableProperty] private string _textoBusqueda = string.Empty;
     [ObservableProperty] private bool _cargando;
-    [ObservableProperty] private bool _tieneVistaPrevia;
-
-    /// <summary>Pagaré del contrato seleccionado (para la vista previa lateral).</summary>
-    [ObservableProperty] private PagareImpreso? _vistaPrevia;
-
-    partial void OnSeleccionadoChanged(ContratoFila? value)
-    {
-        OnPropertyChanged(nameof(DuenoDelSeleccionado));
-        _ = CargarVistaPreviaAsync(value);
-        // El expediente sigue al contrato elegido
-        if (value is not null)
-            _ = Expediente.CargarAsync(DuenoExpediente.DePrestamo(value.Resumen.Id));
-    }
+    [ObservableProperty] private string _contadorTexto = string.Empty;
 
     partial void OnTextoBusquedaChanged(string value) => Filtrar();
 
@@ -80,8 +62,6 @@ public partial class ContratosViewModel : ObservableObject
             var resumenes = await _contratos.ObtenerContratosAsync();
             _todos = resumenes.Select(r => new ContratoFila(r)).ToList();
             Filtrar();
-            // Selecciona el primero para que la vista previa no arranque vacía
-            Seleccionado = Contratos.FirstOrDefault();
         }
         catch (Exception ex)
         {
@@ -106,35 +86,45 @@ public partial class ContratosViewModel : ObservableObject
         Contratos.Clear();
         foreach (var fila in filtrados)
             Contratos.Add(fila);
+
+        ContadorTexto = _todos.Count == 0
+            ? "Sin contratos registrados"
+            : filtrados.Count == _todos.Count
+                ? $"{_todos.Count} contrato(s)"
+                : $"{filtrados.Count} de {_todos.Count} contrato(s)";
     }
 
-    private async Task CargarVistaPreviaAsync(ContratoFila? fila)
+    /// <summary>
+    /// Entra a la pantalla del expediente de ese contrato: los papeles que
+    /// entregó el cliente. Es una PÁGINA, no una ventana suelta.
+    /// </summary>
+    [RelayCommand]
+    private void VerArchivos(ContratoFila? fila)
+    {
+        if (fila is not null)
+            ArchivosSolicitados?.Invoke(fila.Id);
+    }
+
+    /// <summary>
+    /// Abre el pagaré para verlo o imprimirlo. Antes esto salía de la vista
+    /// previa lateral; al sacarla, la acción pasó a la fila para no perder la
+    /// posibilidad de imprimir.
+    /// </summary>
+    [RelayCommand]
+    private async Task VerPagareAsync(ContratoFila? fila)
     {
         if (fila is null)
-        {
-            VistaPrevia = null;
-            TieneVistaPrevia = false;
             return;
-        }
 
         try
         {
-            VistaPrevia = await _contratos.ArmarPagareAsync(fila.Id);
-            TieneVistaPrevia = true;
+            var pagare = await _contratos.ArmarPagareAsync(fila.Id);
+            PagareSolicitado?.Invoke(pagare);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error armando el pagaré del contrato {Id}", fila.Id);
-            _dialogos.MostrarError("Contratos", $"No se pudo cargar el contrato.\n\n{ex.Message}");
-            TieneVistaPrevia = false;
+            _dialogos.MostrarError("Contratos", $"No se pudo abrir el pagaré.\n\n{ex.Message}");
         }
-    }
-
-    /// <summary>Abre el pagaré completo (misma ventana que imprime).</summary>
-    [RelayCommand]
-    private void VerCompleto()
-    {
-        if (VistaPrevia is not null)
-            PagareSolicitado?.Invoke(VistaPrevia);
     }
 }
