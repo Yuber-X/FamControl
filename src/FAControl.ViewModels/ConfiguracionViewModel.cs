@@ -120,6 +120,13 @@ public partial class ConfiguracionViewModel : ObservableObject
     [ObservableProperty] private bool _comisionPosActiva;
     [ObservableProperty] private string _comisionPosTexto = "0";
 
+    /// <summary>
+    /// Si la comisión se imprime en la factura del cliente (038). Aparte de
+    /// ComisionPosActiva: se puede calcular la comisión para el cuadre sin
+    /// mostrarsela a quien compra.
+    /// </summary>
+    [ObservableProperty] private bool _comisionPosEnFactura;
+
     [ObservableProperty] private bool _itbisActivo = true;
     [ObservableProperty] private string _itbisTasaTexto = "18";
     [ObservableProperty] private string _itbisEstadoTexto = string.Empty;
@@ -148,6 +155,7 @@ public partial class ConfiguracionViewModel : ObservableObject
                 ItbisTasaTexto = cfg.ItbisTasa.ToString("0.##", Textos.CulturaRd);
                 ComisionPosActiva = cfg.ComisionActiva;
                 ComisionPosTexto = cfg.ComisionPorcentaje.ToString("0.##", Textos.CulturaRd);
+                ComisionPosEnFactura = cfg.ComisionEnFactura;
             }
             finally { _recargando = false; }
             ActualizarEstadoItbis();
@@ -197,6 +205,7 @@ public partial class ConfiguracionViewModel : ObservableObject
             cfg.ItbisTasa = tasa;
             cfg.ComisionActiva = ComisionPosActiva;
             cfg.ComisionPorcentaje = comision;
+            cfg.ComisionEnFactura = ComisionPosEnFactura;
             await _negocioPos.GuardarAsync(cfg);
 
             ActualizarEstadoItbis();
@@ -239,9 +248,7 @@ public partial class ConfiguracionViewModel : ObservableObject
             var secuencia = await _ncf.ObtenerSecuenciaAsync();
             if (secuencia is null)
             {
-                NcfActivo = false;
-                NcfEstadoTexto = "Sin secuencia configurada. Los préstamos igual pueden registrar " +
-                                 "un e-NCF generado en el Facturador Gratuito de la DGII.";
+                LimpiarNcf();
                 return;
             }
             NcfActivo = secuencia.Activo;
@@ -257,6 +264,33 @@ public partial class ConfiguracionViewModel : ObservableObject
             Log.Error(ex, "Error cargando la secuencia NCF");
             NcfEstadoTexto = "No se pudo cargar la configuración de comprobantes.";
         }
+    }
+
+    /// <summary>
+    /// Deja la sección en blanco cuando la estancia activa NO tiene secuencia.
+    ///
+    /// Hace falta porque este ViewModel es singleton: sobrevive al cambio de
+    /// modo. Antes, al entrar a DealControl o al POS-500 sin secuencia propia,
+    /// la carga salía temprano y en pantalla quedaban el prefijo y la próxima
+    /// de PrestControl —números reales de otra estancia, que además se habrían
+    /// guardado acá si alguien tocaba "Guardar" (2026-08-01).
+    ///
+    /// Los valores que quedan son los de fábrica, a modo de ejemplo: B02
+    /// (Consumidor Final) de 8 dígitos empezando en 1. No hay secuencia hasta
+    /// que el Admin la guarde.
+    /// </summary>
+    private void LimpiarNcf()
+    {
+        NcfActivo = false;
+        NcfPrefijo = "B02";
+        NcfLargoTexto = "8";
+        NcfProximaTexto = "1";
+        NcfFinTexto = string.Empty;
+        NcfVencimiento = null;
+        NcfEstadoTexto =
+            $"{IdentidadModo.De(SesionActual.Modo).Nombre} todavía no tiene secuencia de comprobantes. " +
+            "Cada estancia lleva la suya: lo que se configure acá no afecta a las demás. " +
+            "Los valores de arriba son un ejemplo (B02 = Consumidor Final).";
     }
 
     private void ActualizarEstadoNcf(FAControl.Models.NcfSecuencia secuencia)

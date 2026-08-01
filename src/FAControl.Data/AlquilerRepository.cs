@@ -274,4 +274,110 @@ public class AlquilerRepository
         }
         return lista;
     }
+
+    // ---------- Renovaciones del alquiler (039) ----------
+
+    /// <summary>
+    /// Inserta el tramo nuevo DENTRO de la transaccion del Service: la
+    /// renovacion y la actualizacion del contrato son una sola cosa.
+    /// </summary>
+    public async Task<long> InsertarRenovacionAsync(AlquilerRenovacion renovacion,
+        MySqlConnection conexion, MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            INSERT INTO {DbNames.AlquilerRenovacion}
+              (alquiler_id, fecha_fin_anterior, fecha_fin_nueva, tarifa_dia, dias, monto,
+               notas, created_by)
+            VALUES (@alquiler, @anterior, @nueva, @tarifa, @dias, @monto, @notas, @usuario);
+            SELECT LAST_INSERT_ID();
+            """;
+        cmd.Parameters.AddWithValue("@alquiler", renovacion.AlquilerId);
+        cmd.Parameters.AddWithValue("@anterior", renovacion.FechaFinAnterior.ToDateTime(TimeOnly.MinValue));
+        cmd.Parameters.AddWithValue("@nueva", renovacion.FechaFinNueva.ToDateTime(TimeOnly.MinValue));
+        cmd.Parameters.AddWithValue("@tarifa", renovacion.TarifaDia);
+        cmd.Parameters.AddWithValue("@dias", renovacion.Dias);
+        cmd.Parameters.AddWithValue("@monto", renovacion.Monto);
+        cmd.Parameters.AddWithValue("@notas", (object?)renovacion.Notas ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@usuario",
+            SesionActual.HaySesionActiva ? SesionActual.Id : (object)DBNull.Value);
+        return Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
+    }
+
+    /// <summary>
+    /// Renovaciones del alquiler EN ORDEN CRONOLOGICO. El orden importa: con el
+    /// los tramos se reconstruyen uno detras del otro para saber a que tarifa
+    /// corresponde cada dia.
+    /// </summary>
+    public async Task<IReadOnlyList<AlquilerRenovacion>> ObtenerRenovacionesAsync(long alquilerId,
+        CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        return await LeerRenovacionesAsync(alquilerId, conexion, null, ct);
+    }
+
+    /// <summary>
+    /// Los tramos leidos DENTRO de una transaccion: el cierre y la renovacion
+    /// los necesitan sin que otra caja pueda agregar uno en el medio.
+    /// </summary>
+    public async Task<IReadOnlyList<AlquilerRenovacion>> LeerRenovacionesAsync(long alquilerId,
+        MySqlConnection conexion, MySqlTransaction? transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            SELECT r.id, r.alquiler_id, r.fecha_fin_anterior, r.fecha_fin_nueva, r.tarifa_dia,
+                   r.dias, r.monto, r.notas, r.created_at, u.nombre AS creado_por
+            FROM {DbNames.AlquilerRenovacion} r
+            LEFT JOIN {DbNames.Usuario} u ON u.id = r.created_by
+            WHERE r.alquiler_id = @id
+            ORDER BY r.id;
+            """;
+        cmd.Parameters.AddWithValue("@id", alquilerId);
+
+        var lista = new List<AlquilerRenovacion>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            lista.Add(new AlquilerRenovacion
+            {
+                Id = reader.GetInt64("id"),
+                AlquilerId = reader.GetInt64("alquiler_id"),
+                FechaFinAnterior = DateOnly.FromDateTime(reader.GetDateTime("fecha_fin_anterior")),
+                FechaFinNueva = DateOnly.FromDateTime(reader.GetDateTime("fecha_fin_nueva")),
+                TarifaDia = reader.GetDecimal("tarifa_dia"),
+                Dias = reader.GetInt32("dias"),
+                Monto = reader.GetDecimal("monto"),
+                Notas = reader.IsDBNull(reader.GetOrdinal("notas")) ? null : reader.GetString("notas"),
+                CreatedAtUtc = DateTime.SpecifyKind(reader.GetDateTime("created_at"), DateTimeKind.Utc),
+                CreadoPorNombre = reader.IsDBNull(reader.GetOrdinal("creado_por"))
+                    ? null : reader.GetString("creado_por")
+            });
+        }
+        return lista;
+    }
+
+    /// <summary>
+    /// Corre la fecha de devolucion y actualiza el total pactado. NO toca
+    /// tarifa_dia: esa queda con la ORIGINAL, la del primer tramo; la vigente
+    /// es la de la ultima renovacion.
+    /// </summary>
+    public async Task<int> RenovarAsync(long alquilerId, DateOnly fechaFinNueva, int diasTotales,
+        decimal montoTotal, MySqlConnection conexion, MySqlTransaction transaccion,
+        CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            UPDATE {DbNames.Alquiler}
+            SET fecha_fin = @fin, dias = @dias, monto_total = @total
+            WHERE id = @id AND estado = 'activo';
+            """;
+        cmd.Parameters.AddWithValue("@fin", fechaFinNueva.ToDateTime(TimeOnly.MinValue));
+        cmd.Parameters.AddWithValue("@dias", diasTotales);
+        cmd.Parameters.AddWithValue("@total", montoTotal);
+        cmd.Parameters.AddWithValue("@id", alquilerId);
+        return await cmd.ExecuteNonQueryAsync(ct);
+    }
 }

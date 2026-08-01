@@ -95,11 +95,28 @@ public class ExportacionRepository
             SELECT id, vehiculo_id, concepto, monto, fecha, created_at
             FROM {DbNames.VehiculoGasto} ORDER BY vehiculo_id, id;
             """, ct),
+        // El estado que se exporta NO es la columna cruda: en la BD una venta
+        // cobrada por completo sigue diciendo 'activa' (ese enum distingue
+        // valida de anulada, no cobrada de pendiente). En un Excel que el dueño
+        // abre para revisar, "activa" al lado de una venta terminada se lee
+        // como si todavia debieran plata. Se traduce a 'pagado' (2026-08-01).
         await LeerAsync(conexion, "Ventas", $"""
-            SELECT id, codigo, vehiculo_id, cliente_id, fecha_venta, precio, tipo_venta,
-                   inicial, fecha_limite, metodo_pago, estado, cancelada_at, cancelada_motivo,
-                   retencion_porcentaje, retenido, devuelto, notas, created_at
-            FROM {DbNames.VentaVehiculo} ORDER BY id;
+            SELECT v.id, v.codigo, v.vehiculo_id, v.cliente_id, v.fecha_venta, v.precio,
+                   v.tipo_venta, v.inicial, v.fecha_limite, v.metodo_pago,
+                   CASE
+                     WHEN v.estado = 'cancelada' THEN 'cancelada'
+                     -- Al contado la plata entro en el acto: no hay plazos que mirar
+                     WHEN v.tipo_venta = 'contado' THEN 'pagado'
+                     -- Misma cuenta que EstadoFinanciamiento.EstaSaldada:
+                     -- precio - inicial - lo cobrado en plazos <= 0
+                     WHEN v.precio - v.inicial - COALESCE((
+                            SELECT SUM(p.monto_pagado) FROM {DbNames.VentaPlazo} p
+                            WHERE p.venta_id = v.id), 0) <= 0 THEN 'pagado'
+                     ELSE 'activa'
+                   END AS estado,
+                   v.cancelada_at, v.cancelada_motivo, v.retencion_porcentaje,
+                   v.retenido, v.devuelto, v.notas, v.created_at
+            FROM {DbNames.VentaVehiculo} v ORDER BY v.id;
             """, ct),
         await LeerAsync(conexion, "Plazos", $"""
             SELECT id, venta_id, numero, fecha_vencimiento, monto, monto_pagado, estado,
@@ -121,6 +138,14 @@ public class ExportacionRepository
             SELECT id, alquiler_id, numero_recibo, fecha_pago, monto, metodo_pago, notas,
                    created_at, deleted_at
             FROM {DbNames.AlquilerPago} ORDER BY id;
+            """, ct),
+        // Los tramos de renovacion (039). Sin esta hoja, un alquiler renovado a
+        // otra tarifa se ve en el Excel con un monto que no da tarifa x dias y
+        // no hay forma de saber por que.
+        await LeerAsync(conexion, "Renovaciones de alquiler", $"""
+            SELECT id, alquiler_id, fecha_fin_anterior, fecha_fin_nueva, tarifa_dia,
+                   dias, monto, notas, created_at
+            FROM {DbNames.AlquilerRenovacion} ORDER BY alquiler_id, id;
             """, ct),
         await AuditoriaAsync(conexion, ambito, ct)
     ];

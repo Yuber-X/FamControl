@@ -82,6 +82,8 @@ public class ConfiguracionNegocioService
             cambios.Add($"comisión del vendedor {(ahora.ComisionActiva ? "activada" : "DESACTIVADA")}");
         if (antes.ComisionPorcentaje != ahora.ComisionPorcentaje)
             cambios.Add($"comisión: {antes.ComisionPorcentaje:0.##}% → {ahora.ComisionPorcentaje:0.##}%");
+        if (antes.ComisionEnFactura != ahora.ComisionEnFactura)
+            cambios.Add($"comisión en la factura {(ahora.ComisionEnFactura ? "VISIBLE" : "oculta")}");
         if (antes.MostrarClienteEnVenta != ahora.MostrarClienteEnVenta)
             cambios.Add($"cliente en venta: {(ahora.MostrarClienteEnVenta ? "visible" : "oculto")}");
         if (antes.Redondeo != ahora.Redondeo)

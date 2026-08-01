@@ -83,8 +83,7 @@ public class ExportacionService
                 return;
 
             Directory.CreateDirectory(ajustes.ExportAutomaticoCarpeta);
-            var ruta = Path.Combine(ajustes.ExportAutomaticoCarpeta,
-                $"FAControl_Export_{FechaNegocio.Hoy:yyyy-MM-dd}.xlsx");
+            var ruta = Path.Combine(ajustes.ExportAutomaticoCarpeta, NombreExport.Sugerido());
 
             await ExportarAsync(ruta);
             ajustes.UltimaExportacionUtc = DateTime.UtcNow;

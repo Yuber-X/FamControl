@@ -59,11 +59,28 @@ public class ConfiguracionNegocio
     public decimal ItbisTasaEfectiva => ItbisActivo ? ItbisTasa : 0m;
 
     // ---------- Comisión del vendedor (037) ----------
-    // Del NEGOCIO, no de la terminal. NO sale en la factura: es un asunto entre
-    // el negocio y su empleado. Sí aparece en Vender (junto al subtotal), en el
-    // cuadre del día y en la exportación a Excel.
+    // Del NEGOCIO, no de la terminal. Aparece en Vender (junto al subtotal), en
+    // el cuadre del día y en la exportación a Excel.
     public bool ComisionActiva { get; set; }
     public decimal ComisionPorcentaje { get; set; }
+
+    /// <summary>
+    /// Si la comisión se imprime en la factura del cliente (038).
+    ///
+    /// En 037 nunca salía —es un asunto entre el negocio y su empleado—; el
+    /// dueño pidió poder mostrarla, así que dejó de ser regla y pasó a ser
+    /// opción. Se guarda aparte de <see cref="ComisionActiva"/> a propósito:
+    /// calcular la comisión y enseñársela al cliente son dos decisiones
+    /// distintas, y quien quiera lo primero sin lo segundo no debería tener
+    /// que elegir.
+    /// </summary>
+    public bool ComisionEnFactura { get; set; }
+
+    /// <summary>
+    /// Si el ticket debe imprimir la línea de comisión. Sin comisión activa no
+    /// hay nada que mostrar, por más marcada que esté la casilla.
+    /// </summary>
+    public bool MuestraComisionEnFactura => ComisionActiva && ComisionEnFactura;
 
     /// <summary>Porcentaje que realmente se aplica (0 si la comisión está apagada).</summary>
     public decimal ComisionEfectiva => ComisionActiva ? ComisionPorcentaje : 0m;

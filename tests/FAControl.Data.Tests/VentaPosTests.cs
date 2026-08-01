@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using MySqlConnector;
 using FAControl.Common;
 using FAControl.Data;
@@ -36,6 +36,12 @@ public class VentaPosTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
+        // Se borra ANTES de crear, no solo al terminar: si una corrida se corta
+        // a la mitad, la base queda viva y 001 revienta con "Table 'rol' already
+        // exists" en todas las corridas siguientes hasta que alguien la borre a
+        // mano. Es el mismo patron del resto de las pruebas de integracion.
+        await BorrarBaseAsync();
+
         // Una sola base para todo: usuarios y auditoría de la suite, y las
         // tablas pos_* del punto de venta
         await new VerificadorBaseDatos(Cadena).CrearEsquemaAsync();
@@ -78,6 +84,11 @@ public class VentaPosTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         SesionActual.Cerrar();
+        await BorrarBaseAsync();
+    }
+
+    private static async Task BorrarBaseAsync()
+    {
         await using var conexion = new MySqlConnection(CadenaServidor);
         await conexion.OpenAsync();
         await using var cmd = conexion.CreateCommand();

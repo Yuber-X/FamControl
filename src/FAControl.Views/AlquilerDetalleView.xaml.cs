@@ -25,6 +25,7 @@ public partial class AlquilerDetalleView : UserControl
 
         _vm.CierreSolicitado = PedirCierre;
         _vm.EdicionSolicitada = PedirCorreccion;
+        _vm.RenovacionSolicitada = PedirRenovacion;
     }
 
     /// <summary>
@@ -40,6 +41,13 @@ public partial class AlquilerDetalleView : UserControl
     private EdicionAlquiler? PedirCorreccion(AlquilerParaEditar datos)
     {
         var ventana = new EditarAlquilerWindow(datos) { Owner = Window.GetWindow(this) };
+        return ventana.ShowDialog() == true ? ventana.Resultado : null;
+    }
+
+    /// <summary>El cliente sigue con el auto: hasta cuándo y a qué precio (039).</summary>
+    private RenovacionAlquiler? PedirRenovacion(RenovacionAlquilerPedido pedido)
+    {
+        var ventana = new RenovarAlquilerWindow(pedido) { Owner = Window.GetWindow(this) };
         return ventana.ShowDialog() == true ? ventana.Resultado : null;
     }
 }

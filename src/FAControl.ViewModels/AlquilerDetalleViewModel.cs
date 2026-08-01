@@ -46,6 +46,9 @@ public partial class AlquilerDetalleViewModel : ObservableObject
     /// <summary>Ídem para la corrección.</summary>
     public Func<AlquilerParaEditar, EdicionAlquiler?>? EdicionSolicitada { get; set; }
 
+    /// <summary>Ídem para la renovación (039).</summary>
+    public Func<RenovacionAlquilerPedido, RenovacionAlquiler?>? RenovacionSolicitada { get; set; }
+
     public AlquilerDetalleViewModel(AlquilerService alquileres, VehiculoService vehiculos,
         ClienteService clientes, IDialogService dialogos, ExpedienteViewModel expediente)
     {
@@ -142,6 +145,22 @@ public partial class AlquilerDetalleViewModel : ObservableObject
     [ObservableProperty] private bool _estaAtrasado;
     [ObservableProperty] private string _atrasoTexto = string.Empty;
 
+    // ---------- Renovaciones (039) ----------
+    // Cuando se cumple el plazo, el auto vuelve al inventario (Cerrar) o el
+    // cliente sigue con él (Renovar). Cada renovación es un tramo con su tarifa.
+
+    public ObservableCollection<RenovacionFila> Renovaciones { get; } = [];
+    [ObservableProperty] private bool _hayRenovaciones;
+
+    /// <summary>
+    /// La tarifa que rige hoy: la del último tramo. TarifaDia se queda con la
+    /// original a propósito, para no perder a qué precio salió el contrato.
+    /// </summary>
+    [ObservableProperty] private decimal _tarifaVigente;
+
+    /// <summary>True cuando la vigente ya no es la original: se muestran las dos.</summary>
+    [ObservableProperty] private bool _tarifaCambio;
+
     /// <summary>
     /// Editar y cerrar los tiene el Admin, o quien él habilite con el permiso
     /// alquileres_editar. Cerrar libera un vehículo y puede implicar devolver
@@ -189,6 +208,7 @@ public partial class AlquilerDetalleViewModel : ObservableObject
             TieneNotas = !string.IsNullOrWhiteSpace(alquiler.Notas);
             NotasTexto = alquiler.Notas ?? string.Empty;
 
+            await CargarRenovacionesAsync(alquiler);
             ArmarCierre(alquiler);
             ArmarAtraso(alquiler);
 
@@ -272,10 +292,14 @@ public partial class AlquilerDetalleViewModel : ObservableObject
 
         // Lo que ya corresponde cobrar de más, para que el mostrador lo sepa
         // ANTES de que el cliente aparezca con el auto.
-        var extra = Math.Round(alquiler.TarifaDia * dias, 2, MidpointRounding.AwayFromZero);
+        // A la tarifa VIGENTE (039): si el contrato se renovó a otro precio, los
+        // días de más van a ese precio, no al del primer tramo.
+        var extra = Math.Round(TarifaVigente * dias, 2, MidpointRounding.AwayFromZero);
         AtrasoTexto = $"El vehículo tenía que volver hace {dias} día(s). " +
                       $"Al día de hoy corresponden {extra.ToString("N2", Textos.CulturaRd)} DOP de más " +
-                      $"({alquiler.TarifaDia.ToString("N2", Textos.CulturaRd)} por día).";
+                      $"({TarifaVigente.ToString("N2", Textos.CulturaRd)} por día). " +
+                      "Si el cliente lo trae, cerrá el contrato y el vehículo vuelve al inventario; " +
+                      "si sigue con él, renovalo con la fecha nueva.";
     }
 
     [RelayCommand]
@@ -294,7 +318,7 @@ public partial class AlquilerDetalleViewModel : ObservableObject
         try
         {
             var datos = CierreSolicitado(new CierreAlquilerPedido(
-                _alquilerId, Codigo, VehiculoDescripcion, _fechaInicio, TarifaDia, Dias, MontoTotal));
+                _alquilerId, Codigo, VehiculoDescripcion, _fechaInicio, TarifaVigente, Dias, MontoTotal));
             if (datos is null)
                 return;   // se arrepintió
 
@@ -322,6 +346,85 @@ public partial class AlquilerDetalleViewModel : ObservableObject
             Log.Error(ex, "Error cerrando el alquiler {Id}", _alquilerId);
             _dialogos.MostrarError("Cerrar alquiler", $"No se pudo cerrar el alquiler.\n\n{ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// El cliente sigue con el auto (039): corre la fecha de devolución, al
+    /// mismo precio o a uno nuevo.
+    ///
+    /// Es la otra mitad de lo que pasa al cumplirse el plazo. La primera —el
+    /// auto vuelve y queda disponible— ya la hacía Cerrar.
+    /// </summary>
+    [RelayCommand]
+    private async Task RenovarAsync()
+    {
+        if (RenovacionSolicitada is null || !EstaActivo)
+            return;
+
+        try
+        {
+            var alquiler = await _alquileres.ObtenerPorIdAsync(_alquilerId);
+            if (alquiler is null)
+            {
+                _dialogos.MostrarError("Renovar alquiler", "El alquiler ya no existe.");
+                return;
+            }
+
+            var datos = RenovacionSolicitada(new RenovacionAlquilerPedido(
+                _alquilerId, Codigo, VehiculoDescripcion, ClienteNombre,
+                alquiler.FechaFin, TarifaVigente, CalcularTramo));
+            if (datos is null)
+                return;   // se arrepintió
+
+            var r = await _alquileres.RenovarAsync(datos);
+            await CargarAsync(_alquilerId);
+
+            var tarifa = r.CambioLaTarifa
+                ? $"a {r.TarifaDia.ToString("N2", Textos.CulturaRd)} DOP por día (tarifa nueva)"
+                : $"a la misma tarifa de {r.TarifaDia.ToString("N2", Textos.CulturaRd)} DOP por día";
+            _dialogos.Informar("Alquiler renovado",
+                $"El alquiler {r.Codigo} sigue hasta el " +
+                $"{r.FechaFinNueva.ToString(Textos.FormatoFecha, Textos.CulturaRd)}.\n\n" +
+                $"Se agregaron {r.DiasAgregados} día(s) {tarifa}: " +
+                $"{r.MontoAgregado.ToString("N2", Textos.CulturaRd)} DOP.\n" +
+                $"El contrato queda en {r.DiasTotales} día(s) por " +
+                $"{r.MontoTotal.ToString("N2", Textos.CulturaRd)} DOP.");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            _dialogos.MostrarError("Renovar alquiler", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error renovando el alquiler {Id}", _alquilerId);
+            _dialogos.MostrarError("Renovar alquiler", $"No se pudo renovar el alquiler.\n\n{ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Días y monto del tramo nuevo, para la vista previa del diálogo. Cuenta
+    /// desde el día SIGUIENTE al fin actual, igual que el servicio: el último
+    /// día pactado ya está cobrado en el tramo anterior.
+    /// </summary>
+    private static (int Dias, decimal Monto) CalcularTramo(DateOnly finActual, DateOnly finNuevo,
+        decimal tarifa)
+    {
+        var dias = Math.Max(0, finNuevo.DayNumber - finActual.DayNumber);
+        return (dias, Math.Round(tarifa * dias, 2, MidpointRounding.AwayFromZero));
+    }
+
+    /// <summary>Los tramos del contrato y cuál tarifa rige hoy.</summary>
+    private async Task CargarRenovacionesAsync(Alquiler alquiler)
+    {
+        var renovaciones = await _alquileres.ObtenerRenovacionesAsync(alquiler.Id);
+
+        Renovaciones.Clear();
+        foreach (var r in renovaciones)
+            Renovaciones.Add(new RenovacionFila(r));
+        HayRenovaciones = Renovaciones.Count > 0;
+
+        TarifaVigente = AlquilerService.TarifaVigente(alquiler, renovaciones);
+        TarifaCambio = TarifaVigente != alquiler.TarifaDia;
     }
 
     /// <summary>Corrige errores de digitación mientras el contrato sigue abierto.</summary>
@@ -498,3 +601,35 @@ public record AlquilerParaEditar(
     string Codigo,
     Alquiler Actual,
     Func<DateOnly, DateOnly, decimal, (int Dias, decimal Total)> Calcular);
+
+/// <summary>Fila de la lista de renovaciones (039): un tramo del contrato.</summary>
+public record RenovacionFila(AlquilerRenovacion Renovacion)
+{
+    public string PeriodoTexto =>
+        $"{Renovacion.FechaFinAnterior.ToString(Textos.FormatoFecha, Textos.CulturaRd)} → " +
+        $"{Renovacion.FechaFinNueva.ToString(Textos.FormatoFecha, Textos.CulturaRd)}";
+    public int Dias => Renovacion.Dias;
+    public decimal TarifaDia => Renovacion.TarifaDia;
+    public decimal Monto => Renovacion.Monto;
+    public string Notas => string.IsNullOrWhiteSpace(Renovacion.Notas) ? "—" : Renovacion.Notas!;
+    public string RegistradoPor => string.IsNullOrWhiteSpace(Renovacion.CreadoPorNombre)
+        ? "—" : Renovacion.CreadoPorNombre!;
+    public string CuandoTexto =>
+        FechaNegocio.AUtcLocal(Renovacion.CreatedAtUtc).ToString(Textos.FormatoFecha, Textos.CulturaRd);
+}
+
+/// <summary>
+/// Lo que el diálogo de renovación necesita (039). Incluye el cálculo del tramo
+/// porque Views no referencia Services: la vista previa tiene que dar el mismo
+/// número que después persiste el servicio.
+/// </summary>
+public record RenovacionAlquilerPedido(
+    long AlquilerId,
+    string Codigo,
+    string VehiculoDescripcion,
+    string ClienteNombre,
+    /// <summary>Hasta cuándo va el contrato hoy: la fecha nueva tiene que ser posterior.</summary>
+    DateOnly FechaFinActual,
+    /// <summary>Tarifa vigente. El diálogo la propone tal cual: renovar al mismo precio es lo normal.</summary>
+    decimal TarifaVigente,
+    Func<DateOnly, DateOnly, decimal, (int Dias, decimal Monto)> Calcular);

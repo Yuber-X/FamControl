@@ -141,6 +141,59 @@ public record EdicionAlquiler(
     /// <summary>Por qué se corrige. Va a la auditoría; obligatorio.</summary>
     string Motivo);
 
+// ===================== Renovación del alquiler (039) =====================
+
+/// <summary>
+/// Un tramo de renovación: el cliente sigue con el auto más allá de la fecha
+/// pactada (039).
+///
+/// Guarda SU tarifa porque puede no ser la misma. Si la renovación solo
+/// corriera la fecha, el monto del contrato (tarifa × días) se recalcularía
+/// entero a la tarifa nueva y le cambiaría el precio a días que el cliente ya
+/// usó, y quizás ya pagó.
+/// </summary>
+public class AlquilerRenovacion
+{
+    public long Id { get; set; }
+    public long AlquilerId { get; set; }
+    /// <summary>Hasta cuándo iba el contrato antes de esta renovación.</summary>
+    public DateOnly FechaFinAnterior { get; set; }
+    public DateOnly FechaFinNueva { get; set; }
+    /// <summary>Tarifa de ESTE tramo. Puede ser la misma de antes o una nueva.</summary>
+    public decimal TarifaDia { get; set; }
+    public int Dias { get; set; }
+    public decimal Monto { get; set; }
+    public string? Notas { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public string? CreadoPorNombre { get; set; }
+}
+
+/// <summary>
+/// Lo que pide la pantalla para renovar: hasta cuándo sigue y a qué precio.
+/// </summary>
+public record RenovacionAlquiler(
+    long AlquilerId,
+    /// <summary>Nueva fecha de devolución. Tiene que ser posterior a la actual.</summary>
+    DateOnly FechaFinNueva,
+    /// <summary>Tarifa del tramo nuevo. El diálogo la propone igual a la vigente.</summary>
+    decimal TarifaDia,
+    string? Notas = null);
+
+/// <summary>Cómo quedó el contrato después de renovar, para contárselo al usuario.</summary>
+public record ResultadoRenovacion(
+    string Codigo,
+    DateOnly FechaFinAnterior,
+    DateOnly FechaFinNueva,
+    int DiasAgregados,
+    decimal TarifaDia,
+    decimal MontoAgregado,
+    int DiasTotales,
+    decimal MontoTotal)
+{
+    /// <summary>True si el tramo nuevo va a otro precio que el anterior.</summary>
+    public bool CambioLaTarifa { get; init; }
+}
+
 /// <summary>Datos que captura la pantalla de nuevo alquiler.</summary>
 public record AlquilerDatos(
     long VehiculoId,

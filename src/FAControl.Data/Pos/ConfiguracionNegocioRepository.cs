@@ -24,7 +24,9 @@ public class ConfiguracionNegocioRepository
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT nombre_negocio, rnc, direccion, telefono, email, logo_ruta,
-                   itbis_activo, itbis_tasa, comision_activa, comision_porcentaje, redondeo, moneda_simbolo, formato_miles,
+                   itbis_activo, itbis_tasa,
+                   comision_activa, comision_porcentaje, comision_en_factura,
+                   redondeo, moneda_simbolo, formato_miles,
                    factura_prefijo, factura_siguiente, factura_formato,
                    mostrar_cliente_en_venta
             FROM {DbNamesPos.ConfiguracionNegocio}
@@ -45,8 +47,9 @@ public class ConfiguracionNegocioRepository
             LogoRuta = Nulable(reader, "logo_ruta"),
             ItbisActivo = reader.GetBoolean("itbis_activo"),
             ItbisTasa = reader.GetDecimal("itbis_tasa"),
-        ComisionActiva = reader.GetBoolean("comision_activa"),
-        ComisionPorcentaje = reader.GetDecimal("comision_porcentaje"),
+            ComisionActiva = reader.GetBoolean("comision_activa"),
+            ComisionPorcentaje = reader.GetDecimal("comision_porcentaje"),
+            ComisionEnFactura = reader.GetBoolean("comision_en_factura"),
             Redondeo = reader.GetString("redondeo") switch
             {
                 "peso" => ModoRedondeo.Peso,
@@ -77,6 +80,7 @@ public class ConfiguracionNegocioRepository
                 telefono = @telefono, email = @email, logo_ruta = @logo,
                 itbis_activo = @itbisActivo, itbis_tasa = @itbisTasa,
                 comision_activa = @comisionActiva, comision_porcentaje = @comisionPorcentaje,
+                comision_en_factura = @comisionEnFactura,
                 redondeo = @redondeo, moneda_simbolo = @moneda, formato_miles = @formatoMiles,
                 factura_prefijo = @prefijo, factura_formato = @formatoFactura,
                 mostrar_cliente_en_venta = @mostrarCliente,
@@ -93,6 +97,7 @@ public class ConfiguracionNegocioRepository
         cmd.Parameters.AddWithValue("@itbisTasa", cfg.ItbisTasa);
         cmd.Parameters.AddWithValue("@comisionActiva", cfg.ComisionActiva);
         cmd.Parameters.AddWithValue("@comisionPorcentaje", cfg.ComisionPorcentaje);
+        cmd.Parameters.AddWithValue("@comisionEnFactura", cfg.ComisionEnFactura);
         cmd.Parameters.AddWithValue("@redondeo", cfg.Redondeo switch
         {
             ModoRedondeo.Peso => "peso",

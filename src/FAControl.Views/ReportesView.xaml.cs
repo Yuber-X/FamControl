@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using FAControl.Common;
@@ -46,7 +46,7 @@ public partial class ReportesView : UserControl
         var dialogo = new SaveFileDialog
         {
             Title = "Exportar datos a Excel",
-            FileName = $"FAControl_Export_{FechaNegocio.Hoy:yyyy-MM-dd}.xlsx",
+            FileName = NombreExport.Sugerido(),   // termina con el modo (2026-08-01)
             Filter = "Libro de Excel (*.xlsx)|*.xlsx"
         };
         if (dialogo.ShowDialog(Window.GetWindow(this)) == true)

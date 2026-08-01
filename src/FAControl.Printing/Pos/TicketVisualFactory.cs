@@ -1,4 +1,4 @@
-// Portado de POS500.Printing el 2026-07-30 al integrar el punto de venta a la
+﻿// Portado de POS500.Printing el 2026-07-30 al integrar el punto de venta a la
 // suite. Los datos que imprime vienen de pos500_db; el usuario que factura,
 // del SesionActual compartido de FAControl.
 using System.Globalization;
@@ -73,6 +73,18 @@ public static class TicketVisualFactory
                 panel.Children.Add(Fila("Cambio:", Moneda(cambio, negocio), FontWeights.Normal));
         }
         panel.Children.Add(Fila("Pago:", NombreMetodo(venta.MetodoPago), FontWeights.Normal));
+
+        // Comisión del vendedor (038): solo si el dueño la activó Y pidió que
+        // se imprima. Va DESPUÉS del total y del pago para que quede claro que
+        // no se le está cobrando al cliente: es un desglose interno del monto
+        // que ya pagó, no un cargo aparte. Se calcula sobre el subtotal, igual
+        // que en Vender y en el cuadre, para que los tres números coincidan.
+        if (negocio.MuestraComisionEnFactura)
+        {
+            panel.Children.Add(Separador());
+            panel.Children.Add(Fila($"Comisión vendedor ({negocio.ComisionPorcentaje:0.##}%):",
+                Moneda(negocio.ComisionSobre(venta.Totales.Subtotal), negocio), FontWeights.Normal));
+        }
 
         panel.Children.Add(Separador());
         panel.Children.Add(Texto(string.IsNullOrWhiteSpace(pie) ? "Gracias por su compra" : pie,

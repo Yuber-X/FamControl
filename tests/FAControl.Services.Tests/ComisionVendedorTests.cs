@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using FAControl.Models.Pos;
 
 namespace FAControl.Services.Tests;
@@ -10,9 +10,12 @@ namespace FAControl.Services.Tests;
 /// el cuadre del día, en la exportación de excel y en 'vender' que se refleje
 /// junto al subtotal; debe tener un checkbox para activar la comisión".
 ///
-/// Acá se fija la CUENTA. Que no aparezca en la factura es una propiedad del
-/// ticket —no lo lee de ningún lado, no hay nada que probar—; lo que sí puede
-/// romperse en silencio es el cálculo.
+/// Acá se fija la CUENTA, que es lo que puede romperse en silencio.
+///
+/// Al día siguiente pidió lo contrario para la factura: "agregar un nuevo
+/// checkbox para mostrar la comisión del vendedor a la factura si está
+/// activa" (038). Dejó de ser una regla y pasó a ser una opción, apagada por
+/// defecto. Eso también se prueba acá: es la condición que lee el ticket.
 /// </summary>
 public class ComisionVendedorTests
 {
@@ -67,5 +70,51 @@ public class ComisionVendedorTests
 
         cfg.ComisionActiva.Should().BeFalse();
         cfg.ComisionSobre(50_000m).Should().Be(0m);
+        cfg.ComisionEnFactura.Should().BeFalse("mostrarla al cliente se activa a propósito");
+        cfg.MuestraComisionEnFactura.Should().BeFalse();
+    }
+
+    // ---------- Mostrarla en la factura (038) ----------
+
+    /// <summary>
+    /// Calcular la comisión y enseñársela al cliente son DOS decisiones. Con la
+    /// comisión encendida y la casilla apagada —el caso de todo negocio que ya
+    /// venía usando 037— el ticket sigue saliendo igual que antes.
+    /// </summary>
+    [Fact]
+    public void CalcularlaNoImplicaMostrarla()
+    {
+        var cfg = new ConfiguracionNegocio { ComisionActiva = true, ComisionPorcentaje = 5m };
+
+        cfg.ComisionSobre(10_000m).Should().Be(500m, "el cuadre la sigue necesitando");
+        cfg.MuestraComisionEnFactura.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ConLasDosEncendidas_SaleEnLaFactura()
+    {
+        var cfg = new ConfiguracionNegocio
+        {
+            ComisionActiva = true, ComisionPorcentaje = 5m, ComisionEnFactura = true
+        };
+
+        cfg.MuestraComisionEnFactura.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Si se apaga la comisión, la casilla de la factura no alcanza para
+    /// imprimir nada: sería una línea de RD$ 0.00 en cada ticket. El valor se
+    /// conserva por si la comisión vuelve a encenderse.
+    /// </summary>
+    [Fact]
+    public void SinComisionActiva_LaCasillaDeLaFacturaNoAlcanza()
+    {
+        var cfg = new ConfiguracionNegocio
+        {
+            ComisionActiva = false, ComisionPorcentaje = 5m, ComisionEnFactura = true
+        };
+
+        cfg.MuestraComisionEnFactura.Should().BeFalse();
+        cfg.ComisionEnFactura.Should().BeTrue("queda guardado para cuando se reactive");
     }
 }

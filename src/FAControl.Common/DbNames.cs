@@ -27,6 +27,8 @@ public static class DbNames
     public const string Alquiler = "alquiler";
     /// <summary>Cobros de un alquiler (034): talonario propio RA-000001.</summary>
     public const string AlquilerPago = "alquiler_pago";
+    /// <summary>Renovaciones de un alquiler (039): cada tramo con su tarifa.</summary>
+    public const string AlquilerRenovacion = "alquiler_renovacion";
     public const string VehiculoGasto = "vehiculo_gasto";
     // Comprobante fiscal (012)
     public const string NcfSecuencia = "ncf_secuencia";

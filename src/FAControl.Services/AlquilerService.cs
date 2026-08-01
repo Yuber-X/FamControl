@@ -146,9 +146,13 @@ public class AlquilerService
         // devolucion se cuenta hasta la fecha real, que puede no ser la pactada.
         DateOnly? fechaDevolucion = cancelado ? null : (datos.FechaDevolucion ?? FechaNegocio.Hoy);
         var diasReales = cancelado ? 0 : CalcularDias(alquiler.FechaInicio, fechaDevolucion!.Value);
+        // El monto sale de los TRAMOS del contrato (039). Con una sola tarifa da
+        // exactamente lo mismo que antes; con renovaciones a otro precio, cada
+        // dia se cobra a la tarifa que estaba vigente cuando se uso.
+        var renovaciones = await _alquileres.ObtenerRenovacionesAsync(datos.AlquilerId, ct);
         var montoFinal = cancelado
             ? 0m
-            : Math.Round(alquiler.TarifaDia * diasReales, 2, MidpointRounding.AwayFromZero);
+            : CalcularMonto(alquiler, renovaciones, diasReales);
 
         var nuevoEstado = cancelado ? EstadoAlquiler.Cancelado : EstadoAlquiler.Finalizado;
 
@@ -224,6 +228,17 @@ public class AlquilerService
                 $"El alquiler {alquiler.Codigo} ya esta cerrado y liquidado: sus dias y su monto no se " +
                 "pueden cambiar. Si hay un error, registra un alquiler nuevo con los datos correctos.");
 
+        // Con renovaciones de por medio (039) esta correccion ya no aplica:
+        // recalcula el total como tarifa x dias sobre TODO el periodo, y eso
+        // borraria los tramos que se pactaron a otro precio. Corregir un tipeo
+        // de un contrato que ya se re-negocio no es corregir un tipeo.
+        var yaRenovado = await _alquileres.ObtenerRenovacionesAsync(cambios.AlquilerId, ct);
+        if (yaRenovado.Count > 0)
+            throw new InvalidOperationException(
+                $"El alquiler {alquiler.Codigo} tiene {yaRenovado.Count} renovacion(es): sus fechas y su " +
+                "tarifa ya se re-pactaron y no se pueden corregir por detras, porque cada tramo tiene su " +
+                "propio precio. Si hay que cambiar algo, hacelo con una renovacion nueva.");
+
         // Se anota el detalle ANTES de tocar el objeto: despues ya no queda el
         // valor viejo (Alquiler es una clase, no un record).
         var detalle = new List<string>();
@@ -269,6 +284,173 @@ public class AlquilerService
             await transaccion.RollbackAsync(CancellationToken.None);
             throw;
         }
+    }
+
+    // ---------- Renovacion del alquiler (039) ----------
+
+    /// <summary>
+    /// El cliente sigue con el auto: se corre la fecha de devolucion (pedido del
+    /// cliente 2026-08-01).
+    ///
+    /// POR QUE NO ES UNA EDICION
+    /// Editar recalcula el total como tarifa x dias sobre todo el periodo. Si la
+    /// renovacion viene a otro precio —que es justo lo que se pidio permitir—,
+    /// eso le cambiaria el precio a los dias que el cliente YA uso y quizas ya
+    /// pago. Cada renovacion se guarda como un TRAMO con su tarifa, y el
+    /// contrato vale la suma de los tramos.
+    ///
+    /// El vehiculo no se toca: sigue alquilado, que es exactamente lo que
+    /// significa que el cliente siga con el.
+    /// </summary>
+    public async Task<ResultadoRenovacion> RenovarAsync(RenovacionAlquiler datos,
+        CancellationToken ct = default)
+    {
+        ExigirEscritura();
+        if (!SesionActual.EsAdmin && !SesionActual.TienePermiso(Permisos.AlquileresEditar))
+            throw new UnauthorizedAccessException(
+                "No tenes permiso para renovar alquileres. Pediselo al administrador.");
+        if (datos.TarifaDia <= 0m)
+            throw new ArgumentException("La tarifa por dia tiene que ser mayor que cero.", nameof(datos));
+
+        var alquiler = await _alquileres.ObtenerPorIdAsync(datos.AlquilerId, ct)
+            ?? throw new InvalidOperationException("El alquiler no existe.");
+        if (alquiler.Estado != EstadoAlquiler.Activo)
+            throw new InvalidOperationException(
+                $"El alquiler {alquiler.Codigo} ya esta cerrado: el vehiculo volvio al inventario. " +
+                "Si el cliente se lo lleva otra vez, es un alquiler nuevo.");
+        if (datos.FechaFinNueva <= alquiler.FechaFin)
+            throw new ArgumentException(
+                $"La nueva fecha de devolucion tiene que ser posterior al {alquiler.FechaFin:dd/MM/yyyy}, " +
+                "que es hasta cuando va el contrato hoy.", nameof(datos));
+
+        var renovaciones = await _alquileres.ObtenerRenovacionesAsync(datos.AlquilerId, ct);
+        var tarifaVigente = TarifaVigente(alquiler, renovaciones);
+
+        // Los dias del tramo nuevo se cuentan desde el dia SIGUIENTE al fin
+        // anterior: el ultimo dia pactado ya esta cobrado en el tramo anterior,
+        // contarlo dos veces le cobraria un dia de mas al cliente.
+        var dias = datos.FechaFinNueva.DayNumber - alquiler.FechaFin.DayNumber;
+        var monto = Math.Round(datos.TarifaDia * dias, 2, MidpointRounding.AwayFromZero);
+
+        var renovacion = new AlquilerRenovacion
+        {
+            AlquilerId = datos.AlquilerId,
+            FechaFinAnterior = alquiler.FechaFin,
+            FechaFinNueva = datos.FechaFinNueva,
+            TarifaDia = datos.TarifaDia,
+            Dias = dias,
+            Monto = monto,
+            Notas = string.IsNullOrWhiteSpace(datos.Notas) ? null : datos.Notas.Trim()
+        };
+
+        var diasTotales = alquiler.Dias + dias;
+        var montoTotal = alquiler.MontoTotal + monto;
+
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var transaccion = await conexion.BeginTransactionAsync(ct);
+        try
+        {
+            var filas = await _alquileres.RenovarAsync(datos.AlquilerId, datos.FechaFinNueva,
+                diasTotales, montoTotal, conexion, transaccion, ct);
+            if (filas == 0)
+                throw new InvalidOperationException(
+                    "El alquiler se cerro desde otra pantalla mientras tanto. " +
+                    "Volve a abrirlo para ver como quedo.");
+
+            await _alquileres.InsertarRenovacionAsync(renovacion, conexion, transaccion, ct);
+
+            var cambioTarifa = datos.TarifaDia != tarifaVigente;
+            var detalleTarifa = cambioTarifa
+                ? $" a {datos.TarifaDia:N2} DOP por dia (antes {tarifaVigente:N2})"
+                : $" a la misma tarifa de {datos.TarifaDia:N2} DOP por dia";
+            await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Modificar, DbNames.Alquiler,
+                datos.AlquilerId,
+                $"Alquiler {alquiler.Codigo} renovado: la devolucion pasa del " +
+                $"{alquiler.FechaFin:dd/MM/yyyy} al {datos.FechaFinNueva:dd/MM/yyyy}, " +
+                $"{dias} dia(s) mas{detalleTarifa} ({monto:N2} DOP). " +
+                $"El contrato queda en {diasTotales} dia(s) por {montoTotal:N2} DOP.",
+                conexion, transaccion, ct);
+
+            await transaccion.CommitAsync(ct);
+            Log.Information("Alquiler {Codigo} renovado hasta {Fecha} por {Usuario} (+{Dias} dias, {Monto})",
+                alquiler.Codigo, datos.FechaFinNueva, SesionActual.Username, dias, monto);
+
+            return new ResultadoRenovacion(alquiler.Codigo, alquiler.FechaFin, datos.FechaFinNueva,
+                dias, datos.TarifaDia, monto, diasTotales, montoTotal)
+            {
+                CambioLaTarifa = cambioTarifa
+            };
+        }
+        catch
+        {
+            await transaccion.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    /// <summary>Renovaciones del alquiler, en orden cronologico (pantalla de detalle).</summary>
+    public async Task<IReadOnlyList<AlquilerRenovacion>> ObtenerRenovacionesAsync(long alquilerId,
+        CancellationToken ct = default)
+    {
+        ExigirLectura();
+        return await _alquileres.ObtenerRenovacionesAsync(alquilerId, ct);
+    }
+
+    /// <summary>
+    /// La tarifa que rige HOY: la de la ultima renovacion, o la original si el
+    /// contrato nunca se renovo. `alquiler.TarifaDia` guarda la del PRIMER tramo
+    /// a proposito, para no perder la historia.
+    /// </summary>
+    public static decimal TarifaVigente(Alquiler alquiler,
+        IReadOnlyList<AlquilerRenovacion> renovaciones) =>
+        renovaciones.Count == 0 ? alquiler.TarifaDia : renovaciones[^1].TarifaDia;
+
+    /// <summary>
+    /// Lo que corresponde cobrar por <paramref name="diasUsados"/> dias, tramo
+    /// por tramo (039).
+    ///
+    /// Cada dia se cobra a la tarifa que estaba vigente cuando se uso: los
+    /// primeros dias a la tarifa original, los del tramo renovado a la suya. Si
+    /// el cliente devuelve MAS TARDE que el ultimo tramo, esos dias de mas van a
+    /// la tarifa vigente, que es la que el cliente acepto ultimo.
+    ///
+    /// Sin renovaciones da exactamente tarifa x dias, igual que antes.
+    ///
+    /// El redondeo es UNO SOLO, al final: redondear tramo por tramo acumularia
+    /// centavos que no cuadrarian con la suma de los cobros.
+    /// </summary>
+    public static decimal CalcularMonto(Alquiler alquiler,
+        IReadOnlyList<AlquilerRenovacion> renovaciones, int diasUsados)
+    {
+        if (diasUsados <= 0)
+            return 0m;
+
+        // Tramo base: hasta donde iba el contrato antes de la primera renovacion.
+        var diasBase = renovaciones.Count == 0
+            ? alquiler.Dias
+            : CalcularDias(alquiler.FechaInicio, renovaciones[0].FechaFinAnterior);
+
+        var total = 0m;
+        var restantes = diasUsados;
+
+        var enTramo = Math.Min(restantes, diasBase);
+        total += alquiler.TarifaDia * enTramo;
+        restantes -= enTramo;
+
+        foreach (var r in renovaciones)
+        {
+            if (restantes <= 0)
+                break;
+            enTramo = Math.Min(restantes, r.Dias);
+            total += r.TarifaDia * enTramo;
+            restantes -= enTramo;
+        }
+
+        // Devolvio despues del ultimo tramo: los dias de mas, a la tarifa vigente.
+        if (restantes > 0)
+            total += TarifaVigente(alquiler, renovaciones) * restantes;
+
+        return Math.Round(total, 2, MidpointRounding.AwayFromZero);
     }
 
     private static void ExigirLectura()

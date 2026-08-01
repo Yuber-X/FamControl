@@ -155,16 +155,23 @@
           <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,18,0,14" />
           <TextBlock Text="Comisión del vendedor" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
-                     Text="Porcentaje que gana el vendedor sobre lo que vende. NO sale en la factura del cliente: es un asunto entre el negocio y su empleado. Se muestra en Vender junto al subtotal, en el cuadre del día y en la exportación a Excel." />
+                     Text="Porcentaje que gana el vendedor sobre lo que vende. Se muestra en Vender junto al subtotal, en el cuadre del día y en la exportación a Excel." />
           <CheckBox Content="Calcular comisión del vendedor" FontSize="13"
                     IsChecked="{Binding ComisionPosActiva}" />
-          <StackPanel Orientation="Horizontal" Margin="24,10,0,0"
-                      IsEnabled="{Binding ComisionPosActiva}">
-            <StackPanel>
-              <TextBlock Text="Porcentaje (%)" Style="{DynamicResource Input.Label}" />
-              <TextBox Width="90" Height="34" Style="{DynamicResource Input.Texto}"
-                       Text="{Binding ComisionPosTexto, UpdateSourceTrigger=PropertyChanged}" />
+          <StackPanel Margin="24,10,0,0" IsEnabled="{Binding ComisionPosActiva}">
+            <StackPanel Orientation="Horizontal">
+              <StackPanel>
+                <TextBlock Text="Porcentaje (%)" Style="{DynamicResource Input.Label}" />
+                <TextBox Width="90" Height="34" Style="{DynamicResource Input.Texto}"
+                         Text="{Binding ComisionPosTexto, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
             </StackPanel>
+            <!-- 038: mostrarla al cliente es una decisión aparte de calcularla -->
+            <CheckBox Content="Mostrar la comisión en la factura del cliente" FontSize="13"
+                      Margin="0,12,0,0" IsChecked="{Binding ComisionPosEnFactura}" />
+            <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap"
+                       Margin="24,4,0,0" MaxWidth="420"
+                       Text="Se imprime debajo del total, como desglose: no es un cargo extra, el cliente paga lo mismo. Si se deja apagada, la comisión sigue calculándose para el cuadre pero no sale en el ticket." />
           </StackPanel>
 
           <StackPanel Orientation="Horizontal" Margin="0,16,0,0">

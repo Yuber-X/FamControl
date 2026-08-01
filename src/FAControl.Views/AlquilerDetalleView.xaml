@@ -29,6 +29,13 @@
       <!-- Los dos botones que se pidieron. Solo los ve el Admin, o quien él
            habilite: cerrar libera un vehículo y puede implicar devolver plata. -->
       <WrapPanel Margin="0,0,0,14">
+        <!-- Al cumplirse el plazo hay dos salidas: el auto vuelve (Cerrar) o el
+             cliente sigue con él (Renovar). Renovar va primero porque es la que
+             deja el contrato abierto; cerrar es la irreversible. -->
+        <Button Content="Renovar" Style="{DynamicResource Boton.Primario}"
+                Command="{Binding RenovarCommand}" Margin="0,0,8,8"
+                ToolTip="El cliente sigue con el vehículo: nueva fecha de devolución"
+                Visibility="{Binding PuedeOperar, Converter={StaticResource BoolAVisibilidad}}" />
         <Button Content="Editar" Style="{DynamicResource Boton.Secundario}"
                 Command="{Binding EditarCommand}" Margin="0,0,8,8"
                 ToolTip="Corregir errores de digitación de este alquiler"
@@ -73,9 +80,16 @@
           <StackPanel>
             <TextBlock Text="TARIFA POR DÍA" Style="{DynamicResource Texto.MicroLabel}" />
             <Viewbox Style="{DynamicResource Metrica.Valor}">
-              <TextBlock Text="{Binding TarifaDia, Converter={StaticResource Money}}"
+              <TextBlock Text="{Binding TarifaVigente, Converter={StaticResource Money}}"
                          Style="{DynamicResource Texto.Titulo2}" />
             </Viewbox>
+            <!-- Se muestra la VIGENTE. Con renovaciones a otro precio, la
+                 original queda acá abajo para no perderla de vista (039). -->
+            <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap"
+                       Visibility="{Binding TarifaCambio, Converter={StaticResource BoolAVisibilidad}}">
+              <Run Text="Renovado. Salió a" />
+              <Run Text="{Binding TarifaDia, Converter={StaticResource Money}, Mode=OneWay}" />
+            </TextBlock>
           </StackPanel>
         </Border>
         <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
@@ -96,6 +110,32 @@
           </StackPanel>
         </Border>
       </UniformGrid>
+
+      <!-- ============ RENOVACIONES (039) ============ -->
+      <!-- Solo aparece si el contrato se renovó. Cada fila es un tramo con su
+           tarifa: así se ve por qué el total no es tarifa × días. -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12"
+              Visibility="{Binding HayRenovaciones, Converter={StaticResource BoolAVisibilidad}}">
+        <StackPanel>
+          <TextBlock Text="Renovaciones" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="El cliente siguió con el vehículo. Cada tramo se cobra a la tarifa que estaba vigente cuando se usó: el precio nuevo no le cambia el precio a los días ya usados." />
+          <DataGrid ItemsSource="{Binding Renovaciones}" Style="{DynamicResource Tabla}"
+                    AutoGenerateColumns="False" IsReadOnly="True" MaxHeight="200">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Período" Binding="{Binding PeriodoTexto}" Width="*" />
+              <DataGridTextColumn Header="Días" Binding="{Binding Dias}" Width="Auto" MinWidth="60" />
+              <DataGridTextColumn Header="Tarifa/día" Width="Auto" MinWidth="110"
+                                  Binding="{Binding TarifaDia, Converter={StaticResource Money}}" />
+              <DataGridTextColumn Header="Monto" Width="Auto" MinWidth="110"
+                                  Binding="{Binding Monto, Converter={StaticResource Money}}" />
+              <DataGridTextColumn Header="Notas" Binding="{Binding Notas}" Width="*" />
+              <DataGridTextColumn Header="Registró" Binding="{Binding RegistradoPor}"
+                                  Width="Auto" MinWidth="100" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </StackPanel>
+      </Border>
 
       <!-- ============ DATOS DEL CONTRATO ============ -->
       <Border Style="{DynamicResource Card}" Margin="0,0,0,12">

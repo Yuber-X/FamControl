@@ -500,6 +500,31 @@ CREATE TABLE alquiler_pago (
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
+-- alquiler_renovacion: el cliente sigue con el auto (039).
+-- Cada renovación es un TRAMO con su propia tarifa: la tarifa puede cambiar y
+-- los días ya usados no se re-precian. El contrato vale la suma de los tramos.
+-- alquiler.tarifa_dia queda con la ORIGINAL; la vigente es la del último tramo.
+-- -------------------------------------------------------------
+CREATE TABLE alquiler_renovacion (
+  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  alquiler_id        BIGINT UNSIGNED NOT NULL,
+  fecha_fin_anterior DATE          NOT NULL,
+  fecha_fin_nueva    DATE          NOT NULL,
+  tarifa_dia         DECIMAL(15,2) NOT NULL,
+  dias               INT UNSIGNED  NOT NULL,
+  monto              DECIMAL(15,2) NOT NULL,
+  notas              VARCHAR(250)  NULL,
+  created_at         DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  created_by         BIGINT UNSIGNED NULL,
+  PRIMARY KEY (id),
+  KEY ix_alquiler_renovacion_alquiler (alquiler_id, id),
+  CONSTRAINT fk_alquiler_renovacion_alquiler FOREIGN KEY (alquiler_id)
+    REFERENCES alquiler (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_alquiler_renovacion_usuario FOREIGN KEY (created_by)
+    REFERENCES usuario (id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
 -- vehiculo_gasto: gestión de importación (gastos detallados).
 -- La suma se refleja en vehiculo.gastos_importacion (lo mantiene el Service).
 -- -------------------------------------------------------------
@@ -846,10 +871,13 @@ CREATE TABLE pos_configuracion (
   itbis_activo             TINYINT(1)    NOT NULL DEFAULT 1,
   itbis_tasa               DECIMAL(5,2)  NOT NULL DEFAULT 18.00,
   -- Comision del vendedor (037). Del NEGOCIO, no de la terminal: si el dueño
-  -- fija 5%, vale en las tres cajas. NO sale en la factura — es un asunto
-  -- entre el negocio y su empleado, el cliente que compra no tiene que ver.
+  -- fija 5%, vale en las tres cajas.
   comision_activa          TINYINT(1)    NOT NULL DEFAULT 0,
   comision_porcentaje      DECIMAL(5,2)  NOT NULL DEFAULT 0.00,
+  -- Si la comision se imprime en la factura del cliente (038). Decision aparte
+  -- de comision_activa: se puede calcular la comision para el cuadre sin que
+  -- el cliente que compra la vea. Arranca apagada.
+  comision_en_factura      TINYINT(1)    NOT NULL DEFAULT 0,
   redondeo                 ENUM('centavo','peso','arriba') NOT NULL DEFAULT 'centavo',
   moneda_simbolo           VARCHAR(10)   NOT NULL DEFAULT 'RD$',
   formato_miles            ENUM('coma','punto') NOT NULL DEFAULT 'coma',
