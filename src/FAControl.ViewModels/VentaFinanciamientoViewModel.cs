@@ -507,9 +507,8 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Corrige la venta (033). Antes de abrir el formulario le pregunta al
-    /// servicio hasta dónde se puede editar, para que la pantalla no ofrezca
-    /// cambiar montos que después van a ser rechazados.
+    /// Corrige la venta (035). Solo Admin: rehacer el calendario reparte de
+    /// nuevo la plata que el cliente ya entrego.
     /// </summary>
     [RelayCommand]
     private async Task EditarAsync()
@@ -519,21 +518,36 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
 
         try
         {
-            var permitido = await _plazos.ConsultarEdicionPermitidaAsync(_ventaId);
-
             var cambios = EdicionSolicitada(new VentaParaEditar(
                 _ventaId, estado.Codigo, estado.Tipo, estado.Precio, estado.Inicial,
-                d.MetodoPago, d.Notas, permitido, PrevisualizarCalendario));
+                d.MetodoPago, d.Notas, estado.CantidadPlazos, estado.Pagado,
+                PrevisualizarCalendario));
             if (cambios is null)
                 return;   // se arrepintió
 
-            await _plazos.EditarVentaAsync(cambios);
+            var r = await _plazos.EditarVentaAsync(cambios);
             await CargarAsync(_ventaId);
-            _dialogos.Informar("Venta corregida",
-                $"La venta {estado.Codigo} quedó corregida." +
-                (permitido.Todo && estado.Tipo == TipoVenta.Plazos
-                    ? "\n\nEl calendario de plazos se rehizo con los datos nuevos."
-                    : ""));
+
+            var mensaje = $"La venta {r.Codigo} quedó corregida.";
+            if (estado.Tipo == TipoVenta.Plazos)
+            {
+                mensaje += $"\n\nCalendario: {r.CantidadPlazos} plazo(s) por " +
+                           $"{r.TotalAPlazos.ToString("N2", Textos.CulturaRd)} DOP.";
+                if (r.YaCobrado > 0m)
+                    mensaje += $"\nSe repartieron de nuevo {r.YaCobrado.ToString("N2", Textos.CulturaRd)} " +
+                               $"DOP que el cliente ya había pagado: {r.PlazosSaldados} plazo(s) quedaron saldados.";
+                if (r.HaySaldoAFavor)
+                    mensaje += $"\n\nEl cliente pagó {r.SaldoAFavor.ToString("N2", Textos.CulturaRd)} DOP " +
+                               "de más. Queda a su favor: acordá con él si se le devuelve o se le " +
+                               "descuenta de otra compra.";
+            }
+            _dialogos.Informar("Venta corregida", mensaje);
+
+            // Los papeles cambiaron: la carta de compromiso y la factura que se
+            // archivaron al registrar la venta ya no dicen lo mismo. Se vuelven
+            // a emitir para que el expediente quede al día (pedido de Yuber:
+            // "tambien habra que modificar su carta de compromiso + factura").
+            EmitirPapeles();
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or ArgumentException or InvalidOperationException)
         {
@@ -551,7 +565,7 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     /// MISMO cálculo que persiste el servicio, así lo que se ve en pantalla es
     /// exactamente lo que se va a guardar.
     /// </summary>
-    private string PrevisualizarCalendario(decimal precio, decimal inicial)
+    private string PrevisualizarCalendario(decimal precio, decimal inicial, int cantidad)
     {
         if (inicial > precio)
             return "La inicial no puede ser mayor que el precio de venta.";
@@ -572,7 +586,7 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
                             - Plazos[0].Plazo.FechaVencimiento.DayNumber)
                 : 30;
             var nuevos = VentaPlazoService.CalcularPlazos(precio,
-                new PlanPlazos(inicial, Plazos.Count, Plazos[0].Plazo.FechaVencimiento, cadaDias));
+                new PlanPlazos(inicial, cantidad, Plazos[0].Plazo.FechaVencimiento, cadaDias));
 
             return $"{nuevos.Count} plazo(s) de {nuevos[0].Monto.ToString("N2", Textos.CulturaRd)} DOP " +
                    $"(el último, {nuevos[^1].Monto.ToString("N2", Textos.CulturaRd)}). " +
@@ -711,6 +725,8 @@ public record VentaParaEditar(
     decimal Inicial,
     MetodoPago Metodo,
     string? Notas,
-    EdicionVentaPermitida Permitido,
-    /// <summary>(precio, inicial) → cómo queda el calendario, en una línea.</summary>
-    Func<decimal, decimal, string> Previsualizar);
+    int CantidadPlazos,
+    /// <summary>Lo que el cliente ya pagó: se re-imputa al plan corregido.</summary>
+    decimal YaCobrado,
+    /// <summary>(precio, inicial, cantidad) → cómo queda el calendario, en una línea.</summary>
+    Func<decimal, decimal, int, string> Previsualizar);

@@ -1,4 +1,4 @@
-<Window x:Class="FAControl.Views.EditarVentaWindow"
+﻿<Window x:Class="FAControl.Views.EditarVentaWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Corregir venta"
@@ -13,7 +13,8 @@
       <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
                  Text="Para arreglar errores de digitación. El vehículo y el cliente no se cambian acá: eso no es corregir un tipeo, es otra venta." />
 
-      <!-- Aviso cuando ya hay abonos: explica POR QUÉ hay campos bloqueados -->
+      <!-- Aviso cuando el cliente YA PAGO algo: lo que se corrige va a repartir
+           esa plata de nuevo, y conviene decirlo antes de tocar nada. -->
       <Border x:Name="AvisoLimite" Margin="0,12,0,0" CornerRadius="8" Padding="14,12"
               Background="{DynamicResource Brush.EnMora.Fondo}" Visibility="Collapsed">
         <TextBlock x:Name="TextoLimite" Style="{DynamicResource Texto.Caption}"
@@ -29,6 +30,7 @@
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="Precio de venta (DOP)"
@@ -40,6 +42,15 @@
                    Style="{DynamicResource Input.Label}" />
         <TextBox Grid.Row="1" Grid.Column="2" x:Name="CajaInicial" Height="34"
                  Style="{DynamicResource Input.Texto}" TextChanged="Campo_Changed" />
+
+        <!-- Cantidad de plazos: "hay que agregar los plazos por si faltaba uno"
+             (Yuber). Cambiarla reparte de nuevo el saldo entre esa cantidad,
+             conservando la fecha del primer vencimiento y el intervalo. -->
+        <StackPanel x:Name="ZonaPlazos" Grid.Row="2" Grid.Column="0" Margin="0,12,0,0">
+          <TextBlock Text="Cantidad de plazos" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="CajaPlazos" Height="34"
+                   Style="{DynamicResource Input.Texto}" TextChanged="Campo_Changed" />
+        </StackPanel>
       </Grid>
 
       <!-- Cómo queda el calendario con lo que se está tipeando -->

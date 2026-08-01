@@ -10,11 +10,13 @@ namespace FAControl.Views;
 /// Corrección de una venta ya registrada (033 — el botón "Editar" que el
 /// cliente pidió junto al de cancelar).
 ///
-/// DOS NIVELES. Sin abonos se corrige todo y el calendario de plazos se
-/// regenera. Con abonos, el precio y la inicial quedan bloqueados: cada abono
-/// emitió un recibo numerado que se entregó impreso y afirma un saldo. El aviso
-/// rojo explica el porqué — un campo gris sin explicación se lee como un error
-/// del programa.
+/// Se corrige TODO, incluida la cantidad de plazos, y también con cobros ya
+/// hechos: la plata que el cliente entregó se reparte de nuevo sobre el plan
+/// corregido. Los recibos no se tocan — conservan su número, su fecha y su
+/// monto—; lo que cambia es a qué plazo se imputa cada uno.
+///
+/// Cuando ya hay cobros, el aviso lo dice ANTES de tocar nada: quien corrige
+/// tiene que saber que está por mover plata que ya entró.
 ///
 /// La vista previa del calendario baja como delegado desde el ViewModel: Views
 /// no referencia Services (lo impide el grafo de proyectos, a propósito).
@@ -42,7 +44,12 @@ public partial class EditarVentaWindow : Window
 
         CajaPrecio.Text = datos.Precio.ToString("0.##", Textos.CulturaRd);
         CajaInicial.Text = datos.Inicial.ToString("0.##", Textos.CulturaRd);
+        CajaPlazos.Text = datos.CantidadPlazos.ToString(CultureInfo.InvariantCulture);
         CajaNotas.Text = datos.Notas ?? string.Empty;
+
+        // La cantidad de plazos solo tiene sentido en una venta financiada
+        ZonaPlazos.Visibility = datos.Tipo == TipoVenta.Plazos
+            ? Visibility.Visible : Visibility.Collapsed;
 
         // En una separación el adelanto no es "inicial de un plan": se etiqueta
         // como lo que es, para que el usuario no lo confunda con otra cosa.
@@ -53,12 +60,14 @@ public partial class EditarVentaWindow : Window
             _ => "Recibido al firmar (DOP)"
         };
 
-        if (datos.Permitido.SoloDescriptivo)
+        // Con plata ya cobrada, avisar de entrada que se va a repartir de nuevo
+        if (datos.YaCobrado > 0m)
         {
             AvisoLimite.Visibility = Visibility.Visible;
-            TextoLimite.Text = datos.Permitido.Motivo;
-            ZonaMontos.IsEnabled = false;
-            PanelCuenta.Visibility = Visibility.Collapsed;
+            TextoLimite.Text =
+                $"Ojo: el cliente ya pagó {datos.YaCobrado:N2} DOP de esta venta. Al corregirla, " +
+                "esa plata se reparte de nuevo sobre el calendario corregido —los recibos no se " +
+                "tocan, solo cambia a qué plazo se imputan—. Si sobra, queda a favor del cliente.";
         }
 
         ActualizarCuenta();
@@ -72,27 +81,34 @@ public partial class EditarVentaWindow : Window
     {
         // TextChanged dispara durante InitializeComponent, antes de que existan
         // los demás controles.
-        if (TextoCuenta is null || _datos.Permitido.SoloDescriptivo)
+        if (TextoCuenta is null)
             return;
 
-        if (!TryLeer(out var precio, out var inicial))
+        if (!TryLeer(out var precio, out var inicial, out var plazos))
         {
-            TextoCuenta.Text = "Completá el precio y la inicial para ver cómo queda.";
+            TextoCuenta.Text = "Completá el precio, la inicial y los plazos para ver cómo queda.";
             return;
         }
 
-        TextoCuenta.Text = _datos.Previsualizar(precio, inicial);
+        TextoCuenta.Text = _datos.Previsualizar(precio, inicial, plazos);
     }
 
-    private bool TryLeer(out decimal precio, out decimal inicial)
+    private bool TryLeer(out decimal precio, out decimal inicial, out int plazos)
     {
         precio = 0m;
         inicial = 0m;
+        plazos = _datos.CantidadPlazos;
+
         if (!decimal.TryParse(CajaPrecio.Text, NumberStyles.Number, Textos.CulturaRd, out precio)
             || precio <= 0m)
             return false;
         if (!decimal.TryParse(CajaInicial.Text, NumberStyles.Number, Textos.CulturaRd, out inicial)
             || inicial < 0m)
+            return false;
+        // En una venta al contado o una separación no hay plazos que leer
+        if (_datos.Tipo == TipoVenta.Plazos &&
+            (!int.TryParse(CajaPlazos.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out plazos)
+             || plazos < 1))
             return false;
         return true;
     }
@@ -111,30 +127,22 @@ public partial class EditarVentaWindow : Window
             return;
         }
 
-        var leyo = TryLeer(out var precio, out var inicial);
-        if (!leyo && !_datos.Permitido.SoloDescriptivo)
+        if (!TryLeer(out var precio, out var inicial, out var plazos))
         {
-            TextoError.Text = "Revisá el precio y la inicial: el precio tiene que ser mayor que cero " +
-                              "y la inicial no puede ser negativa.";
+            TextoError.Text = "Revisá el precio, la inicial y los plazos: el precio y los plazos " +
+                              "tienen que ser mayores que cero y la inicial no puede ser negativa.";
             return;
         }
-        if (leyo && inicial > precio)
+        if (inicial > precio)
         {
             TextoError.Text = "La inicial no puede ser mayor que el precio de venta.";
             return;
         }
 
-        // Con abonos hechos los montos van bloqueados: se mandan los que ya
-        // tenía la venta, que además es lo que el servicio va a respetar.
-        if (!leyo)
-        {
-            precio = _datos.Precio;
-            inicial = _datos.Inicial;
-        }
-
         Resultado = new EdicionVenta(_datos.VentaId, precio, inicial, metodo.Valor,
             Notas: string.IsNullOrWhiteSpace(CajaNotas.Text) ? null : CajaNotas.Text.Trim(),
-            Motivo: CajaMotivo.Text.Trim());
+            Motivo: CajaMotivo.Text.Trim(),
+            CantidadPlazos: _datos.Tipo == TipoVenta.Plazos ? plazos : null);
         DialogResult = true;
     }
 

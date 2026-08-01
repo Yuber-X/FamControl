@@ -307,72 +307,134 @@ public class FlujoVentaPlazosTests : IAsyncLifetime
         await sinMotivo.Should().ThrowAsync<ArgumentException>();
     }
 
-    // ---------- Correccion de una venta (033) ----------
+    // ---------- Correccion de una venta (035) ----------
 
     /// <summary>
-    /// El caso que pidio el cliente: se digito mal el precio y todavia no se
-    /// cobro nada. Se corrige y el calendario de plazos se rehace.
+    /// Se digito mal el precio y todavia no se cobro nada: se corrige y el
+    /// calendario se rehace.
     /// </summary>
     [Fact]
     public async Task CorregirVentaSinAbonos_RegeneraElCalendario()
     {
         var vehiculoId = await CrearVehiculoAsync("V-9101", 600_000m);
-        // Se quiso poner 600,000 y se escribio 900,000
         var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
             vehiculoId, _clienteId, 900_000m, MetodoPago.Efectivo, null,
             TipoVenta: TipoVenta.Plazos,
             Plan: new PlanPlazos(100_000m, 4, FechaNegocio.Hoy.AddDays(30))));
 
-        var permitido = await _plazos.ConsultarEdicionPermitidaAsync(ventaId);
-        permitido.Todo.Should().BeTrue("no hay un solo abono registrado");
-
-        await _plazos.EditarVentaAsync(new EdicionVenta(
+        var r = await _plazos.EditarVentaAsync(new EdicionVenta(
             ventaId, Precio: 600_000m, Inicial: 100_000m, MetodoPago.Transferencia,
             Notas: "Corregido", Motivo: "Se digito 900,000 en vez de 600,000"));
 
+        r.CantidadPlazos.Should().Be(4, "la cantidad pactada no cambia si no se pide");
+        r.TotalAPlazos.Should().Be(500_000m);
+        r.YaCobrado.Should().Be(0m);
+
         var estado = await _plazos.ObtenerEstadoAsync(ventaId);
         estado.Precio.Should().Be(600_000m);
-        estado.TotalAPlazos.Should().Be(500_000m, "600,000 menos 100,000 de inicial");
-        estado.CantidadPlazos.Should().Be(4, "la cantidad pactada no cambia: no es lo que se corrige");
         estado.Plazos.Should().OnlyContain(p => p.Monto == 125_000m);
-
-        // Las fechas pactadas se conservan
-        estado.Plazos[0].FechaVencimiento.Should().Be(FechaNegocio.Hoy.AddDays(30));
-        estado.Plazos[1].FechaVencimiento.Should().Be(FechaNegocio.Hoy.AddDays(60));
+        estado.Plazos[0].FechaVencimiento.Should().Be(FechaNegocio.Hoy.AddDays(30),
+            "las fechas pactadas se conservan");
     }
 
     /// <summary>
-    /// Con un abono hecho, el precio queda congelado: el recibo impreso que
-    /// tiene el cliente declara un saldo. Solo se corrige lo descriptivo.
+    /// El caso que se pidio: FALTABA UN PLAZO. Se agrega y el saldo se reparte
+    /// entre la cantidad nueva.
     /// </summary>
     [Fact]
-    public async Task CorregirVentaConAbonos_NoTocaLosMontos_PeroSiLasNotas()
+    public async Task AgregarUnPlazo_RepartteElSaldoEntreLaCantidadNueva()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9106", 600_000m);
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 600_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(0m, 3, FechaNegocio.Hoy.AddDays(30))));   // 3 x 200,000
+
+        var r = await _plazos.EditarVentaAsync(new EdicionVenta(
+            ventaId, 600_000m, 0m, MetodoPago.Efectivo, null,
+            Motivo: "Faltaba un plazo", CantidadPlazos: 4));
+
+        r.CantidadPlazos.Should().Be(4);
+
+        var estado = await _plazos.ObtenerEstadoAsync(ventaId);
+        estado.Plazos.Should().HaveCount(4);
+        estado.Plazos.Should().OnlyContain(p => p.Monto == 150_000m, "600,000 entre 4");
+        estado.Plazos[3].FechaVencimiento.Should().Be(FechaNegocio.Hoy.AddDays(120),
+            "el intervalo pactado se conserva");
+    }
+
+    /// <summary>
+    /// EL CASO DELICADO: la venta ya tiene cobros y se corrige igual. La plata
+    /// se re-imputa al plan nuevo y los RECIBOS no se tocan.
+    /// </summary>
+    [Fact]
+    public async Task CorregirConCobros_ReimputaLaPlata_YConservaLosRecibos()
     {
         var vehiculoId = await CrearVehiculoAsync("V-9102", 600_000m);
         var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
             vehiculoId, _clienteId, 600_000m, MetodoPago.Efectivo, null,
             TipoVenta: TipoVenta.Plazos,
-            Plan: new PlanPlazos(0m, 3, FechaNegocio.Hoy.AddDays(30))));
+            Plan: new PlanPlazos(0m, 3, FechaNegocio.Hoy.AddDays(30))));   // 3 x 200,000
 
         var estado = await _plazos.ObtenerEstadoAsync(ventaId);
         await _plazos.CobrarPlazoAsync(estado.Plazos[0].Id, 200_000m, MetodoPago.Efectivo);
+        await _plazos.CobrarPlazoAsync(estado.Plazos[1].Id, 100_000m, MetodoPago.Efectivo);
+        // Cobrado: 300,000
 
-        var permitido = await _plazos.ConsultarEdicionPermitidaAsync(ventaId);
-        permitido.Todo.Should().BeFalse();
-        permitido.AbonosRegistrados.Should().Be(1);
+        var recibosAntes = (await _plazos.ObtenerPagosAsync(ventaId))
+            .Select(g => g.NumeroRecibo).OrderBy(x => x).ToList();
 
-        // Se intenta cambiar el precio Y las notas de una sola vez
-        await _plazos.EditarVentaAsync(new EdicionVenta(
-            ventaId, Precio: 999_000m, Inicial: 50_000m, MetodoPago.Cheque,
-            Notas: "Telefono nuevo", Motivo: "Actualizar datos"));
+        // Se corrige a 4 plazos de 150,000
+        var r = await _plazos.EditarVentaAsync(new EdicionVenta(
+            ventaId, 600_000m, 0m, MetodoPago.Efectivo, null,
+            Motivo: "Se pacto un plazo mas", CantidadPlazos: 4));
+
+        r.YaCobrado.Should().Be(300_000m);
+        r.PlazosSaldados.Should().Be(2, "300,000 cubren dos plazos de 150,000");
+        r.SaldoAFavor.Should().Be(0m);
 
         var despues = await _plazos.ObtenerEstadoAsync(ventaId);
-        despues.Precio.Should().Be(600_000m, "hay un recibo emitido con estos numeros");
-        despues.Inicial.Should().Be(0m);
-        despues.CantidadPlazos.Should().Be(3);
-        despues.Plazos.Should().OnlyContain(p => p.Monto == 200_000m);
-        // Y el abono sigue ahi
-        despues.Pagado.Should().Be(200_000m);
+        despues.Plazos.Should().HaveCount(4);
+        despues.Plazos[0].Estado.Should().Be(EstadoPlazo.Pagado);
+        despues.Plazos[1].Estado.Should().Be(EstadoPlazo.Pagado);
+        despues.Plazos[2].Estado.Should().Be(EstadoPlazo.Pendiente);
+        despues.Pagado.Should().Be(300_000m);
+
+        // Los recibos son los MISMOS: no se anulo ni se reemitio ninguno
+        var recibosDespues = (await _plazos.ObtenerPagosAsync(ventaId))
+            .Select(g => g.NumeroRecibo).OrderBy(x => x).ToList();
+        recibosDespues.Should().BeEquivalentTo(recibosAntes);
+    }
+
+    /// <summary>
+    /// Si lo ya cobrado alcanza para MAS que el plan corregido, el sobrante
+    /// queda a favor del cliente. El sistema no devuelve plata solo.
+    /// </summary>
+    [Fact]
+    public async Task SiLoCobradoSuperaElPlanNuevo_QuedaSaldoAFavor()
+    {
+        var vehiculoId = await CrearVehiculoAsync("V-9107", 800_000m);
+        var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
+            vehiculoId, _clienteId, 800_000m, MetodoPago.Efectivo, null,
+            TipoVenta: TipoVenta.Plazos,
+            Plan: new PlanPlazos(0m, 4, FechaNegocio.Hoy.AddDays(30))));   // 4 x 200,000
+
+        var estado = await _plazos.ObtenerEstadoAsync(ventaId);
+        await _plazos.CobrarPlazoAsync(estado.Plazos[0].Id, 500_000m, MetodoPago.Efectivo);
+
+        // Se corrige a un precio menor: el plan pasa a 450,000
+        var r = await _plazos.EditarVentaAsync(new EdicionVenta(
+            ventaId, Precio: 450_000m, Inicial: 0m, MetodoPago.Efectivo, null,
+            Motivo: "El precio pactado era menor", CantidadPlazos: 3));
+
+        r.TotalAPlazos.Should().Be(450_000m);
+        r.YaCobrado.Should().Be(500_000m);
+        r.QuedoSaldada.Should().BeTrue();
+        r.SaldoAFavor.Should().Be(50_000m, "pago 500,000 y el plan corregido suma 450,000");
+        r.PlazosSaldados.Should().Be(3, "los tres quedan cubiertos");
+
+        var despues = await _plazos.ObtenerEstadoAsync(ventaId);
+        despues.Plazos.Should().OnlyContain(p => p.Estado == EstadoPlazo.Pagado);
     }
 
     /// <summary>Sin motivo no se corrige: el historial quedaria sin explicacion.</summary>
@@ -412,9 +474,13 @@ public class FlujoVentaPlazosTests : IAsyncLifetime
             .WithMessage("*cancelada*");
     }
 
-    /// <summary>Sin el permiso no se corrige, aunque la pantalla lo dejara pasar.</summary>
+    /// <summary>
+    /// Corregir es EXCLUSIVO del Admin, ni siquiera con el permiso
+    /// ventas_editar: "como esto es muy delicado solo puede ser realizado por
+    /// el mismo admin".
+    /// </summary>
     [Fact]
-    public async Task CorregirVentaSinPermiso_SeRechaza()
+    public async Task CorregirVentaSinSerAdmin_SeRechaza()
     {
         var vehiculoId = await CrearVehiculoAsync("V-9105", 400_000m);
         var (ventaId, _) = await _ventas.RegistrarAsync(new VentaVehiculoDatos(
@@ -422,13 +488,14 @@ public class FlujoVentaPlazosTests : IAsyncLifetime
             TipoVenta: TipoVenta.Plazos,
             Plan: new PlanPlazos(0m, 2, FechaNegocio.Hoy.AddDays(30))));
 
-        // Un vendedor: vende, pero no corrige ventas ajenas
-        SesionActual.Iniciar(SesionActual.Id, "vendedor", "Vendedor", Roles.Vendedor,
-            [Permisos.Ventas, Permisos.Inventario], DateTime.UtcNow, 1);
+        // Un encargado CON el permiso de editar ventas: igual no alcanza
+        SesionActual.Iniciar(SesionActual.Id, "encargado", "Encargado", Roles.Encargado,
+            [Permisos.Ventas, Permisos.VentasEditar, Permisos.Inventario], DateTime.UtcNow, 1);
 
         var editar = async () => await _plazos.EditarVentaAsync(new EdicionVenta(
             ventaId, 300_000m, 0m, MetodoPago.Efectivo, null, "Prueba"));
 
-        await editar.Should().ThrowAsync<UnauthorizedAccessException>();
+        (await editar.Should().ThrowAsync<UnauthorizedAccessException>())
+            .WithMessage("*administrador*");
     }
 }

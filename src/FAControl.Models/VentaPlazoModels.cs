@@ -139,7 +139,36 @@ public record EdicionVenta(
     MetodoPago Metodo,
     string? Notas,
     /// <summary>Por que se corrige. Va a la auditoria; obligatorio.</summary>
-    string Motivo);
+    string Motivo,
+    /// <summary>
+    /// Cuantos plazos tiene el plan corregido (035). NULL = dejar los que
+    /// tiene. Cambiarlo rehace el calendario repartiendo el saldo entre esa
+    /// cantidad, conservando la fecha del primer vencimiento y el intervalo.
+    /// </summary>
+    int? CantidadPlazos = null);
+
+/// <summary>
+/// Como quedo la venta despues de corregirla (035). Lo devuelve el servicio
+/// para que la pantalla pueda explicarle al usuario que paso con la plata que
+/// el cliente ya habia entregado.
+/// </summary>
+public record ResultadoEdicionVenta(
+    string Codigo,
+    int CantidadPlazos,
+    decimal TotalAPlazos,
+    /// <summary>Lo que el cliente ya habia entregado, y que se re-imputo al plan nuevo.</summary>
+    decimal YaCobrado,
+    /// <summary>Cuantos plazos quedaron saldados con esa plata.</summary>
+    int PlazosSaldados,
+    /// <summary>
+    /// Lo que sobro despues de cubrir todo el plan. Queda a favor del cliente:
+    /// el sistema NO mueve plata solo (decision de Yuber, 2026-07-31).
+    /// </summary>
+    decimal SaldoAFavor)
+{
+    public bool QuedoSaldada => YaCobrado >= TotalAPlazos;
+    public bool HaySaldoAFavor => SaldoAFavor > 0m;
+}
 
 /// <summary>
 /// Que tanto se puede corregir de una venta, segun si ya tiene abonos.

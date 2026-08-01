@@ -284,4 +284,112 @@ public class VentaPlazoRepository
         cmd.Parameters.AddWithValue("@venta", ventaId);
         await cmd.ExecuteNonQueryAsync(ct);
     }
+
+    // ---------- Correccion de una venta con cobros ya hechos (035) ----------
+
+    /// <summary>
+    /// Corre los numeros de los plazos actuales fuera del rango util para
+    /// poder insertar el plan nuevo sin chocar con uq_venta_plazo(venta_id,
+    /// numero).
+    ///
+    /// Es un paso intermedio DENTRO de la transaccion: al terminar, estos
+    /// plazos ya no tienen pagos apuntandolos y se borran. Si algo falla, el
+    /// rollback los devuelve a su numeracion original.
+    ///
+    /// El desplazamiento es grande (100000) para que no pueda solaparse con un
+    /// plan nuevo: el tope de plazos que acepta el sistema son 240.
+    /// </summary>
+    public async Task ApartarPlazosAsync(long ventaId, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        // Descendente: renumerar de mayor a menor evita chocar consigo mismo
+        // mientras se recorre.
+        cmd.CommandText = $"""
+            UPDATE {DbNames.VentaPlazo}
+            SET numero = numero + 100000
+            WHERE venta_id = @venta
+            ORDER BY numero DESC;
+            """;
+        cmd.Parameters.AddWithValue("@venta", ventaId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>Los plazos apartados (numero &gt;= 100000), para poder borrarlos al final.</summary>
+    public async Task BorrarPlazosApartadosAsync(long ventaId, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            DELETE FROM {DbNames.VentaPlazo}
+            WHERE venta_id = @venta AND numero >= 100000;
+            """;
+        cmd.Parameters.AddWithValue("@venta", ventaId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Los pagos de la venta con su id y su monto, en orden cronologico, para
+    /// re-imputarlos al plan nuevo. Se leen DENTRO de la transaccion.
+    /// </summary>
+    public async Task<IReadOnlyList<(long Id, decimal Monto)>> ObtenerPagosParaReimputarAsync(
+        long ventaId, MySqlConnection conexion, MySqlTransaction transaccion,
+        CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            SELECT g.id, g.monto
+            FROM {DbNames.VentaPlazoPago} g
+            JOIN {DbNames.VentaPlazo} z ON z.id = g.plazo_id
+            WHERE z.venta_id = @venta AND g.deleted_at IS NULL
+            ORDER BY g.fecha_pago, g.id;
+            """;
+        cmd.Parameters.AddWithValue("@venta", ventaId);
+
+        var lista = new List<(long, decimal)>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            lista.Add((reader.GetInt64("id"), reader.GetDecimal("monto")));
+        return lista;
+    }
+
+    /// <summary>
+    /// Reapunta un pago al plazo que le toca en el plan nuevo. El recibo NO se
+    /// toca: su numero, su fecha, su monto y quien lo cobro quedan como estan.
+    /// Lo unico que cambia es a que plazo se imputa.
+    /// </summary>
+    public async Task ReapuntarPagoAsync(long pagoId, long plazoId, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"UPDATE {DbNames.VentaPlazoPago} SET plazo_id = @plazo WHERE id = @id;";
+        cmd.Parameters.AddWithValue("@plazo", plazoId);
+        cmd.Parameters.AddWithValue("@id", pagoId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>Ids y numeros de los plazos de una venta (tras insertar el plan nuevo).</summary>
+    public async Task<IReadOnlyList<(long Id, int Numero, decimal Monto)>> ObtenerPlazosNuevosAsync(
+        long ventaId, MySqlConnection conexion, MySqlTransaction transaccion,
+        CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            SELECT id, numero, monto FROM {DbNames.VentaPlazo}
+            WHERE venta_id = @venta AND numero < 100000
+            ORDER BY numero;
+            """;
+        cmd.Parameters.AddWithValue("@venta", ventaId);
+
+        var lista = new List<(long, int, decimal)>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            lista.Add((reader.GetInt64("id"), reader.GetInt32("numero"), reader.GetDecimal("monto")));
+        return lista;
+    }
 }

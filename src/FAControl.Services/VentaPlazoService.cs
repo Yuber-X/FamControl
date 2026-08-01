@@ -313,104 +313,93 @@ public class VentaPlazoService
     }
 
     /// <summary>
-    /// Hasta donde se puede corregir esta venta (033). La UI lo consulta para
-    /// bloquear campos; <see cref="EditarVentaAsync"/> lo vuelve a verificar por
-    /// su cuenta, porque la pantalla puede quedar abierta mientras otro cobra.
-    /// </summary>
-    public async Task<EdicionVentaPermitida> ConsultarEdicionPermitidaAsync(long ventaId,
-        CancellationToken ct = default)
-    {
-        var abonos = await _plazos.ContarAbonosAsync(ventaId, ct);
-        return abonos == 0 ? EdicionVentaPermitida.Completa() : EdicionVentaPermitida.Limitada(abonos);
-    }
-
-    /// <summary>
-    /// Corrige una venta ya registrada (033 — el boton "Editar" que pidio el
-    /// cliente junto al de cancelar).
+    /// Corrige una venta ya registrada (033, ampliado en 035).
     ///
-    /// DOS NIVELES, segun si ya se cobro algo:
-    ///  * SIN abonos -> se corrigen precio, inicial, metodo y notas, y el
-    ///    calendario de plazos se REGENERA con los numeros nuevos. Se conservan
-    ///    la cantidad de plazos, la fecha del primero y el intervalo: son lo que
-    ///    se pacto con el cliente y no es lo que se esta corrigiendo.
-    ///  * CON abonos -> solo metodo y notas. Cada abono emitio un recibo
-    ///    numerado que se entrego impreso y afirma un saldo; recalcular el
-    ///    calendario por detras haria mentir a ese papel.
+    /// SOLO ADMIN, no basta el permiso ventas_editar: "como esto es muy
+    /// delicado solo puede ser realizado por el mismo admin" (Yuber
+    /// 2026-07-31). Rehacer el calendario mueve plata que el cliente ya
+    /// entrego.
+    ///
+    /// QUE SE PUEDE CORREGIR: precio, inicial, CANTIDAD DE PLAZOS, metodo y
+    /// notas. Se conservan la fecha del primer vencimiento y el intervalo entre
+    /// plazos: eso es lo que se pacto con el cliente y no es lo que se corrige.
+    ///
+    /// QUE PASA CON LO YA COBRADO — el punto delicado:
+    /// Los recibos NO se tocan. Cada abono conserva su numero, su fecha, su
+    /// monto y quien lo cobro; lo unico que cambia es a que plazo se imputa.
+    /// La plata se reparte de nuevo sobre el plan corregido, en cascada y en
+    /// orden cronologico: satura el plazo 1, sigue con el 2, y asi.
+    ///
+    /// Si lo cobrado alcanza para MAS que el plan nuevo, el sobrante queda como
+    /// SALDO A FAVOR del cliente. El sistema no devuelve plata ni la descuenta
+    /// de nada: avisa el monto y la decision la toma el dueño.
     ///
     /// Lo que NUNCA se toca: el codigo (VC-0001), el vehiculo y el cliente.
-    ///
     /// Una venta CANCELADA no se corrige: ya se liquido con su retencion.
     /// </summary>
-    public async Task EditarVentaAsync(EdicionVenta cambios, CancellationToken ct = default)
+    public async Task<ResultadoEdicionVenta> EditarVentaAsync(EdicionVenta cambios,
+        CancellationToken ct = default)
     {
-        if (!SesionActual.EsAdmin && !SesionActual.TienePermiso(Permisos.VentasEditar))
-            throw new UnauthorizedAccessException("No tenes permiso para corregir ventas.");
+        if (!SesionActual.EsAdmin)
+            throw new UnauthorizedAccessException(
+                "Corregir una venta con cobros hechos rehace el calendario y reparte de nuevo la " +
+                "plata que el cliente ya entrego. Solo un administrador puede hacerlo.");
         if (string.IsNullOrWhiteSpace(cambios.Motivo))
             throw new ArgumentException(
                 "Indica por que se corrige la venta: queda en el historial.", nameof(cambios));
 
         var venta = await _ventas.ObtenerPorIdAsync(cambios.VentaId, ct)
             ?? throw new InvalidOperationException($"No existe la venta con id {cambios.VentaId}.");
-        // Cancelada = tiene ficha de cancelacion (028). Se pregunta asi y no por
-        // una propiedad del modelo porque el estado vive en la base desde 028 y
-        // el modelo nunca lo necesito hasta ahora.
         if (await _ventas.ObtenerCancelacionAsync(cambios.VentaId, ct) is not null)
             throw new InvalidOperationException(
                 $"La venta {venta.Codigo} esta cancelada: ya se liquido con su retencion y no se corrige.");
 
-        // Se relee y no se confia en lo que trajo la pantalla: entre que se
-        // abrio el formulario y se guardo, otro usuario pudo cobrar un plazo.
-        var permitido = await ConsultarEdicionPermitidaAsync(cambios.VentaId, ct);
+        var precio = Math.Round(cambios.Precio, 2, MidpointRounding.AwayFromZero);
+        var inicial = Math.Round(cambios.Inicial, 2, MidpointRounding.AwayFromZero);
+        if (precio <= 0m)
+            throw new ArgumentException("El precio de venta debe ser mayor que cero.", nameof(cambios));
+        if (inicial < 0m || inicial > precio)
+            throw new ArgumentException(
+                "La inicial no puede ser negativa ni mayor que el precio.", nameof(cambios));
 
         var detalle = new List<string>();
-        if (venta.MetodoPago != cambios.Metodo)
-            detalle.Add($"metodo {venta.MetodoPago} a {cambios.Metodo}");
-        if (venta.Notas != cambios.Notas)
-            detalle.Add("notas");
+        if (venta.Precio != precio) detalle.Add($"precio {venta.Precio:N2} a {precio:N2}");
+        if (venta.Inicial != inicial) detalle.Add($"inicial {venta.Inicial:N2} a {inicial:N2}");
+        if (venta.MetodoPago != cambios.Metodo) detalle.Add($"metodo {venta.MetodoPago} a {cambios.Metodo}");
+        if (venta.Notas != cambios.Notas) detalle.Add("notas");
 
-        var precio = venta.Precio;
-        var inicial = venta.Inicial;
+        // ---------- El plan nuevo ----------
         List<VentaPlazo>? plazosNuevos = null;
+        var actuales = await _plazos.ObtenerDeVentaAsync(cambios.VentaId, ct);
+        var cantidad = cambios.CantidadPlazos ?? actuales.Count;
 
-        if (permitido.Todo)
+        if (venta.TipoVenta == TipoVenta.Plazos)
         {
-            precio = Math.Round(cambios.Precio, 2, MidpointRounding.AwayFromZero);
-            inicial = Math.Round(cambios.Inicial, 2, MidpointRounding.AwayFromZero);
-            if (precio <= 0m)
-                throw new ArgumentException("El precio de venta debe ser mayor que cero.", nameof(cambios));
-            if (inicial < 0m || inicial > precio)
-                throw new ArgumentException(
-                    "La inicial no puede ser negativa ni mayor que el precio.", nameof(cambios));
+            if (actuales.Count == 0)
+                throw new InvalidOperationException(
+                    "Esta venta figura como financiada pero no tiene plazos cargados. " +
+                    "Avisale al soporte antes de corregirla.");
+            if (cantidad < 1)
+                throw new ArgumentException("La cantidad de plazos debe ser al menos 1.", nameof(cambios));
 
-            if (venta.Precio != precio)
-                detalle.Add($"precio {venta.Precio:N2} a {precio:N2}");
-            if (venta.Inicial != inicial)
-                detalle.Add($"inicial {venta.Inicial:N2} a {inicial:N2}");
+            if (cantidad != actuales.Count)
+                detalle.Add($"plazos {actuales.Count} a {cantidad}");
 
-            // El calendario es un calculo derivado del precio y la inicial: si
-            // alguno cambio, se rehace. La cantidad de plazos, la fecha del
-            // primero y el intervalo se DEDUCEN de los plazos actuales — es lo
-            // que se pacto y no es lo que se esta corrigiendo.
-            if (venta.TipoVenta == TipoVenta.Plazos &&
-                (venta.Precio != precio || venta.Inicial != inicial))
-            {
-                var actuales = await _plazos.ObtenerDeVentaAsync(cambios.VentaId, ct);
-                if (actuales.Count == 0)
-                    throw new InvalidOperationException(
-                        "Esta venta figura como financiada pero no tiene plazos cargados. " +
-                        "Avisale al soporte antes de corregirla.");
-
-                var cadaDias = actuales.Count > 1
-                    ? Math.Max(1, actuales[1].FechaVencimiento.DayNumber - actuales[0].FechaVencimiento.DayNumber)
-                    : 30;
-                plazosNuevos = CalcularPlazos(precio,
-                    new PlanPlazos(inicial, actuales.Count, actuales[0].FechaVencimiento, cadaDias));
-                detalle.Add($"calendario regenerado ({actuales.Count} plazo(s))");
-            }
+            // Se conservan la fecha del primero y el intervalo: es lo pactado.
+            var cadaDias = actuales.Count > 1
+                ? Math.Max(1, actuales[1].FechaVencimiento.DayNumber - actuales[0].FechaVencimiento.DayNumber)
+                : 30;
+            plazosNuevos = CalcularPlazos(precio,
+                new PlanPlazos(inicial, cantidad, actuales[0].FechaVencimiento, cadaDias));
         }
 
         if (detalle.Count == 0)
-            return;   // Nada cambio: no se ensucia la auditoria con un registro vacio
+        {
+            // Nada cambio: no se ensucia la auditoria ni se remueve la plata
+            var totalActual = actuales.Sum(z => z.Monto);
+            return new ResultadoEdicionVenta(venta.Codigo, actuales.Count, totalActual,
+                actuales.Sum(z => z.MontoPagado), actuales.Count(z => z.Estado == EstadoPlazo.Pagado), 0m);
+        }
 
         using var conexion = await _factory.AbrirAsync(ct);
         using var transaccion = await conexion.BeginTransactionAsync(ct);
@@ -419,22 +408,90 @@ public class VentaPlazoService
             await _ventas.ActualizarDatosAsync(cambios.VentaId, precio, inicial, cambios.Metodo,
                 cambios.Notas, conexion, transaccion, ct);
 
+            decimal yaCobrado = 0m, saldoAFavor = 0m;
+            int saldados = 0, cantidadFinal = actuales.Count;
+            var totalAPlazos = actuales.Sum(z => z.Monto);
+
             if (plazosNuevos is not null)
             {
-                await _plazos.BorrarPlazosAsync(cambios.VentaId, conexion, transaccion, ct);
+                // 1. Los pagos, en orden cronologico. Se leen ANTES de tocar
+                //    nada: son la verdad de lo que el cliente entrego.
+                var pagos = await _plazos.ObtenerPagosParaReimputarAsync(
+                    cambios.VentaId, conexion, transaccion, ct);
+                yaCobrado = pagos.Sum(g => g.Monto);
+
+                // 2. Los plazos viejos se corren de numeracion para que el plan
+                //    nuevo pueda entrar sin chocar con la clave unica.
+                await _plazos.ApartarPlazosAsync(cambios.VentaId, conexion, transaccion, ct);
                 await _plazos.InsertarPlazosAsync(cambios.VentaId, plazosNuevos, conexion, transaccion, ct);
+
+                var nuevos = await _plazos.ObtenerPlazosNuevosAsync(
+                    cambios.VentaId, conexion, transaccion, ct);
+
+                // 3. La plata se reparte en CASCADA sobre el plan nuevo: satura
+                //    el primero, sigue con el segundo. Es el mismo criterio que
+                //    ya usa el cobro normal, para que no haya dos formas de
+                //    repartir un abono en el mismo sistema.
+                var restante = yaCobrado;
+                var acumulado = new decimal[nuevos.Count];
+                for (var i = 0; i < nuevos.Count && restante > 0m; i++)
+                {
+                    var cabe = Math.Min(restante, nuevos[i].Monto);
+                    acumulado[i] = cabe;
+                    restante -= cabe;
+                }
+                saldoAFavor = restante;   // lo que no entro en ningun plazo
+
+                // 4. Cada recibo se reapunta al plazo donde cayo su plata. El
+                //    recibo en si NO se toca: numero, fecha, monto y cobrador
+                //    quedan como estan. Sin esto, borrar los plazos viejos
+                //    fallaria por la clave foranea, que es justamente la red
+                //    que impide perder un pago.
+                var indice = 0;
+                var usadoEnPlazo = 0m;
+                foreach (var (pagoId, monto) in pagos)
+                {
+                    while (indice < nuevos.Count - 1 && usadoEnPlazo >= acumulado[indice])
+                    {
+                        indice++;
+                        usadoEnPlazo = 0m;
+                    }
+                    await _plazos.ReapuntarPagoAsync(pagoId, nuevos[indice].Id, conexion, transaccion, ct);
+                    usadoEnPlazo += monto;
+                }
+
+                // 5. El estado de cada plazo, ya con la plata repartida
+                for (var i = 0; i < nuevos.Count; i++)
+                {
+                    var estado = acumulado[i] >= nuevos[i].Monto ? EstadoPlazo.Pagado : EstadoPlazo.Pendiente;
+                    if (estado == EstadoPlazo.Pagado) saldados++;
+                    await _plazos.ActualizarTrasPagoAsync(nuevos[i].Id, acumulado[i], estado,
+                        conexion, transaccion, ct);
+                }
+
+                // 6. Recien ahora los viejos quedan sin pagos y se pueden borrar
+                await _plazos.BorrarPlazosApartadosAsync(cambios.VentaId, conexion, transaccion, ct);
+
+                cantidadFinal = nuevos.Count;
+                totalAPlazos = plazosNuevos.Sum(z => z.Monto);
             }
 
+            var detalleCobrado = yaCobrado > 0m
+                ? $" — se re-imputaron {yaCobrado:N2} DOP ya cobrados ({saldados} plazo(s) saldado(s))" +
+                  (saldoAFavor > 0m ? $", quedan {saldoAFavor:N2} DOP a favor del cliente" : "")
+                : "";
             await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Modificar,
                 DbNames.VentaVehiculo, cambios.VentaId,
                 $"Venta {venta.Codigo} corregida ({string.Join(", ", detalle)}). " +
-                $"Motivo: {cambios.Motivo.Trim()}" +
-                (permitido.Todo ? "" : " — sin tocar montos: ya tiene abonos"),
+                $"Motivo: {cambios.Motivo.Trim()}{detalleCobrado}",
                 conexion, transaccion, ct);
 
             await transaccion.CommitAsync(ct);
-            Log.Information("Venta {Codigo} corregida por {Usuario}: {Detalle}",
-                venta.Codigo, SesionActual.Username, string.Join(", ", detalle));
+            Log.Information("Venta {Codigo} corregida por {Usuario}: {Detalle}. Saldo a favor: {Saldo}",
+                venta.Codigo, SesionActual.Username, string.Join(", ", detalle), saldoAFavor);
+
+            return new ResultadoEdicionVenta(venta.Codigo, cantidadFinal, totalAPlazos,
+                yaCobrado, saldados, saldoAFavor);
         }
         catch
         {
