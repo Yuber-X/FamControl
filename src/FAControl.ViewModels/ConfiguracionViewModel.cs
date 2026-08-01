@@ -237,6 +237,14 @@ public partial class ConfiguracionViewModel : ObservableObject
     [ObservableProperty] private string _ncfFinTexto = string.Empty;
     [ObservableProperty] private DateTime? _ncfVencimiento;
     [ObservableProperty] private string _ncfEstadoTexto = string.Empty;
+
+    /// <summary>
+    /// True cuando lo que se ve arriba es el EJEMPLO de fábrica y no una
+    /// secuencia guardada. Manda si al marcar la casilla se borran los campos:
+    /// borrar un ejemplo es lo que se pidió, borrar una secuencia real le
+    /// haría perder al usuario en qué número va su talonario.
+    /// </summary>
+    private bool _ncfEsEjemplo;
     /// <summary>Solo el Admin ve/edita la secuencia.</summary>
     public bool PuedeConfigurarNcf => SesionActual.EsAdmin;
 
@@ -251,6 +259,9 @@ public partial class ConfiguracionViewModel : ObservableObject
                 LimpiarNcf();
                 return;
             }
+            // Antes de mover NcfActivo: ese cambio dispara el borrado de los
+            // campos, y acá justamente NO hay que borrar nada.
+            _ncfEsEjemplo = false;
             NcfActivo = secuencia.Activo;
             NcfPrefijo = secuencia.Prefijo;
             NcfLargoTexto = secuencia.Largo.ToString();
@@ -281,6 +292,7 @@ public partial class ConfiguracionViewModel : ObservableObject
     /// </summary>
     private void LimpiarNcf()
     {
+        _ncfEsEjemplo = true;
         NcfActivo = false;
         NcfPrefijo = "B02";
         NcfLargoTexto = "8";
@@ -290,7 +302,41 @@ public partial class ConfiguracionViewModel : ObservableObject
         NcfEstadoTexto =
             $"{IdentidadModo.De(SesionActual.Modo).Nombre} todavía no tiene secuencia de comprobantes. " +
             "Cada estancia lleva la suya: lo que se configure acá no afecta a las demás. " +
-            "Los valores de arriba son un ejemplo (B02 = Consumidor Final).";
+            "Los valores de arriba son un ejemplo (B02 = Consumidor Final); al marcar la casilla " +
+            "se borran para que escribas los tuyos.";
+    }
+
+    /// <summary>
+    /// Al ENCENDER la casilla se borra el ejemplo (pedido del cliente
+    /// 2026-08-02: "que borre el ejemplo para que no intenten usarlo").
+    ///
+    /// Un B02 de ejemplo empezando en 1 se ve exactamente igual que una
+    /// secuencia legítima. Dejarlo escrito y habilitado invita a apretar
+    /// Guardar sin cambiarlo, y a partir de ahí la app numera comprobantes
+    /// fiscales con una serie que la DGII nunca autorizó.
+    ///
+    /// Si lo que hay es una secuencia GUARDADA, no se toca nada: reactivar un
+    /// talonario que estaba en pausa no puede hacerle perder al usuario en qué
+    /// número iba. Por eso el borrado depende de _ncfEsEjemplo y no del simple
+    /// hecho de marcar la casilla.
+    /// </summary>
+    partial void OnNcfActivoChanged(bool value)
+    {
+        if (!value || !_ncfEsEjemplo)
+            return;
+
+        NcfPrefijo = string.Empty;
+        NcfLargoTexto = string.Empty;
+        NcfProximaTexto = string.Empty;
+        NcfFinTexto = string.Empty;
+        NcfVencimiento = null;
+        // Ya no es el ejemplo: son campos vacíos que el usuario va a llenar.
+        _ncfEsEjemplo = false;
+
+        NcfEstadoTexto =
+            $"Escribí la secuencia que la DGII le autorizó a {IdentidadModo.De(SesionActual.Modo).Nombre}: " +
+            "prefijo (B02 tradicional, E32 e-CF), largo (8 o 10 dígitos), " +
+            "en qué número arranca y hasta dónde llega el rango.";
     }
 
     private void ActualizarEstadoNcf(FAControl.Models.NcfSecuencia secuencia)
