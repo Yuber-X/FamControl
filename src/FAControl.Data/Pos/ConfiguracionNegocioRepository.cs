@@ -1,4 +1,4 @@
-// Portado de POS-500 el 2026-07-30 al integrar el punto de venta a la suite.
+﻿// Portado de POS-500 el 2026-07-30 al integrar el punto de venta a la suite.
 // Cambios respecto del original: sus tablas llevan prefijo pos_ dentro de
 // facontrol_db (024), y usa el SesionActual y la auditoria de la suite.
 using MySqlConnector;
@@ -24,7 +24,7 @@ public class ConfiguracionNegocioRepository
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT nombre_negocio, rnc, direccion, telefono, email, logo_ruta,
-                   itbis_activo, itbis_tasa, redondeo, moneda_simbolo, formato_miles,
+                   itbis_activo, itbis_tasa, comision_activa, comision_porcentaje, redondeo, moneda_simbolo, formato_miles,
                    factura_prefijo, factura_siguiente, factura_formato,
                    mostrar_cliente_en_venta
             FROM {DbNamesPos.ConfiguracionNegocio}
@@ -45,6 +45,8 @@ public class ConfiguracionNegocioRepository
             LogoRuta = Nulable(reader, "logo_ruta"),
             ItbisActivo = reader.GetBoolean("itbis_activo"),
             ItbisTasa = reader.GetDecimal("itbis_tasa"),
+        ComisionActiva = reader.GetBoolean("comision_activa"),
+        ComisionPorcentaje = reader.GetDecimal("comision_porcentaje"),
             Redondeo = reader.GetString("redondeo") switch
             {
                 "peso" => ModoRedondeo.Peso,
@@ -74,6 +76,7 @@ public class ConfiguracionNegocioRepository
             SET nombre_negocio = @nombre, rnc = @rnc, direccion = @direccion,
                 telefono = @telefono, email = @email, logo_ruta = @logo,
                 itbis_activo = @itbisActivo, itbis_tasa = @itbisTasa,
+                comision_activa = @comisionActiva, comision_porcentaje = @comisionPorcentaje,
                 redondeo = @redondeo, moneda_simbolo = @moneda, formato_miles = @formatoMiles,
                 factura_prefijo = @prefijo, factura_formato = @formatoFactura,
                 mostrar_cliente_en_venta = @mostrarCliente,
@@ -88,6 +91,8 @@ public class ConfiguracionNegocioRepository
         cmd.Parameters.AddWithValue("@logo", (object?)cfg.LogoRuta ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@itbisActivo", cfg.ItbisActivo);
         cmd.Parameters.AddWithValue("@itbisTasa", cfg.ItbisTasa);
+        cmd.Parameters.AddWithValue("@comisionActiva", cfg.ComisionActiva);
+        cmd.Parameters.AddWithValue("@comisionPorcentaje", cfg.ComisionPorcentaje);
         cmd.Parameters.AddWithValue("@redondeo", cfg.Redondeo switch
         {
             ModoRedondeo.Peso => "peso",

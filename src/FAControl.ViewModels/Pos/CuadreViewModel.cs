@@ -1,4 +1,4 @@
-// Portado de POS500.ViewModels el 2026-07-30 al integrar el punto de venta a la
+﻿// Portado de POS500.ViewModels el 2026-07-30 al integrar el punto de venta a la
 // suite. Usa el SesionActual, los permisos y el IDialogService de FAControl.
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -11,7 +11,13 @@ using Serilog;
 namespace FAControl.ViewModels.Pos;
 
 /// <summary>Fila del desglose por cajero (modo general).</summary>
-public record CuadreCajeroFila(CuadreResumen Cuadre)
+/// <param name="Comision">
+/// Lo que gano el cajero por sus ventas (037). Se calcula acá y no en la base
+/// porque el porcentaje puede cambiar: el cuadre de ayer se recalcula con el
+/// porcentaje de ayer solo si se guarda, y guardarlo es una decision que el
+/// cliente no pidio. Hoy muestra la comision al porcentaje VIGENTE.
+/// </param>
+public record CuadreCajeroFila(CuadreResumen Cuadre, decimal Comision = 0m)
 {
     public string Nombre => Cuadre.NombreCajero;
     public int Facturas => Cuadre.TotalFacturas;
@@ -37,15 +43,19 @@ public partial class CuadreViewModel : ObservableObject, IPaginaAsincrona
     private readonly CuadreService _cuadres;
     private readonly IDialogService _dialogos;
     private readonly AjustesLocales _ajustes;
+    /// <summary>De aca sale el % de comision del vendedor (037): es del negocio.</summary>
+    private readonly ConfiguracionNegocioService _config;
 
     /// <summary>La App abre la vista previa imprimible del cierre.</summary>
     public event Action<CuadreGeneral, TamanoImpresion>? ImpresionSolicitada;
 
-    public CuadreViewModel(CuadreService cuadres, IDialogService dialogos, AjustesLocales ajustes)
+    public CuadreViewModel(CuadreService cuadres, IDialogService dialogos, AjustesLocales ajustes,
+        ConfiguracionNegocioService config)
     {
         _cuadres = cuadres;
         _dialogos = dialogos;
         _ajustes = ajustes;
+        _config = config;
         _fecha = FechaNegocio.Hoy.ToDateTime(TimeOnly.MinValue);
 
         Tamanos =
@@ -67,6 +77,13 @@ public partial class CuadreViewModel : ObservableObject, IPaginaAsincrona
     [ObservableProperty] private string _tituloCuadre = string.Empty;
     [ObservableProperty] private int _totalFacturas;
     [ObservableProperty] private decimal _totalVendido;
+
+    /// <summary>
+    /// Comision del dia (037). Aparece en el cuadre y en la exportacion, NUNCA
+    /// en la factura: es entre el negocio y su empleado.
+    /// </summary>
+    [ObservableProperty] private decimal _comisionTotal;
+    [ObservableProperty] private bool _mostrarComision;
     [ObservableProperty] private decimal _totalEfectivo;
     [ObservableProperty] private decimal _totalTarjeta;
     [ObservableProperty] private decimal _totalTransferencia;
@@ -146,6 +163,9 @@ public partial class CuadreViewModel : ObservableObject, IPaginaAsincrona
                 TituloCuadre = "Cuadre general del negocio";
                 TotalFacturas = general.TotalFacturas;
                 TotalVendido = general.TotalVendido;
+                // Comision del dia (037): sobre lo vendido, al porcentaje vigente
+                ComisionTotal = _config.Actual.ComisionSobre(general.TotalVendido);
+                MostrarComision = _config.Actual.ComisionActiva;
                 TotalEfectivo = general.TotalEfectivo;
                 TotalTarjeta = general.TotalTarjeta;
                 TotalTransferencia = general.TotalTransferencia;
@@ -171,6 +191,8 @@ public partial class CuadreViewModel : ObservableObject, IPaginaAsincrona
                 TituloCuadre = $"Cuadre de {cuadre.NombreCajero}";
                 TotalFacturas = cuadre.TotalFacturas;
                 TotalVendido = cuadre.TotalVendido;
+                ComisionTotal = _config.Actual.ComisionSobre(cuadre.TotalVendido);
+                MostrarComision = _config.Actual.ComisionActiva;
                 TotalEfectivo = cuadre.TotalEfectivo;
                 TotalTarjeta = cuadre.TotalTarjeta;
                 TotalTransferencia = cuadre.TotalTransferencia;

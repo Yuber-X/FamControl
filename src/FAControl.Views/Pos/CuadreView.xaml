@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.Pos.CuadreView"
+﻿<UserControl x:Class="FAControl.Views.Pos.CuadreView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -49,6 +49,18 @@
             <Viewbox Style="{DynamicResource Metrica.Valor}">
               <TextBlock Text="{Binding TotalVendido, Converter={StaticResource Money}}"
   Style="{DynamicResource Texto.Display}" />
+            </Viewbox>
+          </StackPanel>
+        </Border>
+        <!-- Comision del dia (037): solo si esta activada en Configuracion -->
+        <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0"
+                Visibility="{Binding MostrarComision, Converter={StaticResource BoolAVisibilidad}}">
+          <StackPanel>
+            <TextBlock Text="COMISIÓN DEL DÍA" Style="{DynamicResource Texto.MicroLabel}" />
+            <Viewbox Style="{DynamicResource Metrica.Valor}">
+              <TextBlock Text="{Binding ComisionTotal, Converter={StaticResource Money}}"
+                         Style="{DynamicResource Texto.Display}"
+                         Foreground="{DynamicResource Brush.DeltaPositivo}" />
             </Viewbox>
           </StackPanel>
         </Border>

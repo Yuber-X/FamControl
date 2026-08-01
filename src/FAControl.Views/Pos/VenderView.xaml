@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.Pos.VenderView"
+﻿<UserControl x:Class="FAControl.Views.Pos.VenderView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -124,6 +124,16 @@
           <TextBlock DockPanel.Dock="Right" Style="{DynamicResource Texto.Monto}"
                      Text="{Binding Subtotal, Converter={StaticResource Money}}" />
           <TextBlock Text="Subtotal" Style="{DynamicResource Texto.Cuerpo}" />
+        </DockPanel>
+        <!-- Comision del vendedor (037): junto al subtotal, como se pidio.
+             NO sale en el ticket del cliente. -->
+        <DockPanel Margin="0,6,0,0"
+                   Visibility="{Binding MostrarComision, Converter={StaticResource BoolAVisibilidad}}">
+          <TextBlock DockPanel.Dock="Right" Style="{DynamicResource Texto.Monto}"
+                     Foreground="{DynamicResource Brush.DeltaPositivo}"
+                     Text="{Binding Comision, Converter={StaticResource Money}}" />
+          <TextBlock Text="{Binding ComisionEtiqueta}" Style="{DynamicResource Texto.Cuerpo}"
+                     Foreground="{DynamicResource Brush.DeltaPositivo}" />
         </DockPanel>
         <DockPanel Margin="0,6,0,0"
                    Visibility="{Binding MostrarItbis, Converter={StaticResource BoolAVisibilidad}}">

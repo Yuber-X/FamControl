@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using ClosedXML.Excel;
 using FAControl.Common;
 using FAControl.Data;
@@ -20,7 +20,7 @@ public class ExportacionService
 
     public async Task ExportarAsync(string rutaDestino, CancellationToken ct = default)
     {
-        var tablas = await _repositorio.ObtenerTodoAsync(ct);
+        var tablas = await _repositorio.ObtenerTodoAsync(SesionActual.Modo, ct);
 
         using var libro = new XLWorkbook();
         foreach (var tabla in tablas)

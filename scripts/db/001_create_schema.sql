@@ -845,6 +845,11 @@ CREATE TABLE pos_configuracion (
   logo_ruta                VARCHAR(500)  NULL,
   itbis_activo             TINYINT(1)    NOT NULL DEFAULT 1,
   itbis_tasa               DECIMAL(5,2)  NOT NULL DEFAULT 18.00,
+  -- Comision del vendedor (037). Del NEGOCIO, no de la terminal: si el dueño
+  -- fija 5%, vale en las tres cajas. NO sale en la factura — es un asunto
+  -- entre el negocio y su empleado, el cliente que compra no tiene que ver.
+  comision_activa          TINYINT(1)    NOT NULL DEFAULT 0,
+  comision_porcentaje      DECIMAL(5,2)  NOT NULL DEFAULT 0.00,
   redondeo                 ENUM('centavo','peso','arriba') NOT NULL DEFAULT 'centavo',
   moneda_simbolo           VARCHAR(10)   NOT NULL DEFAULT 'RD$',
   formato_miles            ENUM('coma','punto') NOT NULL DEFAULT 'coma',

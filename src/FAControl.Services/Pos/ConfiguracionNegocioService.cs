@@ -1,4 +1,4 @@
-// Portado de POS-500 el 2026-07-30 al integrar el punto de venta a la suite.
+﻿// Portado de POS-500 el 2026-07-30 al integrar el punto de venta a la suite.
 // Cambios respecto del original: sus tablas llevan prefijo pos_ dentro de
 // facontrol_db (024), y usa el SesionActual y la auditoria de la suite.
 using FAControl.Common;
@@ -58,6 +58,8 @@ public class ConfiguracionNegocioService
             throw new ArgumentException("El nombre del negocio es obligatorio.");
         if (cfg.ItbisTasa is < 0m or > 100m)
             throw new ArgumentException("La tasa de ITBIS debe estar entre 0 y 100.");
+        if (cfg.ComisionPorcentaje is < 0m or > 100m)
+            throw new ArgumentException("La comisión del vendedor debe estar entre 0 y 100.");
         if (string.IsNullOrWhiteSpace(cfg.MonedaSimbolo))
             throw new ArgumentException("El símbolo de moneda es obligatorio.");
         if (string.IsNullOrWhiteSpace(cfg.FacturaPrefijo))
@@ -76,6 +78,10 @@ public class ConfiguracionNegocioService
             cambios.Add($"ITBIS {(ahora.ItbisActivo ? "activado" : "DESACTIVADO")}");
         if (antes.ItbisTasa != ahora.ItbisTasa)
             cambios.Add($"tasa ITBIS: {antes.ItbisTasa:0.##}% → {ahora.ItbisTasa:0.##}%");
+        if (antes.ComisionActiva != ahora.ComisionActiva)
+            cambios.Add($"comisión del vendedor {(ahora.ComisionActiva ? "activada" : "DESACTIVADA")}");
+        if (antes.ComisionPorcentaje != ahora.ComisionPorcentaje)
+            cambios.Add($"comisión: {antes.ComisionPorcentaje:0.##}% → {ahora.ComisionPorcentaje:0.##}%");
         if (antes.MostrarClienteEnVenta != ahora.MostrarClienteEnVenta)
             cambios.Add($"cliente en venta: {(ahora.MostrarClienteEnVenta ? "visible" : "oculto")}");
         if (antes.Redondeo != ahora.Redondeo)

@@ -1,4 +1,4 @@
-// Portado de POS500.ViewModels el 2026-07-30 al integrar el punto de venta a la
+﻿// Portado de POS500.ViewModels el 2026-07-30 al integrar el punto de venta a la
 // suite. Usa el SesionActual, los permisos y el IDialogService de FAControl.
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -75,6 +75,14 @@ public partial class VenderViewModel : ObservableObject, IPaginaAsincrona
     [ObservableProperty] private string _efectivoTexto = string.Empty;
     [ObservableProperty] private bool _mostrarCliente = true;
     [ObservableProperty] private bool _mostrarItbis = true;
+
+    // ---------- Comision del vendedor (037) ----------
+    // Se muestra junto al subtotal para que el cajero sepa cuanto lleva ganado
+    // en esta venta. NUNCA sale en el ticket: es un asunto entre el negocio y
+    // su empleado, el cliente que compra no tiene nada que ver.
+    [ObservableProperty] private bool _mostrarComision;
+    [ObservableProperty] private string _comisionEtiqueta = string.Empty;
+    [ObservableProperty] private decimal _comision;
     [ObservableProperty] private decimal _subtotal;
     [ObservableProperty] private decimal _itbis;
     [ObservableProperty] private decimal _total;
@@ -100,6 +108,11 @@ public partial class VenderViewModel : ObservableObject, IPaginaAsincrona
             MostrarCliente = _config.Actual.MostrarClienteEnVenta;
             MostrarItbis = _config.Actual.ItbisActivo;
             ItbisEtiqueta = $"ITBIS ({_config.Actual.ItbisTasa:0.##}%)";
+            // Comision del vendedor (037): se muestra junto al subtotal, para
+            // que el cajero sepa cuanto lleva ganado en esta venta. NO va al
+            // ticket: es entre el negocio y su empleado.
+            MostrarComision = _config.Actual.ComisionActiva;
+            ComisionEtiqueta = $"Tu comisión ({_config.Actual.ComisionPorcentaje:0.##}%)";
             Recalcular();   // por si cambió la tasa/activación desde Configuración
             _catalogo = await _productos.ObtenerTodosAsync();
 
@@ -211,6 +224,9 @@ public partial class VenderViewModel : ObservableObject, IPaginaAsincrona
         var totales = VentaService.CalcularTotales(
             LineasActuales(), _config.Actual.ItbisTasaEfectiva, _config.Actual.Redondeo);
         Subtotal = totales.Subtotal;
+        // La comision se calcula sobre el SUBTOTAL, no sobre el total: el ITBIS
+        // no es del negocio ni del vendedor, se le entrega a la DGII.
+        Comision = _config.Actual.ComisionSobre(totales.Subtotal);
         Itbis = totales.Itbis;
         Total = totales.Total;
         ActualizarCambio();

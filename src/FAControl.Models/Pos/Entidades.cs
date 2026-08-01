@@ -1,4 +1,4 @@
-// Portado de POS500.Models el 2026-07-30 al integrar el punto de venta a la
+﻿// Portado de POS500.Models el 2026-07-30 al integrar el punto de venta a la
 // suite. Los tipos de usuarios, roles, permisos, sesion y auditoria NO se
 // portaron: esos viven en facontrol_db y son los de FAControl, compartidos por
 // todos los modos.
@@ -57,6 +57,25 @@ public class ConfiguracionNegocio
     public decimal ItbisTasa { get; set; } = 18.00m;
     /// <summary>Tasa que realmente se aplica al vender (0 si el ITBIS está apagado).</summary>
     public decimal ItbisTasaEfectiva => ItbisActivo ? ItbisTasa : 0m;
+
+    // ---------- Comisión del vendedor (037) ----------
+    // Del NEGOCIO, no de la terminal. NO sale en la factura: es un asunto entre
+    // el negocio y su empleado. Sí aparece en Vender (junto al subtotal), en el
+    // cuadre del día y en la exportación a Excel.
+    public bool ComisionActiva { get; set; }
+    public decimal ComisionPorcentaje { get; set; }
+
+    /// <summary>Porcentaje que realmente se aplica (0 si la comisión está apagada).</summary>
+    public decimal ComisionEfectiva => ComisionActiva ? ComisionPorcentaje : 0m;
+
+    /// <summary>
+    /// Comisión sobre un monto vendido. Se redondea al final, nunca por línea:
+    /// acumular redondeos daría un número que no cuadra con el total.
+    /// </summary>
+    public decimal ComisionSobre(decimal monto) =>
+        ComisionEfectiva <= 0m
+            ? 0m
+            : Math.Round(monto * ComisionEfectiva / 100m, 2, MidpointRounding.AwayFromZero);
     public ModoRedondeo Redondeo { get; set; } = ModoRedondeo.Centavo;
     public string MonedaSimbolo { get; set; } = "RD$";
     public string FormatoMiles { get; set; } = "coma";

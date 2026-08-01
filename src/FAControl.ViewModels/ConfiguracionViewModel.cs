@@ -112,6 +112,14 @@ public partial class ConfiguracionViewModel : ObservableObject
     // NEGOCIO, no de la PC. Si el dueño apaga el ITBIS, se apaga en todas las
     // terminales, no solo en la caja donde lo toco.
 
+    // ---------- Comision del vendedor del POS (037) ----------
+    // Vive en la BD (pos_configuracion), no en ajustes.json: si el dueño fija
+    // 5%, vale en las tres cajas. La de DealControl es OTRA y sigue en
+    // ajustes.json — son dos negocios distintos y el porcentaje no tiene por
+    // que coincidir.
+    [ObservableProperty] private bool _comisionPosActiva;
+    [ObservableProperty] private string _comisionPosTexto = "0";
+
     [ObservableProperty] private bool _itbisActivo = true;
     [ObservableProperty] private string _itbisTasaTexto = "18";
     [ObservableProperty] private string _itbisEstadoTexto = string.Empty;
@@ -138,6 +146,8 @@ public partial class ConfiguracionViewModel : ObservableObject
             {
                 ItbisActivo = cfg.ItbisActivo;
                 ItbisTasaTexto = cfg.ItbisTasa.ToString("0.##", Textos.CulturaRd);
+                ComisionPosActiva = cfg.ComisionActiva;
+                ComisionPosTexto = cfg.ComisionPorcentaje.ToString("0.##", Textos.CulturaRd);
             }
             finally { _recargando = false; }
             ActualizarEstadoItbis();
@@ -174,9 +184,19 @@ public partial class ConfiguracionViewModel : ObservableObject
                 return;
             }
 
+            if (!decimal.TryParse(ComisionPosTexto, NumberStyles.Number, Textos.CulturaRd, out var comision)
+                || comision is < 0m or > 100m)
+            {
+                _dialogos.MostrarError("Comisión del vendedor",
+                    "El porcentaje de comisión debe ser un número entre 0 y 100.");
+                return;
+            }
+
             var cfg = _negocioPos.Actual;
             cfg.ItbisActivo = ItbisActivo;
             cfg.ItbisTasa = tasa;
+            cfg.ComisionActiva = ComisionPosActiva;
+            cfg.ComisionPorcentaje = comision;
             await _negocioPos.GuardarAsync(cfg);
 
             ActualizarEstadoItbis();

@@ -118,13 +118,15 @@
               <TextBox Width="200" Style="{DynamicResource Input.Texto}" Height="34"
                        Text="{Binding NegocioEmail, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
-            <!-- La comision solo la usa el reporte de DealControl: en las
-                 demas estancias no la lee nadie (Yuber 2026-07-31) -->
+            <!-- Esta es la comision de DEALCONTROL, que sale del reporte de
+                 comisiones por vendedor. El punto de venta tiene la suya, en su
+                 propia seccion: son dos negocios distintos y el porcentaje no
+                 tiene por que coincidir. -->
             <StackPanel Margin="0,0,16,8"
                         Visibility="{Binding MuestraComisionVendedor, Converter={StaticResource BoolAVisibilidad}}">
               <TextBlock Text="Comisión del vendedor (%)" Style="{DynamicResource Input.Label}" />
               <TextBox Width="140" Style="{DynamicResource Input.Texto}" Height="34"
-                       ToolTip="DealControl: % sobre el monto vendido que se muestra en el reporte de comisiones"
+                       ToolTip="% sobre el monto vendido de vehículos. Se usa en Reportes → comisiones por vendedor."
                        Text="{Binding ComisionVendedorTexto, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
           </WrapPanel>
@@ -149,8 +151,24 @@
                        ToolTip="En República Dominicana el ITBIS general es 18%" />
             </StackPanel>
           </StackPanel>
-          <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-            <Button Content="Guardar ITBIS" Style="{DynamicResource Boton.Primario}"
+          <!-- ===== Comisión del vendedor (037) ===== -->
+          <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,18,0,14" />
+          <TextBlock Text="Comisión del vendedor" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="Porcentaje que gana el vendedor sobre lo que vende. NO sale en la factura del cliente: es un asunto entre el negocio y su empleado. Se muestra en Vender junto al subtotal, en el cuadre del día y en la exportación a Excel." />
+          <CheckBox Content="Calcular comisión del vendedor" FontSize="13"
+                    IsChecked="{Binding ComisionPosActiva}" />
+          <StackPanel Orientation="Horizontal" Margin="24,10,0,0"
+                      IsEnabled="{Binding ComisionPosActiva}">
+            <StackPanel>
+              <TextBlock Text="Porcentaje (%)" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="90" Height="34" Style="{DynamicResource Input.Texto}"
+                       Text="{Binding ComisionPosTexto, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+            <Button Content="Guardar" Style="{DynamicResource Boton.Primario}"
                     Command="{Binding GuardarItbisCommand}" />
             <TextBlock Text="{Binding ItbisEstadoTexto}" Style="{DynamicResource Texto.Caption}"
                        VerticalAlignment="Center" Margin="12,0,0,0"
