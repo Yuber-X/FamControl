@@ -130,6 +130,12 @@ public class VehiculoService
                 Anio = normalizados.Anio,
                 Color = normalizados.Color,
                 Placa = normalizados.Placa,
+                // La matrícula se OLVIDABA acá (bug reportado 2026-07-31: "al
+                // crear no muestra lo digitado en matrícula, pero al editar sí").
+                // El formulario la pedía, el repositorio la guardaba y la
+                // consulta la traía; el único punto donde se perdía era este,
+                // al armar la entidad del alta.
+                Matricula = normalizados.Matricula,
                 Tipo = normalizados.Tipo,
                 Kilometraje = normalizados.Kilometraje,
                 CostoAdquisicion = normalizados.CostoAdquisicion,
@@ -262,6 +268,9 @@ public class VehiculoService
             Modelo = modelo,
             Color = Limpiar(datos.Color),
             Placa = Limpiar(datos.Placa)?.ToUpperInvariant(),
+            // La matrícula también se limpia: es un número de documento y un
+            // espacio al final la hace distinta de sí misma al buscarla.
+            Matricula = Limpiar(datos.Matricula),
             Notas = Limpiar(datos.Notas),
             CostoAdquisicion = Math.Round(datos.CostoAdquisicion, 2, MidpointRounding.AwayFromZero),
             GastosImportacion = Math.Round(datos.GastosImportacion, 2, MidpointRounding.AwayFromZero),

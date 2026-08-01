@@ -1,4 +1,4 @@
-namespace FAControl.Models;
+﻿namespace FAControl.Models;
 
 /// <summary>Fila de la lista de clientes con agregados de sus préstamos (una sola consulta).</summary>
 public record ClienteResumen(
@@ -7,8 +7,20 @@ public record ClienteResumen(
     string Nombre,
     string Apellido,
     string? Telefono,
-    int PrestamosActivos,
-    decimal SaldoPendiente)
+    /// <summary>
+    /// Contratos abiertos del cliente. QUE cuenta depende de la estancia: en
+    /// PrestControl y AutoControl son préstamos activos; en DealControl son
+    /// vehículos que compró (2026-07-31). Es la misma columna con distinto
+    /// significado, y el encabezado lo dice.
+    /// </summary>
+    int ContratosAbiertos,
+    /// <summary>
+    /// Lo que el cliente todavía debe. En crédito son las cuotas impagas; en
+    /// el dealer, los plazos pendientes de sus ventas financiadas.
+    /// </summary>
+    decimal SaldoPendiente,
+    /// <summary>Alquileres del cliente. Solo aplica a DealControl; 0 en el resto.</summary>
+    int Alquileres = 0)
 {
     public string NombreCompleto => $"{Nombre} {Apellido}".Trim();
 }

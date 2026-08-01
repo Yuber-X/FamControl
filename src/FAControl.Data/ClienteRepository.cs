@@ -1,4 +1,4 @@
-using MySqlConnector;
+﻿using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models;
 
@@ -97,9 +97,30 @@ public class ClienteRepository
     {
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
-        cmd.CommandText = $"""
+
+        // El dealer NO presta: contar "préstamos activos" ahí daba siempre 0 y
+        // ocupaba dos columnas con nada (reportado por Yuber 2026-07-31). Cada
+        // estancia mira lo suyo, con subconsultas en vez de JOINs para que
+        // ventas y alquileres no se multipliquen entre sí.
+        cmd.CommandText = ambito == ModoApp.DealerControl
+            ? $"""
             SELECT c.id, c.cedula, c.nombre, c.apellido, c.telefono,
-                   COALESCE(SUM(p.estado = 'activo'), 0) AS prestamos_activos,
+                   (SELECT COUNT(*) FROM {DbNames.VentaVehiculo} vv
+                    WHERE vv.cliente_id = c.id) AS contratos,
+                   (SELECT COUNT(*) FROM {DbNames.Alquiler} a
+                    WHERE a.cliente_id = c.id) AS alquileres,
+                   (SELECT COALESCE(SUM(z.monto - z.monto_pagado), 0)
+                    FROM {DbNames.VentaPlazo} z
+                    JOIN {DbNames.VentaVehiculo} vv ON vv.id = z.venta_id
+                    WHERE vv.cliente_id = c.id AND z.estado = 'pendiente') AS saldo_pendiente
+            FROM {DbNames.Cliente} c
+            WHERE c.deleted_at IS NULL AND c.ambito = @ambito
+            ORDER BY c.nombre, c.apellido;
+            """
+            : $"""
+            SELECT c.id, c.cedula, c.nombre, c.apellido, c.telefono,
+                   COALESCE(SUM(p.estado = 'activo'), 0) AS contratos,
+                   0 AS alquileres,
                    COALESCE(SUM(CASE WHEN p.estado = 'activo'
                                      THEN q.monto_total - q.monto_pagado END), 0) AS saldo_pendiente
             FROM {DbNames.Cliente} c
@@ -122,8 +143,9 @@ public class ClienteRepository
                 reader.GetString("nombre"),
                 reader.GetString("apellido"),
                 reader.IsDBNull(reader.GetOrdinal("telefono")) ? null : reader.GetString("telefono"),
-                reader.GetInt32("prestamos_activos"),
-                reader.GetDecimal("saldo_pendiente")));
+                Convert.ToInt32(reader["contratos"]),
+                reader.GetDecimal("saldo_pendiente"),
+                Convert.ToInt32(reader["alquileres"])));
         }
         return resumenes;
     }

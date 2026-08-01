@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.ClientesListView"
+﻿<UserControl x:Class="FAControl.Views.ClientesListView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -41,14 +41,25 @@
           <DataGridTextColumn Header="Nombre" Binding="{Binding NombreCompleto}" Width="*" MinWidth="160"
                               HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
           <DataGridTextColumn Header="Teléfono" Binding="{Binding TelefonoTexto}" Width="130" />
-          <DataGridTextColumn Header="Préstamos activos" Binding="{Binding PrestamosActivos}" Width="130">
+          <!-- El encabezado lo pone el code-behind segun la estancia: en WPF
+               las columnas del DataGrid no estan en el arbol visual, asi que no
+               heredan DataContext y un Binding en Header no resuelve. -->
+          <DataGridTextColumn x:Name="ColumnaContratos" Binding="{Binding ContratosAbiertos}" Width="130">
             <DataGridTextColumn.ElementStyle>
               <Style TargetType="TextBlock">
                 <Setter Property="HorizontalAlignment" Value="Center" />
               </Style>
             </DataGridTextColumn.ElementStyle>
           </DataGridTextColumn>
-          <DataGridTextColumn Header="Saldo pendiente"
+          <DataGridTextColumn x:Name="ColumnaAlquileres" Header="Alquileres"
+                              Binding="{Binding Alquileres}" Width="100">
+            <DataGridTextColumn.ElementStyle>
+              <Style TargetType="TextBlock">
+                <Setter Property="HorizontalAlignment" Value="Center" />
+              </Style>
+            </DataGridTextColumn.ElementStyle>
+          </DataGridTextColumn>
+          <DataGridTextColumn x:Name="ColumnaSaldo"
                               Binding="{Binding SaldoPendiente, Converter={StaticResource Money}}"
                               Width="150">
             <DataGridTextColumn.ElementStyle>

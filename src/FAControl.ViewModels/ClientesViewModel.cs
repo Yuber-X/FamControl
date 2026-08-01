@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -15,9 +15,15 @@ public record ClienteFila(ClienteResumen Resumen)
     public string Cedula => Resumen.Cedula;
     public string NombreCompleto => Resumen.NombreCompleto;
     public string TelefonoTexto => string.IsNullOrWhiteSpace(Resumen.Telefono) ? "—" : Resumen.Telefono;
-    public int PrestamosActivos => Resumen.PrestamosActivos;
+    /// <summary>
+    /// Contratos abiertos. En crédito son préstamos activos; en el dealer,
+    /// vehículos que compró. El encabezado de la columna lo aclara según la
+    /// estancia — es la misma columna con distinto significado.
+    /// </summary>
+    public int ContratosAbiertos => Resumen.ContratosAbiertos;
+    public int Alquileres => Resumen.Alquileres;
     public decimal SaldoPendiente => Resumen.SaldoPendiente;
-    public bool AlDia => Resumen.PrestamosActivos == 0 || Resumen.SaldoPendiente == 0m;
+    public bool AlDia => Resumen.ContratosAbiertos == 0 || Resumen.SaldoPendiente == 0m;
 }
 
 /// <summary>Criterio del filtro rápido de la lista de clientes.</summary>
@@ -55,6 +61,18 @@ public partial class ClientesViewModel : ObservableObject
     }
 
     public ObservableCollection<ClienteFila> Filas { get; } = [];
+
+    // ---------- La misma tabla, dos estancias (2026-07-31) ----------
+    // El dealer no presta: mostrar "Prestamos activos" ahi daba siempre 0.
+    // En vez de dos pantallas casi iguales, la columna del contador cambia de
+    // titulo y de significado, y la de alquileres solo aparece donde existe.
+
+    public bool EsDealer => SesionActual.Modo == ModoApp.DealerControl;
+
+    /// <summary>Encabezado del contador: lo unico que distingue las dos lecturas.</summary>
+    public string TituloContratos => EsDealer ? "Vehículos comprados" : "Préstamos activos";
+
+    public string TituloSaldo => EsDealer ? "Debe (financiado)" : "Saldo pendiente";
     public IReadOnlyList<Opcion<FiltroCliente>> Filtros { get; }
 
     [ObservableProperty]
@@ -89,8 +107,8 @@ public partial class ClientesViewModel : ObservableObject
         var visibles = _todos
             .Where(c => FiltroSeleccionado.Valor switch
             {
-                FiltroCliente.ConPrestamosActivos => c.PrestamosActivos > 0,
-                FiltroCliente.SinPrestamosActivos => c.PrestamosActivos == 0,
+                FiltroCliente.ConPrestamosActivos => c.ContratosAbiertos > 0,
+                FiltroCliente.SinPrestamosActivos => c.ContratosAbiertos == 0,
                 FiltroCliente.ConSaldoPendiente => c.SaldoPendiente > 0m,
                 _ => true
             })
