@@ -134,6 +134,125 @@
         </StackPanel>
       </Border>
 
+      <!-- ============ COBROS DEL ALQUILER (034) ============
+           Su propio grid y su propia forma de cobrar, como se pidio. El
+           alquiler se suele pagar en dos veces: un adelanto al retirar el
+           vehiculo y el resto al devolverlo. -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+        <StackPanel>
+          <TextBlock Text="Cobros" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,12" />
+
+          <UniformGrid Rows="1" Columns="3" Margin="0,0,0,12">
+            <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
+              <StackPanel>
+                <TextBlock Text="A COBRAR" Style="{DynamicResource Texto.MicroLabel}" />
+                <Viewbox Style="{DynamicResource Metrica.Valor}">
+                  <TextBlock Text="{Binding MontoACobrar, Converter={StaticResource Money}}"
+                             Style="{DynamicResource Texto.Titulo2}" />
+                </Viewbox>
+              </StackPanel>
+            </Border>
+            <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
+              <StackPanel>
+                <TextBlock Text="COBRADO" Style="{DynamicResource Texto.MicroLabel}" />
+                <Viewbox Style="{DynamicResource Metrica.Valor}">
+                  <TextBlock Text="{Binding Cobrado, Converter={StaticResource Money}}"
+                             Style="{DynamicResource Texto.Titulo2}" />
+                </Viewbox>
+              </StackPanel>
+            </Border>
+            <Border Style="{DynamicResource Card.Metrica}">
+              <StackPanel>
+                <TextBlock Text="FALTA" Style="{DynamicResource Texto.MicroLabel}" />
+                <Viewbox Style="{DynamicResource Metrica.Valor}">
+                  <TextBlock Text="{Binding Pendiente, Converter={StaticResource Money}}"
+                             Style="{DynamicResource Texto.Titulo2}" />
+                </Viewbox>
+              </StackPanel>
+            </Border>
+          </UniformGrid>
+
+          <!-- Pago de mas: NO se mueve plata sola, se avisa y el dueño decide -->
+          <Border CornerRadius="8" Padding="14,10" Margin="0,0,0,12"
+                  Background="{DynamicResource Brush.PrimarioSutil}"
+                  Visibility="{Binding HaySaldoAFavor, Converter={StaticResource BoolAVisibilidad}}">
+            <TextBlock Text="{Binding SaldoAFavorTexto}" TextWrapping="Wrap"
+                       Style="{DynamicResource Texto.Caption}" />
+          </Border>
+
+          <!-- Registrar un cobro -->
+          <Grid Visibility="{Binding PuedeCobrar, Converter={StaticResource BoolAVisibilidad}}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Monto a cobrar"
+                       Style="{DynamicResource Input.Label}" />
+            <TextBox Grid.Row="1" Grid.Column="0" Width="150" Height="36"
+                     Style="{DynamicResource Input.Texto}"
+                     Text="{Binding MontoCobroTexto, UpdateSourceTrigger=PropertyChanged}" />
+
+            <TextBlock Grid.Row="0" Grid.Column="2" Text="Forma de pago"
+                       Style="{DynamicResource Input.Label}" />
+            <ComboBox Grid.Row="1" Grid.Column="2" Width="160" Height="36"
+                      ItemsSource="{Binding MetodosPago}"
+                      SelectedItem="{Binding MetodoCobro}" />
+
+            <TextBlock Grid.Row="0" Grid.Column="4" Text="Nota (opcional)"
+                       Style="{DynamicResource Input.Label}" />
+            <TextBox Grid.Row="1" Grid.Column="4" Height="36"
+                     Style="{DynamicResource Input.Texto}"
+                     Text="{Binding NotaCobro, UpdateSourceTrigger=PropertyChanged}" />
+
+            <Button Grid.Row="1" Grid.Column="6" Content="Registrar cobro"
+                    Style="{DynamicResource Boton.Primario}" Height="36"
+                    Command="{Binding CobrarCommand}" />
+          </Grid>
+
+          <TextBlock Margin="0,12,0,0" Style="{DynamicResource Texto.Caption}"
+                     Text="Todavía no se registró ningún cobro de este alquiler."
+                     Visibility="{Binding SinCobros, Converter={StaticResource BoolAVisibilidad}}" />
+
+          <DataGrid Style="{DynamicResource Tabla}" ItemsSource="{Binding Cobros}"
+                    Margin="0,12,0,0" MaxHeight="220"
+                    Visibility="{Binding SinCobros, Converter={StaticResource InversorBoolVisibilidad}}">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Recibo" Binding="{Binding NumeroRecibo}" Width="Auto" MinWidth="110">
+                <DataGridTextColumn.ElementStyle>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="FontFamily" Value="{DynamicResource Fuente.Mono}" />
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+              <DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="Auto" MinWidth="110" />
+              <DataGridTextColumn Header="Monto"
+                                  Binding="{Binding Monto, Converter={StaticResource Money}}"
+                                  Width="Auto" MinWidth="130">
+                <DataGridTextColumn.ElementStyle>
+                  <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Monto}" />
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+              <DataGridTextColumn Header="Forma" Binding="{Binding MetodoTexto}" Width="Auto" MinWidth="110"
+                                  HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+              <DataGridTextColumn Header="Cobró" Binding="{Binding CobradoPorTexto}" Width="Auto" MinWidth="130"
+                                  HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+              <DataGridTextColumn Header="Nota" Binding="{Binding NotasTexto}" Width="*" MinWidth="140"
+                                  HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </StackPanel>
+      </Border>
+
       <!-- ============ EXPEDIENTE DEL CLIENTE ============
            El mismo control que DealControl, con el ExpedienteViewModel del
            ALQUILER (pedido de Yuber 2026-07-31: "cambialo por algo parecido a

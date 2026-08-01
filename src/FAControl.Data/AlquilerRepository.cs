@@ -183,4 +183,95 @@ public class AlquilerRepository
         Notas = reader.IsDBNull(reader.GetOrdinal("notas")) ? null : reader.GetString("notas"),
         CreatedAtUtc = DateTime.SpecifyKind(reader.GetDateTime("created_at"), DateTimeKind.Utc)
     };
+
+    // ---------- Cobros del alquiler (034) ----------
+
+    /// <summary>
+    /// Inserta el cobro DENTRO de la transaccion del Service, junto con la
+    /// reserva del numero de recibo. Asi un rollback no quema un numero.
+    /// </summary>
+    public async Task<long> InsertarPagoAsync(AlquilerPago pago, MySqlConnection conexion,
+        MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            INSERT INTO {DbNames.AlquilerPago}
+              (alquiler_id, numero_recibo, monto, metodo_pago, notas, created_by)
+            VALUES (@alquiler, @recibo, @monto, @metodo, @notas, @usuario);
+            SELECT LAST_INSERT_ID();
+            """;
+        cmd.Parameters.AddWithValue("@alquiler", pago.AlquilerId);
+        cmd.Parameters.AddWithValue("@recibo", pago.NumeroRecibo);
+        cmd.Parameters.AddWithValue("@monto", pago.Monto);
+        cmd.Parameters.AddWithValue("@metodo", EnumMap.ADb(pago.MetodoPago));
+        cmd.Parameters.AddWithValue("@notas", (object?)pago.Notas ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@usuario",
+            SesionActual.HaySesionActiva ? SesionActual.Id : (object)DBNull.Value);
+        return Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
+    }
+
+    /// <summary>
+    /// Total cobrado, LEIDO DENTRO de la transaccion y con FOR UPDATE sobre el
+    /// alquiler: sin ese bloqueo, dos cajeros cobrando a la vez podrian pasarse
+    /// juntos del monto del contrato, cada uno viendo el saldo de antes.
+    /// </summary>
+    public async Task<decimal> ObtenerCobradoParaActualizarAsync(long alquilerId,
+        MySqlConnection conexion, MySqlTransaction transaccion, CancellationToken ct = default)
+    {
+        using (var bloqueo = conexion.CreateCommand())
+        {
+            bloqueo.Transaction = transaccion;
+            bloqueo.CommandText = $"SELECT id FROM {DbNames.Alquiler} WHERE id = @id FOR UPDATE;";
+            bloqueo.Parameters.AddWithValue("@id", alquilerId);
+            await bloqueo.ExecuteScalarAsync(ct);
+        }
+
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            SELECT COALESCE(SUM(monto), 0) FROM {DbNames.AlquilerPago}
+            WHERE alquiler_id = @id AND deleted_at IS NULL;
+            """;
+        cmd.Parameters.AddWithValue("@id", alquilerId);
+        return Convert.ToDecimal(await cmd.ExecuteScalarAsync(ct));
+    }
+
+    /// <summary>Cobros del alquiler, del mas reciente al mas viejo.</summary>
+    public async Task<IReadOnlyList<AlquilerPago>> ObtenerPagosAsync(long alquilerId,
+        CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var cmd = conexion.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT p.id, p.alquiler_id, p.numero_recibo, p.fecha_pago, p.monto,
+                   p.metodo_pago, p.notas,
+                   TRIM(CONCAT(u.nombre, ' ', COALESCE(u.apellido, ''))) AS cobrado_por
+            FROM {DbNames.AlquilerPago} p
+            -- LEFT: el cobro no desaparece si se borro el usuario que lo tomo
+            LEFT JOIN {DbNames.Usuario} u ON u.id = p.created_by
+            WHERE p.alquiler_id = @id AND p.deleted_at IS NULL
+            ORDER BY p.fecha_pago DESC, p.id DESC;
+            """;
+        cmd.Parameters.AddWithValue("@id", alquilerId);
+
+        var lista = new List<AlquilerPago>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            lista.Add(new AlquilerPago
+            {
+                Id = reader.GetInt64("id"),
+                AlquilerId = reader.GetInt64("alquiler_id"),
+                NumeroRecibo = reader.GetString("numero_recibo"),
+                FechaPagoUtc = DateTime.SpecifyKind(reader.GetDateTime("fecha_pago"), DateTimeKind.Utc),
+                Monto = reader.GetDecimal("monto"),
+                MetodoPago = EnumMap.MetodoPagoDeDb(reader.GetString("metodo_pago")),
+                Notas = reader.IsDBNull(reader.GetOrdinal("notas")) ? null : reader.GetString("notas"),
+                CobradoPor = reader.IsDBNull(reader.GetOrdinal("cobrado_por"))
+                    ? null : reader.GetString("cobrado_por")
+            });
+        }
+        return lista;
+    }
 }

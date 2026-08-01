@@ -1,4 +1,4 @@
-using MySqlConnector;
+﻿using MySqlConnector;
 using FAControl.Common;
 
 namespace FAControl.Data;
@@ -18,6 +18,8 @@ public class ContadorRepository
     public const string Alquiler = "alquiler";
     /// <summary>Recibos de los plazos del dealer (016): RV-000001.</summary>
     public const string ReciboVenta = "recibo_venta";
+    /// <summary>Talonario de los cobros de alquiler (034): RA-000001.</summary>
+    public const string ReciboAlquiler = "recibo_alquiler";
 
     /// <summary>Reserva y devuelve el siguiente valor del contador indicado.</summary>
     public async Task<long> SiguienteAsync(string nombre, MySqlConnection conexion,

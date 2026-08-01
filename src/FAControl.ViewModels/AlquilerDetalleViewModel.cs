@@ -1,4 +1,6 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using System.Collections.ObjectModel;
+using System.Globalization;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
 using FAControl.Models;
@@ -52,6 +54,7 @@ public partial class AlquilerDetalleViewModel : ObservableObject
         _clientes = clientes;
         _dialogos = dialogos;
         Expediente = expediente;
+        _metodoCobro = MetodosPago[0];
     }
 
     /// <summary>
@@ -60,6 +63,42 @@ public partial class AlquilerDetalleViewModel : ObservableObject
     /// préstamos y ventas.
     /// </summary>
     public ExpedienteViewModel Expediente { get; }
+
+    // ---------- Cobros del alquiler (034) ----------
+    // Su propio grid y su propia forma de cobrar, como se pidio. En la practica
+    // el alquiler se paga en dos veces —adelanto al retirar, resto al
+    // devolver— y antes no habia donde anotarlo.
+
+    public ObservableCollection<AlquilerPagoFila> Cobros { get; } = [];
+
+    [ObservableProperty] private decimal _montoACobrar;
+    [ObservableProperty] private decimal _cobrado;
+    [ObservableProperty] private decimal _pendiente;
+    [ObservableProperty] private bool _estaSaldado;
+    [ObservableProperty] private string _saldoAFavorTexto = string.Empty;
+    [ObservableProperty] private bool _haySaldoAFavor;
+    [ObservableProperty] private bool _sinCobros = true;
+
+    /// <summary>Lo que el usuario esta tipeando para cobrar.</summary>
+    [ObservableProperty] private string _montoCobroTexto = string.Empty;
+    [ObservableProperty] private Opcion<MetodoPago> _metodoCobro;
+    [ObservableProperty] private string _notaCobro = string.Empty;
+
+    public IReadOnlyList<Opcion<MetodoPago>> MetodosPago { get; } =
+    [
+        new Opcion<MetodoPago>(MetodoPago.Efectivo, "Efectivo"),
+        new Opcion<MetodoPago>(MetodoPago.Transferencia, "Transferencia"),
+        new Opcion<MetodoPago>(MetodoPago.Cheque, "Cheque"),
+        new Opcion<MetodoPago>(MetodoPago.Otro, "Otro")
+    ];
+
+    /// <summary>
+    /// Se puede cobrar mientras quede algo por cobrar y el contrato no este
+    /// cancelado. Un alquiler ya devuelto SI admite cobro: es justo cuando se
+    /// cobra el saldo.
+    /// </summary>
+    public bool PuedeCobrar => !EstaSaldado && !FueCancelado
+                               && SesionActual.TienePermiso(Permisos.Alquileres);
 
     [ObservableProperty] private string _codigo = string.Empty;
     [ObservableProperty] private string _clienteNombre = string.Empty;
@@ -138,6 +177,8 @@ public partial class AlquilerDetalleViewModel : ObservableObject
 
             ArmarCierre(alquiler);
             ArmarAtraso(alquiler);
+
+            await CargarCobrosAsync();
 
             OnPropertyChanged(nameof(PuedeGestionar));
             OnPropertyChanged(nameof(PuedeOperar));
@@ -317,6 +358,84 @@ public partial class AlquilerDetalleViewModel : ObservableObject
         var dias = AlquilerService.CalcularDias(inicio, fin);
         return (dias, Math.Round(tarifa * dias, 2, MidpointRounding.AwayFromZero));
     }
+
+    /// <summary>Relee los cobros y los totales.</summary>
+    private async Task CargarCobrosAsync()
+    {
+        var estado = await _alquileres.ObtenerEstadoCobroAsync(_alquilerId);
+
+        MontoACobrar = estado.MontoACobrar;
+        Cobrado = estado.Cobrado;
+        Pendiente = estado.Pendiente;
+        EstaSaldado = estado.EstaSaldado;
+
+        // Cobrado de mas: pasa cuando el contrato se cierra por menos dias de
+        // los pactados y el cliente ya habia pagado el total. No se toca la
+        // plata sola: se avisa y el dueño decide.
+        HaySaldoAFavor = estado.SaldoAFavor > 0m;
+        SaldoAFavorTexto = HaySaldoAFavor
+            ? $"El cliente pagó {estado.SaldoAFavor.ToString("N2", Textos.CulturaRd)} DOP de más. " +
+              "Queda a su favor: acordá con él si se le devuelve o se le descuenta del próximo alquiler."
+            : string.Empty;
+
+        Cobros.Clear();
+        foreach (var p in estado.Pagos)
+            Cobros.Add(new AlquilerPagoFila(p));
+        SinCobros = Cobros.Count == 0;
+
+        OnPropertyChanged(nameof(PuedeCobrar));
+    }
+
+    /// <summary>Registra un cobro contra el alquiler.</summary>
+    [RelayCommand]
+    private async Task CobrarAsync()
+    {
+        if (!decimal.TryParse(MontoCobroTexto, NumberStyles.Number, Textos.CulturaRd, out var monto)
+            || monto <= 0m)
+        {
+            _dialogos.MostrarError("Cobrar", "Escribí cuánto está pagando el cliente.");
+            return;
+        }
+
+        try
+        {
+            var pago = await _alquileres.RegistrarCobroAsync(new CobroAlquiler(
+                _alquilerId, monto, MetodoCobro.Valor,
+                string.IsNullOrWhiteSpace(NotaCobro) ? null : NotaCobro.Trim()));
+
+            MontoCobroTexto = string.Empty;
+            NotaCobro = string.Empty;
+            await CargarCobrosAsync();
+
+            _dialogos.Informar("Cobro registrado",
+                $"Recibo {pago.NumeroRecibo} por {pago.Monto.ToString("N2", Textos.CulturaRd)} DOP." +
+                (EstaSaldado
+                    ? "\n\nEl alquiler quedó saldado."
+                    : $"\n\nQuedan {Pendiente.ToString("N2", Textos.CulturaRd)} DOP por cobrar."));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _dialogos.MostrarError("Cobrar", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error cobrando el alquiler {Id}", _alquilerId);
+            _dialogos.MostrarError("Cobrar", $"No se pudo registrar el cobro.\n\n{ex.Message}");
+        }
+    }
+
+}
+
+/// <summary>Fila del historial de cobros del alquiler (034).</summary>
+public record AlquilerPagoFila(AlquilerPago Pago)
+{
+    public string NumeroRecibo => Pago.NumeroRecibo;
+    public string FechaTexto =>
+        FechaNegocio.AUtcLocal(Pago.FechaPagoUtc).ToString(Textos.FormatoFecha, Textos.CulturaRd);
+    public decimal Monto => Pago.Monto;
+    public string MetodoTexto => Textos.De(Pago.MetodoPago);
+    public string NotasTexto => string.IsNullOrWhiteSpace(Pago.Notas) ? "—" : Pago.Notas!;
+    public string CobradoPorTexto => string.IsNullOrWhiteSpace(Pago.CobradoPor) ? "—" : Pago.CobradoPor!;
 }
 
 /// <summary>Lo que el diálogo de cierre necesita mostrar.</summary>

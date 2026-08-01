@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using MySqlConnector;
 using FAControl.Common;
 using FAControl.Data;
@@ -261,5 +261,122 @@ public class FlujoAlquilerTests : IAsyncLifetime
             id, CierreAlquiler.Devuelto, "Prueba"));
 
         await cerrar.Should().ThrowAsync<UnauthorizedAccessException>();
+    }
+
+    // ---------- Cobros del alquiler (034) ----------
+
+    /// <summary>
+    /// El caso real: adelanto al retirar el vehiculo y el resto al devolverlo.
+    /// Antes esto no tenia donde anotarse.
+    /// </summary>
+    [Fact]
+    public async Task SeCobraEnDosVeces_ConReciboPropioCadaUno()
+    {
+        var (id, _) = await CrearAlquilerAsync();   // 5 dias x 2,000 = 10,000
+
+        var adelanto = await _alquileres.RegistrarCobroAsync(
+            new CobroAlquiler(id, 4_000m, MetodoPago.Efectivo, "Adelanto al retirar"));
+        adelanto.NumeroRecibo.Should().Be("RA-000001");
+
+        var estado = await _alquileres.ObtenerEstadoCobroAsync(id);
+        estado.Cobrado.Should().Be(4_000m);
+        estado.Pendiente.Should().Be(6_000m);
+        estado.EstaSaldado.Should().BeFalse();
+
+        var resto = await _alquileres.RegistrarCobroAsync(
+            new CobroAlquiler(id, 6_000m, MetodoPago.Transferencia, "Resto al devolver"));
+        resto.NumeroRecibo.Should().Be("RA-000002", "cada cobro lleva su propio recibo");
+
+        estado = await _alquileres.ObtenerEstadoCobroAsync(id);
+        estado.Cobrado.Should().Be(10_000m);
+        estado.EstaSaldado.Should().BeTrue();
+        estado.Pagos.Should().HaveCount(2);
+    }
+
+    /// <summary>No se cobra mas de lo que falta.</summary>
+    [Fact]
+    public async Task NoSePuedeCobrarMasDeLoQueFalta()
+    {
+        var (id, _) = await CrearAlquilerAsync();
+        await _alquileres.RegistrarCobroAsync(new CobroAlquiler(id, 8_000m, MetodoPago.Efectivo));
+
+        var excesivo = async () => await _alquileres.RegistrarCobroAsync(
+            new CobroAlquiler(id, 5_000m, MetodoPago.Efectivo));
+
+        (await excesivo.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*solo le faltan*");
+
+        // El rollback dejo todo intacto y NO quemo un numero de recibo
+        var estado = await _alquileres.ObtenerEstadoCobroAsync(id);
+        estado.Cobrado.Should().Be(8_000m);
+        estado.Pagos.Should().ContainSingle().Which.NumeroRecibo.Should().Be("RA-000001");
+    }
+
+    /// <summary>
+    /// Devolvio TARDE: el monto a cobrar sube al cerrar (031) y lo ya cobrado
+    /// se mide contra el monto real, no contra el pactado.
+    /// </summary>
+    [Fact]
+    public async Task AlCerrarTarde_SubeLoQueFaltaPorCobrar()
+    {
+        // Empezo hace 8 dias, pactado por 5 -> 10,000 pactados
+        var (id, _) = await CrearAlquilerAsync(diasAtras: 8, dias: 5);
+        await _alquileres.RegistrarCobroAsync(new CobroAlquiler(id, 10_000m, MetodoPago.Efectivo));
+
+        (await _alquileres.ObtenerEstadoCobroAsync(id)).EstaSaldado
+            .Should().BeTrue("contra lo pactado esta al dia");
+
+        // Devuelve hoy: 8 dias reales x 2,000 = 16,000
+        await _alquileres.CerrarAsync(new CierreAlquilerDatos(
+            id, CierreAlquiler.Devuelto, "Se quedo tres dias de mas",
+            FechaDevolucion: FechaNegocio.Hoy));
+
+        var estado = await _alquileres.ObtenerEstadoCobroAsync(id);
+        estado.MontoACobrar.Should().Be(16_000m, "manda el monto REAL, no el pactado");
+        estado.Pendiente.Should().Be(6_000m);
+        estado.EstaSaldado.Should().BeFalse();
+
+        // Y se le puede cobrar la diferencia
+        var extra = await _alquileres.RegistrarCobroAsync(
+            new CobroAlquiler(id, 6_000m, MetodoPago.Efectivo, "Dias de atraso"));
+        extra.Monto.Should().Be(6_000m);
+        (await _alquileres.ObtenerEstadoCobroAsync(id)).EstaSaldado.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Devolvio ANTES y ya habia pagado todo: queda saldo a favor. La plata no
+    /// se mueve sola — la pantalla avisa y el dueño decide.
+    /// </summary>
+    [Fact]
+    public async Task SiPagoDeMas_QuedaSaldoAFavor()
+    {
+        // Pactado 5 dias = 10,000; paga todo por adelantado
+        var (id, _) = await CrearAlquilerAsync(diasAtras: 5, dias: 5);
+        await _alquileres.RegistrarCobroAsync(new CobroAlquiler(id, 10_000m, MetodoPago.Efectivo));
+
+        // Devuelve a los 2 dias: 2 x 2,000 = 4,000
+        await _alquileres.CerrarAsync(new CierreAlquilerDatos(
+            id, CierreAlquiler.Devuelto, "Devolvio antes",
+            FechaDevolucion: FechaNegocio.Hoy.AddDays(-3)));
+
+        var estado = await _alquileres.ObtenerEstadoCobroAsync(id);
+        estado.MontoACobrar.Should().Be(4_000m);
+        estado.Pendiente.Should().Be(0m);
+        estado.SaldoAFavor.Should().Be(6_000m, "pago 10,000 y correspondian 4,000");
+    }
+
+    /// <summary>A un alquiler cancelado no se le cobra.</summary>
+    [Fact]
+    public async Task NoSeCobraUnAlquilerCancelado()
+    {
+        var (id, _) = await CrearAlquilerAsync();
+        await _alquileres.CerrarAsync(new CierreAlquilerDatos(
+            id, CierreAlquiler.Cancelado, "El cliente no vino"));
+
+        var cobrar = async () => await _alquileres.RegistrarCobroAsync(
+            new CobroAlquiler(id, 1_000m, MetodoPago.Efectivo));
+
+        (await cobrar.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*cancelado*");
     }
 }

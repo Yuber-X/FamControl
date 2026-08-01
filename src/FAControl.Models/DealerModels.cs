@@ -1,4 +1,4 @@
-namespace FAControl.Models;
+﻿namespace FAControl.Models;
 
 // ===================== Venta al contado =====================
 
@@ -183,3 +183,40 @@ public record VehiculoGastoDatos(
     string Concepto,
     decimal Monto,
     DateOnly Fecha);
+
+/// <summary>Cobro registrado contra un alquiler (034).</summary>
+public class AlquilerPago
+{
+    public long Id { get; set; }
+    public long AlquilerId { get; set; }
+    /// <summary>Talonario propio del alquiler: RA-000001. Nunca se reusa.</summary>
+    public string NumeroRecibo { get; set; } = string.Empty;
+    public DateTime FechaPagoUtc { get; set; }
+    public decimal Monto { get; set; }
+    public MetodoPago MetodoPago { get; set; } = MetodoPago.Efectivo;
+    public string? Notas { get; set; }
+    public string? CobradoPor { get; set; }
+}
+
+/// <summary>
+/// Como va el cobro de un alquiler (034). Mientras el contrato esta abierto se
+/// mide contra lo PACTADO; una vez cerrado, contra lo que realmente
+/// correspondio (031), que puede ser mas si devolvio tarde.
+/// </summary>
+public record EstadoCobroAlquiler(
+    decimal MontoACobrar,
+    decimal Cobrado,
+    IReadOnlyList<AlquilerPago> Pagos)
+{
+    public decimal Pendiente => Math.Max(0m, MontoACobrar - Cobrado);
+    public bool EstaSaldado => Pendiente <= 0m;
+    /// <summary>Lo cobrado de mas: pasa cuando el contrato se cierra por menos dias.</summary>
+    public decimal SaldoAFavor => Math.Max(0m, Cobrado - MontoACobrar);
+}
+
+/// <summary>Datos de un cobro de alquiler que llega desde la pantalla.</summary>
+public record CobroAlquiler(
+    long AlquilerId,
+    decimal Monto,
+    MetodoPago Metodo,
+    string? Notas = null);

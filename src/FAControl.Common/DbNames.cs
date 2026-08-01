@@ -1,4 +1,4 @@
-namespace FAControl.Common;
+﻿namespace FAControl.Common;
 
 /// <summary>
 /// Nombres de tablas de la base de datos. Prohibido usar cadenas mágicas
@@ -25,6 +25,8 @@ public static class DbNames
     public const string Vehiculo = "vehiculo";
     public const string VentaVehiculo = "venta_vehiculo";
     public const string Alquiler = "alquiler";
+    /// <summary>Cobros de un alquiler (034): talonario propio RA-000001.</summary>
+    public const string AlquilerPago = "alquiler_pago";
     public const string VehiculoGasto = "vehiculo_gasto";
     // Comprobante fiscal (012)
     public const string NcfSecuencia = "ncf_secuencia";

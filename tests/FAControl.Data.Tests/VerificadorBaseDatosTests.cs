@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using MySqlConnector;
 
 namespace FAControl.Data.Tests;
@@ -72,12 +72,15 @@ public class VerificadorBaseDatosTests : IAsyncLifetime
 
         // El esquema quedó operativo: los contadores semilla existen
         // (recibo, prestamo, vehiculo, venta, alquiler — 5 desde Tier 5;
-        //  recibo_venta desde el financiamiento del dealer, 016 → 6).
+        //  recibo_venta desde el financiamiento del dealer, 016 → 6;
+        //  recibo_alquiler desde los cobros de alquiler, 034 → 7).
+        // Cada talonario va por su lado: son numeraciones distintas y cada una
+        // tiene que poder rendirse por separado.
         await using var conexion = new MySqlConnection(CadenaProvision);
         await conexion.OpenAsync();
         await using var cmd = conexion.CreateCommand();
         cmd.CommandText = "SELECT COUNT(*) FROM contador;";
-        Convert.ToInt32(await cmd.ExecuteScalarAsync()).Should().Be(6);
+        Convert.ToInt32(await cmd.ExecuteScalarAsync()).Should().Be(7);
     }
 
     /// <summary>

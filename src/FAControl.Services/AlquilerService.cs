@@ -282,4 +282,119 @@ public class AlquilerService
         if (!SesionActual.TienePermiso(Permisos.Alquileres))
             throw new UnauthorizedAccessException("No tenés permiso para gestionar alquileres.");
     }
+
+    // ---------- Cobros del alquiler (034) ----------
+
+    /// <summary>
+    /// Como va el cobro: cuanto hay que cobrar, cuanto entro y que falta.
+    ///
+    /// EL MONTO A COBRAR CAMBIA al cerrar el contrato: mientras esta abierto se
+    /// mide contra lo PACTADO, que es lo mejor que se sabe; una vez cerrado,
+    /// contra lo que realmente correspondio (031), que puede ser mas si el
+    /// cliente devolvio tarde. Un alquiler cancelado no se cobra: su monto a
+    /// cobrar es cero y lo que se haya recibido queda como saldo a favor.
+    /// </summary>
+    public async Task<EstadoCobroAlquiler> ObtenerEstadoCobroAsync(long alquilerId,
+        CancellationToken ct = default)
+    {
+        ExigirLectura();
+
+        var alquiler = await _alquileres.ObtenerPorIdAsync(alquilerId, ct)
+            ?? throw new InvalidOperationException("El alquiler no existe.");
+        var pagos = await _alquileres.ObtenerPagosAsync(alquilerId, ct);
+
+        var aCobrar = alquiler.Estado switch
+        {
+            EstadoAlquiler.Cancelado => 0m,
+            EstadoAlquiler.Finalizado => alquiler.MontoFinal ?? alquiler.MontoTotal,
+            _ => alquiler.MontoTotal
+        };
+
+        return new EstadoCobroAlquiler(aCobrar, pagos.Sum(p => p.Monto), pagos);
+    }
+
+    /// <summary>
+    /// Registra un cobro contra el alquiler (034 — pedido del cliente: "se
+    /// necesita un grid y su propia forma de registrar cobros").
+    ///
+    /// En la practica el alquiler se paga en dos veces: un adelanto al retirar
+    /// el vehiculo y el resto al devolverlo. Antes no habia donde anotar eso.
+    ///
+    /// ATOMICO: reserva del numero de recibo + insercion + auditoria en UNA
+    /// transaccion. Un rollback no quema un numero de talonario.
+    ///
+    /// NO se puede cobrar mas de lo que falta. El tope se lee DENTRO de la
+    /// transaccion y con el alquiler bloqueado: sin eso, dos cajeros cobrando a
+    /// la vez veri­an cada uno el saldo de antes y entre los dos se pasari­an.
+    /// </summary>
+    public async Task<AlquilerPago> RegistrarCobroAsync(CobroAlquiler cobro,
+        CancellationToken ct = default)
+    {
+        ExigirEscritura();
+        if (cobro.Monto <= 0m)
+            throw new ArgumentException("El monto del cobro tiene que ser mayor que cero.", nameof(cobro));
+
+        var alquiler = await _alquileres.ObtenerPorIdAsync(cobro.AlquilerId, ct)
+            ?? throw new InvalidOperationException("El alquiler no existe.");
+        if (alquiler.Estado == EstadoAlquiler.Cancelado)
+            throw new InvalidOperationException(
+                $"El alquiler {alquiler.Codigo} esta cancelado: no se le cobra. " +
+                "Si el cliente ya habia pagado, eso se maneja como devolucion.");
+
+        var aCobrar = alquiler.Estado == EstadoAlquiler.Finalizado
+            ? alquiler.MontoFinal ?? alquiler.MontoTotal
+            : alquiler.MontoTotal;
+
+        var monto = Math.Round(cobro.Monto, 2, MidpointRounding.AwayFromZero);
+
+        using var conexion = await _factory.AbrirAsync(ct);
+        using var transaccion = await conexion.BeginTransactionAsync(ct);
+        try
+        {
+            var cobrado = await _alquileres.ObtenerCobradoParaActualizarAsync(
+                cobro.AlquilerId, conexion, transaccion, ct);
+            var falta = aCobrar - cobrado;
+
+            if (falta <= 0m)
+                throw new InvalidOperationException(
+                    $"El alquiler {alquiler.Codigo} ya esta saldado: no queda nada por cobrar.");
+            if (monto > falta)
+                throw new InvalidOperationException(
+                    $"No se puede cobrar {monto:N2} DOP: a este alquiler solo le faltan " +
+                    $"{falta:N2} DOP.");
+
+            var numero = await _contador.SiguienteAsync(
+                ContadorRepository.ReciboAlquiler, conexion, transaccion, ct);
+            var pago = new AlquilerPago
+            {
+                AlquilerId = cobro.AlquilerId,
+                NumeroRecibo = $"RA-{numero:D6}",
+                Monto = monto,
+                MetodoPago = cobro.Metodo,
+                Notas = cobro.Notas
+            };
+            pago.Id = await _alquileres.InsertarPagoAsync(pago, conexion, transaccion, ct);
+
+            var saldado = cobrado + monto >= aCobrar;
+            await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Crear,
+                DbNames.AlquilerPago, pago.Id,
+                $"Cobro {pago.NumeroRecibo} del alquiler {alquiler.Codigo}: {monto:N2} DOP " +
+                $"({cobro.Metodo}). Falta {(aCobrar - cobrado - monto):N2} DOP" +
+                (saldado ? " — alquiler SALDADO" : ""),
+                conexion, transaccion, ct);
+
+            await transaccion.CommitAsync(ct);
+            pago.FechaPagoUtc = DateTime.UtcNow;
+            pago.CobradoPor = SesionActual.Nombre;
+
+            Log.Information("Cobro {Recibo} del alquiler {Codigo}: {Monto} DOP",
+                pago.NumeroRecibo, alquiler.Codigo, monto);
+            return pago;
+        }
+        catch
+        {
+            await transaccion.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
 }

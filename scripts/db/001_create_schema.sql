@@ -330,7 +330,8 @@ INSERT INTO contador (nombre, valor) VALUES
   ('vehiculo', 0),
   ('venta', 0),
   ('alquiler', 0),
-  ('recibo_venta', 0);   -- recibos de plazos del dealer (016): RV-000001
+  ('recibo_venta', 0),   -- recibos de plazos del dealer (016): RV-000001
+  ('recibo_alquiler', 0);   -- recibos de cobros de alquiler (034): RA-000001
 
 -- -------------------------------------------------------------
 -- Secuencia de comprobantes fiscales (012): prefijo autorizado por la DGII
@@ -435,6 +436,7 @@ CREATE TABLE venta_plazo_pago (
   CONSTRAINT fk_plazo_pago_usuario FOREIGN KEY (created_by) REFERENCES usuario (id)     ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+
 -- -------------------------------------------------------------
 -- alquiler: rent a car (DealerControl — Tier 5).
 -- -------------------------------------------------------------
@@ -470,6 +472,31 @@ CREATE TABLE alquiler (
   CONSTRAINT fk_alquiler_cliente  FOREIGN KEY (cliente_id)  REFERENCES cliente (id)  ON DELETE RESTRICT,
   CONSTRAINT fk_alquiler_usuario  FOREIGN KEY (created_by)  REFERENCES usuario (id)  ON DELETE SET NULL,
   CONSTRAINT fk_alquiler_cerrado_por FOREIGN KEY (cerrado_por) REFERENCES usuario (id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+-- -------------------------------------------------------------
+-- alquiler_pago: cobros de un alquiler (034).
+-- Tabla PROPIA y no venta_plazo_pago: aquella cuelga de un PLAZO, y un
+-- alquiler no tiene plazos sino abonos contra su monto. Ademas los datos de
+-- los dos negocios no se mezclan.
+-- -------------------------------------------------------------
+CREATE TABLE alquiler_pago (
+  id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  alquiler_id    BIGINT UNSIGNED NOT NULL,
+  numero_recibo  VARCHAR(20)   NOT NULL,          -- RA-000001, talonario propio
+  fecha_pago     DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  monto          DECIMAL(15,2) NOT NULL,
+  metodo_pago    ENUM('efectivo','transferencia','cheque','otro') NOT NULL DEFAULT 'efectivo',
+  notas          TEXT          NULL,
+  created_at     DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  created_by     BIGINT UNSIGNED NULL,
+  deleted_at     DATETIME      NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_alquiler_pago_recibo (numero_recibo),
+  KEY ix_alquiler_pago_alquiler (alquiler_id),
+  CONSTRAINT fk_alquiler_pago_alquiler FOREIGN KEY (alquiler_id)
+    REFERENCES alquiler (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_alquiler_pago_usuario FOREIGN KEY (created_by)
+    REFERENCES usuario (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- -------------------------------------------------------------
