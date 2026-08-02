@@ -358,7 +358,7 @@ tabla que tiene que decir exactamente esto:
 
 | clientes | prestamos | cuotas | cuotas_no_pendientes | cobros | capital_colocado |
 |---|---|---|---|---|---|
-| 10 | 10 | 113 | 0 | 0 | 4,100,000.00 |
+| 10 | 10 | 113 | 0 | 0 | 4,500,000.00 |
 
 > ⚠️ **En PowerShell no funciona.** El símbolo `<` está reservado y da el error
 > *"The '<' operator is reserved for future use"*. Usá CMD. Si preferís
@@ -370,6 +370,38 @@ tabla que tiene que decir exactamente esto:
 **Verificá en la app:** entrá a PrestControl → **Clientes**. Tienen que
 aparecer los 10. En **Préstamos**, los 10 en verde (al día, sin cobros
 todavía).
+
+### 8.1. Registrar los pagos que Wendy ya hizo
+
+La cartera se carga **sin ningún cobro**, salvo un caso que hay que completar a
+mano: **Wendy Yocasta** ya abonó 15,000 a capital y su saldo real es **285,000**,
+no 300,000.
+
+Entrá a **Cobros**, buscá su préstamo (`P-0007`) y registrá estos tres pagos, en
+este orden:
+
+| Fecha | Monto | Qué es |
+|---|---|---|
+| 23/04/2026 | 7,500 | Interés del mes |
+| 25/05/2026 | 15,000 | 7,500 de interés + 7,500 a capital |
+| 25/06/2026 | 15,000 | 7,500 de interés + 7,500 a capital |
+
+Al terminar, su saldo tiene que quedar en **285,000**.
+
+> 💡 **Por qué no viene cargado en el archivo.** El préstamo se dejó en 300,000
+> a propósito: es el capital que sostiene los 7,500 de interés que ella paga
+> (2.5% de 300,000). Si se cargara directo por 285,000, el 2.5% daría 7,125 y
+> le cambiaría la cuota. Registrando los pagos, el saldo baja solo y todo queda
+> en su lugar.
+
+### 8.2. Completar la cédula de Wendy
+
+Su ficha viene con la cédula en **`PENDIENTE-001`**, porque el listado en papel
+no la trae. **No es una cédula real, es un marcador.**
+
+Pedísela al dueño y cargala desde **Clientes → Wendy Yocasta → Editar**. Hay que
+hacerlo **antes de imprimirle cualquier pagaré o intimación de pago**: son
+documentos legales y ahí va la cédula.
 
 > 💡 El archivo tiene un freno: si la base **ya tiene préstamos**, corta con un
 > error y no toca nada. Está pensado para correrse una sola vez, en la
@@ -450,6 +482,8 @@ Antes de irte de la casa del cliente, repasá:
 - [ ] Las oficinas compradas están activadas y se abren
 - [ ] `sc qc MySQL80` dice **AUTO_START** (si no, el primer reinicio rompe todo)
 - [ ] La cartera de préstamos quedó cargada: 10 clientes, 10 préstamos *(solo Familia Almonte)*
+- [ ] Los 3 pagos de Wendy Yocasta registrados: su saldo dice **285,000** *(paso 8.1)*
+- [ ] Pedida la cédula de Wendy Yocasta para reemplazar `PENDIENTE-001` *(paso 8.2)*
 - [ ] Se puede crear un cliente de prueba y borrarlo
 - [ ] La impresora imprime un recibo de prueba
 - [ ] El lector de código de barras funciona *(si hay POS-500)*
