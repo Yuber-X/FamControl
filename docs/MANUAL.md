@@ -1,7 +1,7 @@
 # Manual de usuario — FAControl
 
 **Familia Almonte Auto Import SRL**
-Versión del programa: 1.9.1 · Fecha de este manual: 2 de agosto de 2026
+Versión del programa: 1.9.2 · Fecha de este manual: 2 de agosto de 2026
 
 ---
 

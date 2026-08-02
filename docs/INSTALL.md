@@ -1,7 +1,7 @@
 # Guía de instalación — FAControl
 
 **Familia Almonte Auto Import SRL**
-Versión del programa: 1.9.1 · Fecha de esta guía: 2 de agosto de 2026
+Versión del programa: 1.9.2 · Fecha de esta guía: 2 de agosto de 2026
 
 > Esta guía es para **quien instala el programa** en la computadora del
 > negocio. Está escrita paso por paso: si seguís el orden, no te podés perder.
@@ -53,7 +53,7 @@ Versión del programa: 1.9.1 · Fecha de esta guía: 2 de agosto de 2026
 
 ### Lo que tenés que tener a mano
 
-- [ ] El archivo **`FAControl_Setup_1.9.1.exe`**
+- [ ] El archivo **`FAControl_Setup_1.9.2.exe`**
 - [ ] Los **códigos de activación** de las oficinas que compró el cliente
 - [ ] Una **contraseña para MySQL** ya pensada y anotada
 - [ ] La **cuenta de Google** del negocio (para Google Drive)
@@ -84,7 +84,7 @@ por separado:
 
 ### 3.1. Ejecutar el instalador
 
-Clic derecho sobre `FAControl_Setup_1.9.1.exe` → **Ejecutar como
+Clic derecho sobre `FAControl_Setup_1.9.2.exe` → **Ejecutar como
 administrador**.
 
 ```
