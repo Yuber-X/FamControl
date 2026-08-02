@@ -259,8 +259,12 @@ public partial class App : Application
                 case EstadoBaseDatos.CredencialesInvalidas:
                     MessageBox.Show(
                         "MySQL rechazó el usuario o la contraseña configurados.\n\n" +
-                        "Revisa la cadena de conexión en FAControl.App.dll.config " +
-                        "(paso 6 de la guía de instalación).",
+                        "Abrí el archivo FAControl.App.dll.config que está en la carpeta " +
+                        "de instalación (por defecto C:\\Program Files\\FAControl) con el " +
+                        "Bloc de notas EJECUTADO COMO ADMINISTRADOR, y poné después de " +
+                        "\"Pwd=\" la contraseña de root que se eligió al instalar MySQL.\n\n" +
+                        "Está explicado con capturas en el punto \"Avisarle la contraseña " +
+                        "a FAControl\" de la guía de instalación.",
                         titulo, MessageBoxButton.OK, MessageBoxImage.Error);
                     return false;
 

@@ -1,12 +1,12 @@
 # Guía de instalación — FAControl
 
 **Familia Almonte Auto Import SRL**
-Versión del programa: 1.9.0 · Fecha de esta guía: 2 de agosto de 2026
+Versión del programa: 1.9.1 · Fecha de esta guía: 2 de agosto de 2026
 
 > Esta guía es para **quien instala el programa** en la computadora del
 > negocio. Está escrita paso por paso: si seguís el orden, no te podés perder.
 >
-> **Tiempo:** entre 30 y 45 minutos, casi todo esperando descargas.
+> **Tiempo:** entre 25 y 40 minutos. No se descarga nada: todo viene adentro.
 
 ---
 
@@ -44,16 +44,16 @@ Versión del programa: 1.9.0 · Fecha de esta guía: 2 de agosto de 2026
 | Cosa | Mínimo |
 |---|---|
 | Windows | 10 (versión 2004) u 11, de **64 bits** |
-| Espacio libre en disco | 3 GB |
+| Espacio libre en disco | 5 GB |
 | Memoria (RAM) | 4 GB (8 GB va mucho mejor) |
-| Internet | **Sí, durante la instalación.** Después ya no hace falta |
+| Internet | Solo para configurar Google Drive. MySQL ya viene adentro |
 
 > ⚠️ **Windows de 32 bits no sirve.** Para saber cuál tenés: clic derecho en
 > **Este equipo** → **Propiedades** → mirá donde dice *Tipo de sistema*.
 
 ### Lo que tenés que tener a mano
 
-- [ ] El archivo **`FAControl_Setup_1.9.0.exe`**
+- [ ] El archivo **`FAControl_Setup_1.9.1.exe`**
 - [ ] Los **códigos de activación** de las oficinas que compró el cliente
 - [ ] Una **contraseña para MySQL** ya pensada y anotada
 - [ ] La **cuenta de Google** del negocio (para Google Drive)
@@ -84,7 +84,7 @@ por separado:
 
 ### 3.1. Ejecutar el instalador
 
-Clic derecho sobre `FAControl_Setup_1.9.0.exe` → **Ejecutar como
+Clic derecho sobre `FAControl_Setup_1.9.1.exe` → **Ejecutar como
 administrador**.
 
 ```
@@ -162,6 +162,8 @@ Es el paso más largo. **Prestá atención acá**, el resto es fácil.
 
 ### 4.1. Tipo de instalación
 
+Aparece la pantalla **Choosing a Setup Type** con varias opciones.
+
 Elegí **Server only** (solo el servidor). **Next.**
 
 ```
@@ -171,10 +173,23 @@ Elegí **Server only** (solo el servidor). **Next.**
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2. Descarga
+> 💡 **Por qué "Server only" y no las otras.** El paquete trae también MySQL
+> Workbench, que es un programa para editar la base de datos a mano. En la
+> computadora del negocio **no lo queremos**: desde ahí se pueden borrar
+> préstamos y pagos sin que FAControl lo registre en el historial, que es
+> justamente lo que el programa evita. Si el técnico lo necesita para
+> diagnosticar algo, puede agregarlo después con la opción **Custom** del
+> mismo instalador.
 
-MySQL descarga sus archivos de internet (unos 400 MB). Puede tardar varios
-minutos según la conexión. **Execute** y esperá.
+### 4.2. Instalación
+
+**Execute** y esperá. **No descarga nada de internet**: los archivos ya vienen
+adentro, así que tarda uno o dos minutos.
+
+> ⚠️ Si en vez de esto ves una pantalla que dice **Download** o un título que
+> dice **"Adding Community"**, es que **esta computadora ya tenía MySQL
+> instalado de antes**. Pará y leé el recuadro rojo del final de la sección 4.4
+> antes de seguir.
 
 ### 4.3. Configuración del servidor
 
@@ -230,9 +245,35 @@ En la pantalla **Accounts and Roles** te pide la contraseña del usuario
 1. **Anotala en papel** y dejásela al dueño
 2. **Guardala también** en el teléfono o el correo del dueño
 
+**Elegí una contraseña de solo letras y números**, tipo `FAControl2026`. Los
+símbolos traen dos problemas conocidos:
+
+- el punto y coma `;` **parte la cadena de conexión** de FAControl y el
+  programa no abre aunque la contraseña sea correcta;
+- con el teclado en inglés (que es como suele venir configurado) varios
+  símbolos **salen en otra tecla**: escribís uno y se guarda otro.
+
 > 🔴 **Si esta contraseña se pierde, FAControl no puede abrir su base de
-> datos.** No hay forma de recuperarla: hay que reinstalar MySQL desde cero y
-> restaurar un respaldo. **No la pierdas.**
+> datos.** Anotala **en el momento**, antes de seguir a la pantalla siguiente.
+
+#### 🔴 Si la pantalla "Accounts and Roles" nunca apareció
+
+Significa que **MySQL ya estaba instalado en esa computadora** y el asistente
+no vuelve a preguntar la contraseña: se queda con la que se puso la primera
+vez, que nadie sabe cuál es. FAControl va a abrir con el error
+*"MySQL rechazó el usuario o la contraseña configurados"*.
+
+No reinstales MySQL — reinstalar **no borra la contraseña vieja** y volvés al
+mismo punto. Se arregla así:
+
+1. Buscá el archivo **`reset_password_root_mysql.bat`**. Viene junto al
+   instalador, y también queda instalado en
+   `C:\Program Files\FAControl\scripts\soporte\`
+2. Clic derecho → **Ejecutar como administrador**
+3. Escribí la contraseña nueva (letras y números)
+4. Cuando diga `[OK]`, seguí con el paso 4.6
+
+No borra ninguna base de datos: lo único que cambia es la contraseña de root.
 
 ### 4.5. Terminar
 

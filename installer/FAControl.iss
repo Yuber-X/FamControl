@@ -11,7 +11,7 @@
 ; =============================================================
 
 #define AppNombre "FAControl"
-#define AppVersion "1.9.0"
+#define AppVersion "1.9.1"
 #define AppEditor "Yuber Santana"
 #define AppExe "FAControl.App.exe"
 #define AppTelefono "849-438-0242"
@@ -19,9 +19,12 @@
 ; --- Prerequisitos: nombre esperado de cada instalador ---
 #define DirPrereq "prerequisitos"
 #define ExeAnyDesk "AnyDesk.exe"
-; Es el instalador WEB de MySQL: pesa 2 MB y descarga lo demas al correr,
-; asi que la PC del cliente necesita internet durante ESE paso.
-#define ExeMySql "mysql-installer-web-community-8.0.46.0.msi"
+; Bundle COMPLETO de MySQL (593 MB): trae MySQL Server 8.0 Y Workbench adentro.
+; Se cambio el 2026-08-02 por el instalador WEB de 2 MB, que descargaba todo al
+; correr: dependia de la conexion del local y en la instalacion del 01-08 se
+; salteo la pantalla "Accounts and Roles", que es donde se elige la password de
+; root. Con el bundle el asistente corre entero y sin internet.
+#define ExeMySql "mysql-installer-community-8.0.46.0.msi"
 #define ExeDrive "GoogleDriveSetup.exe"
 
 ; FileExists se evalúa al COMPILAR: por eso el .iss sirve con y sin los archivos
@@ -93,6 +96,12 @@ Source: "..\scripts\db\*.sql"; DestDir: "{app}\scripts\db"; \
   Flags: ignoreversion
 Source: "..\docs\INSTALL.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "..\docs\MANUAL.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+; Herramienta de rescate: restablece la password de root de MySQL cuando la PC
+; ya tenia MySQL y nadie sabe cual es (caso real del 01-08-2026). Se instala
+; ademas de ir suelta en el .rar, porque si FAControl quedo instalado pero no
+; conecta, esta carpeta es lo unico que el tecnico tiene seguro a mano.
+Source: "..\scripts\soporte\reset_password_root_mysql.bat"; \
+  DestDir: "{app}\scripts\soporte"; Flags: ignoreversion
 
 ; --- Prerequisitos: van a la carpeta temporal y se borran al terminar ---
 #if TieneMySql

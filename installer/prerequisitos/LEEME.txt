@@ -9,7 +9,7 @@ QUÉ HAY QUE DEJAR EN ESTA CARPETA
 
 Los archivos tienen que llamarse EXACTAMENTE así (el .iss los busca por nombre):
 
-  mysql-installer-web-community-8.0.46.0.msi   MySQL Server 8.0 (instalador WEB)
+  mysql-installer-community-8.0.46.0.msi   MySQL 8.0 (bundle COMPLETO, 593 MB)
   AnyDesk.exe                     AnyDesk para Windows
   GoogleDriveSetup.exe            Google Drive para escritorio
 
@@ -46,17 +46,41 @@ que compilar también la app para x86 — no es solo cambiar el MySQL.
 PESO DEL INSTALADOR
 -------------------
 
-FAControl solo pesa ~60 MB. Con MySQL adentro pasa de 500 MB. Si eso complica
-pasarlo por WhatsApp o por USB, la alternativa es dejar esta carpeta vacía y
+FAControl solo pesa ~60 MB. Con los tres prerequisitos adentro pasa de 800 MB.
+Si eso complica pasarlo por USB, la alternativa es dejar esta carpeta vacía y
 llevar los tres instaladores aparte, en la misma memoria.
 
 Esta carpeta está en .gitignore: los instaladores de terceros NO van al repositorio.
 
-OJO CON EL INSTALADOR **WEB** DE MYSQL
---------------------------------------
 
-El que esta puesto (mysql-installer-web-community) pesa 2 MB porque descarga
-los componentes al ejecutarse: la PC del cliente necesita **internet durante la
-instalacion**. Si vas a instalar en un local sin conexion confiable, baja el
-instalador COMPLETO (el de ~450 MB, "mysql-installer-community-8.0.xx.msi"),
-dejalo en esta carpeta y cambiale el nombre en FAControl.iss (#define ExeMySql).
+POR QUÉ EL BUNDLE COMPLETO Y NO EL WEB (cambio del 2026-08-02)
+--------------------------------------------------------------
+
+Hasta la 1.9.0 iba "mysql-installer-web-community", de 2 MB, que descarga los
+componentes al ejecutarse. Dos problemas, los dos vistos en la instalación del
+01-08-2026:
+
+  1. La PC del cliente necesita internet DURANTE la instalación, y la del local
+     no siempre da.
+  2. Cuando encuentra un MySQL ya instalado entra en modo "Adding Community" y
+     se saltea la pantalla "Accounts and Roles" — la única donde se elige la
+     contraseña de root. El técnico termina la instalación creyendo que puso
+     una contraseña que en realidad nunca se aplicó, y FAControl no abre.
+
+El bundle completo (593 MB) trae MySQL Server 8.0 Y Workbench adentro, no
+descarga nada y corre el asistente entero.
+
+  Descarga directa (sin cuenta de Oracle):
+  https://cdn.mysql.com/Downloads/MySQLInstaller/mysql-installer-community-8.0.46.0.msi
+
+
+WORKBENCH: VIENE, PERO NO SE INSTALA POR DEFECTO
+-------------------------------------------------
+
+El bundle incluye Workbench y por eso la guía dice elegir "Server only": desde
+Workbench se puede hacer DELETE FROM prestamo sin auditoría, sin soft delete y
+sin que FAControl se entere — se saltea todo lo que el programa protege.
+
+En la PC del cliente: Server only.
+Si el técnico lo necesita para diagnosticar, está en el mismo instalador
+(Custom) y se puede agregar y después quitar.
