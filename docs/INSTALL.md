@@ -29,10 +29,11 @@ Versión del programa: 1.9.0 · Fecha de esta guía: 2 de agosto de 2026
 5. [Configurar AnyDesk](#5-configurar-anydesk)
 6. [Configurar Google Drive](#6-configurar-google-drive)
 7. [Primer arranque de FAControl](#7-primer-arranque-de-facontrol)
-8. [Dejar el respaldo automático andando](#8-dejar-el-respaldo-automático-andando)
-9. [Actualizar a una versión nueva](#9-actualizar-a-una-versión-nueva)
-10. [Desinstalar](#10-desinstalar)
-11. [Lista de verificación final](#11-lista-de-verificación-final)
+8. [Cargar la cartera de préstamos](#8-cargar-la-cartera-de-préstamos)
+9. [Dejar el respaldo automático andando](#9-dejar-el-respaldo-automático-andando)
+10. [Actualizar a una versión nueva](#10-actualizar-a-una-versión-nueva)
+11. [Desinstalar](#11-desinstalar)
+12. [Lista de verificación final](#12-lista-de-verificación-final)
 
 ---
 
@@ -188,6 +189,23 @@ donde diga lo contrario:
 | **Windows Service** | Nombre del servicio: **MySQL80** · ☑️ Start at System Startup |
 | **Apply Configuration** | **Execute** y esperar a que todo quede en verde |
 
+> 🔴 **No te saltees el ☑️ Start at System Startup.** Sin esa casilla, MySQL
+> queda en arranque *Manual*: la primera vez todo funciona, pero **al primer
+> reinicio de la computadora FAControl abre con "No se pudo conectar con
+> MySQL"** y el dueño va a pensar que el programa se rompió. Es el error más
+> fácil de cometer y el que más tarda en aparecer, porque para entonces el
+> técnico ya se fue.
+>
+> Para verificarlo después, con una consola **como administrador**:
+> ```
+> sc qc MySQL80
+> ```
+> Tiene que decir `START_TYPE : 2 AUTO_START`. Si dice `3 DEMAND_START`, se
+> corrige con:
+> ```
+> sc config MySQL80 start= auto
+> ```
+
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │  📷 IMAGEN I-07 — Pantalla "Type and Networking" con           │
@@ -318,7 +336,50 @@ y borralo. Si eso anda, la instalación está bien.
 
 ---
 
-## 8. Dejar el respaldo automático andando
+## 8. Cargar la cartera de préstamos
+
+> Este paso es **solo para Familia Almonte**. En otra instalación, salteálo.
+
+En el `.rar` viene el archivo **`FAControl_CarteraReal_v2_2026-08-02.sql`**: son
+los **10 clientes y 10 préstamos** que el dueño entregó en papel, ya
+transcriptos, con sus 113 cuotas calculadas. Cargarlo evita tener que
+escribirlos a mano uno por uno.
+
+**Se corre DESPUÉS del paso anterior**, con la cuenta del administrador ya
+creada. Abrí **CMD como administrador** (no PowerShell) y escribí:
+
+```
+cd "C:\Program Files\MySQL\MySQL Server 8.0\bin"
+mysql.exe -u root -p facontrol_db < "C:\ruta\donde\pusiste\FAControl_CarteraReal_v2_2026-08-02.sql"
+```
+
+Te pide la contraseña de MySQL (la del paso 4.4). Al terminar muestra una
+tabla que tiene que decir exactamente esto:
+
+| clientes | prestamos | cuotas | cuotas_no_pendientes | cobros | capital_colocado |
+|---|---|---|---|---|---|
+| 10 | 10 | 113 | 0 | 0 | 4,100,000.00 |
+
+> ⚠️ **En PowerShell no funciona.** El símbolo `<` está reservado y da el error
+> *"The '<' operator is reserved for future use"*. Usá CMD. Si preferís
+> PowerShell, la forma equivalente es:
+> ```
+> Get-Content "ruta\archivo.sql" | mysql.exe -u root -p facontrol_db
+> ```
+
+**Verificá en la app:** entrá a PrestControl → **Clientes**. Tienen que
+aparecer los 10. En **Préstamos**, los 10 en verde (al día, sin cobros
+todavía).
+
+> 💡 El archivo tiene un freno: si la base **ya tiene préstamos**, corta con un
+> error y no toca nada. Está pensado para correrse una sola vez, en la
+> instalación nueva. Si ves el error
+> `Table '...abortado_ya_hay_prestamos...' doesn't exist`, es eso: la cartera
+> ya estaba cargada.
+
+---
+
+## 9. Dejar el respaldo automático andando
 
 **No te vayas sin hacer esto.** Es lo que salva al negocio si la computadora
 se rompe.
@@ -342,7 +403,7 @@ tenga el ícono de "sincronizado" (una nube o una tilde verde).
 
 ---
 
-## 9. Actualizar a una versión nueva
+## 10. Actualizar a una versión nueva
 
 Para actualizar FAControl:
 
@@ -361,7 +422,7 @@ los expedientes quedan intactos. El instalador solo reemplaza el programa.
 
 ---
 
-## 10. Desinstalar
+## 11. Desinstalar
 
 Panel de control → Programas → **FAControl** → Desinstalar.
 
@@ -379,7 +440,7 @@ Panel de control → Programas → **FAControl** → Desinstalar.
 
 ---
 
-## 11. Lista de verificación final
+## 12. Lista de verificación final
 
 Antes de irte de la casa del cliente, repasá:
 
@@ -387,6 +448,8 @@ Antes de irte de la casa del cliente, repasá:
 - [ ] La base de datos se creó (no aparece ningún error al abrir)
 - [ ] La cuenta del administrador entra bien
 - [ ] Las oficinas compradas están activadas y se abren
+- [ ] `sc qc MySQL80` dice **AUTO_START** (si no, el primer reinicio rompe todo)
+- [ ] La cartera de préstamos quedó cargada: 10 clientes, 10 préstamos *(solo Familia Almonte)*
 - [ ] Se puede crear un cliente de prueba y borrarlo
 - [ ] La impresora imprime un recibo de prueba
 - [ ] El lector de código de barras funciona *(si hay POS-500)*
