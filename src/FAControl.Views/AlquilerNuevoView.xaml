@@ -41,9 +41,28 @@
           </StackPanel>
         </Grid>
 
-        <TextBlock Text="Tarifa por día (RD$)" Style="{DynamicResource Input.Label}" Margin="0,14,0,6" />
-        <TextBox Style="{DynamicResource Input.Texto}"
-                 Text="{Binding TarifaTexto, UpdateSourceTrigger=PropertyChanged}" />
+        <!-- Tarifa: se escribe la que se tenga a mano y la otra se completa sola -->
+        <Grid Margin="0,14,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <StackPanel Grid.Column="0">
+            <TextBlock Text="Tarifa por día (RD$)" Style="{DynamicResource Input.Label}" />
+            <TextBox Style="{DynamicResource Input.Texto}"
+                     Text="{Binding TarifaTexto, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="Tarifa por mes (RD$)" Style="{DynamicResource Input.Label}" />
+            <TextBox Style="{DynamicResource Input.Texto}"
+                     Text="{Binding TarifaMesTexto, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Grid>
+        <TextBlock Text="Escribí una de las dos y la otra se completa sola (mes = 30 días). El total se calcula con la tarifa por día."
+                   Style="{DynamicResource Texto.Caption}"
+                   Foreground="{DynamicResource Brush.TextoSecundario}"
+                   TextWrapping="Wrap" Margin="0,6,0,0" />
 
         <Border Background="{DynamicResource Brush.PrimarioSutil}" CornerRadius="10"
                 Padding="16,12" Margin="0,16,0,0">

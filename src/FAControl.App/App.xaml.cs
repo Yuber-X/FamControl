@@ -238,7 +238,9 @@ public partial class App : Application
             switch (await verificador.VerificarAsync())
             {
                 case EstadoBaseDatos.Lista:
-                    return true;
+                    // La base existe pero puede venir de una versión anterior:
+                    // acá se le agregan las columnas/valores que trae esta.
+                    return await PonerBaseAlDiaAsync(titulo);
 
                 case EstadoBaseDatos.FaltaBaseDatos:
                     var crear = MessageBox.Show(
@@ -285,6 +287,42 @@ public partial class App : Application
                 "Si el usuario configurado no tiene permisos para crear bases de datos, " +
                 "ejecuta scripts\\db\\001_create_schema.sql como root (ver INSTALL.md).",
                 titulo, MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Aplica las migraciones que falten (pedido del cliente 2026-08-06: poder
+    /// actualizar FAControl sin reinstalar ni tocar los datos). Solo agrega
+    /// columnas, valores de ENUM y filas de catálogo — nada de lo que el
+    /// cliente cargó se borra ni se reescribe.
+    ///
+    /// Si falla, la app NO abre: entrar con el esquema a medio migrar daría
+    /// errores sueltos y confusos en cualquier pantalla, y encima con la base
+    /// del cliente de por medio. Es preferible un mensaje claro acá.
+    /// </summary>
+    private async Task<bool> PonerBaseAlDiaAsync(string titulo)
+    {
+        try
+        {
+            var aplicadas = await _servicios!.GetRequiredService<MigradorEsquema>()
+                .AplicarPendientesAsync();
+
+            if (aplicadas.Count > 0)
+                Log.Information("Base actualizada: {Cantidad} migración/es aplicada/s ({Scripts})",
+                    aplicadas.Count, string.Join(", ", aplicadas));
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Fallo actualizando el esquema de la base");
+            MessageBox.Show(
+                "FAControl se actualizó, pero no pudo acomodar la base de datos:\n\n" +
+                ex.Message + "\n\n" +
+                "Los datos NO se tocaron. Avisale a soporte antes de seguir usando el sistema; " +
+                "mientras tanto, la versión anterior de FAControl sigue funcionando.",
+                titulo + " — Actualización", MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
         }
     }
@@ -345,7 +383,7 @@ public partial class App : Application
             if (esReimpresion || ajustes.MostrarVistaPreviaTicket)
             {
                 new FAControl.Views.Pos.TicketWindow(visual, descripcion, ajustes.CopiasTicket)
-                { Owner = MainWindow }.ShowDialog();
+                    .MostrarDesdeLaPrincipal();
                 return;
             }
 
@@ -358,7 +396,7 @@ public partial class App : Application
             {
                 Log.Warning(exImpresion, "Falló la impresión directa de {Descripcion}", descripcion);
                 new FAControl.Views.Pos.TicketWindow(visual, descripcion, ajustes.CopiasTicket)
-                { Owner = MainWindow }.ShowDialog();
+                    .MostrarDesdeLaPrincipal();
             }
         }
         catch (Exception ex)
@@ -388,7 +426,7 @@ public partial class App : Application
             new FAControl.Views.Pos.VistaPreviaWindow(visual,
                 $"Cierre de caja — {cierre.Fecha:dd/MM/yyyy}",
                 $"Cierre {cierre.Fecha:yyyy-MM-dd}")
-            { Owner = MainWindow }.ShowDialog();
+                .MostrarDesdeLaPrincipal();
         }
         catch (Exception ex)
         {
@@ -438,6 +476,9 @@ public partial class App : Application
         // Data
         servicios.AddSingleton<ConexionFactory>();
         servicios.AddSingleton<VerificadorBaseDatos>();
+        // Pone la base al día al arrancar: es lo que permite actualizar la app
+        // sin reinstalar ni correr aplicar.ps1 en la PC del cliente.
+        servicios.AddSingleton<MigradorEsquema>();
         servicios.AddSingleton<UsuarioRepository>();
         servicios.AddSingleton<SesionRepository>();
         servicios.AddSingleton<AuditoriaRepository>();

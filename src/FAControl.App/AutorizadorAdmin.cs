@@ -31,10 +31,12 @@ public class AutorizadorAdmin : IAutorizadorAdmin
                 ? "No se pudo autorizar. Verificá el usuario y la contraseña, " +
                   "y que esa cuenta tenga permiso para autorizar préstamos."
                 : null;
-        })
-        {
-            Owner = Application.Current.MainWindow
-        };
+        });
+
+        // Solo si hay una ventana VIVA: durante un cambio de usuario la
+        // principal puede estar ya cerrada (ver VentanaDuena).
+        if (FAControl.Views.VentanaDuena.Principal() is { } duena)
+            ventana.Owner = duena;
 
         return Task.FromResult(ventana.ShowDialog() == true ? resultado : null);
     }

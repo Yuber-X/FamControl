@@ -280,6 +280,98 @@ public class ClienteRepository
             reader.GetInt32("cuotas_vencidas"));
     }
 
+    /// <summary>
+    /// Historial de buena conducta (pedido 2026-08-06). Dos consultas:
+    /// los contratos del cliente y cómo pagó las cuotas que ya saldó.
+    ///
+    /// Las fechas de pago están en UTC y los vencimientos en fecha local del
+    /// negocio, así que el atraso se mide restando las 4 horas de RD antes de
+    /// comparar. Sin eso, todo pago hecho después de las 8 de la noche contaría
+    /// como un día de atraso.
+    /// </summary>
+    public async Task<ClienteConducta> ObtenerConductaAsync(long clienteId, DateOnly hoy,
+        CancellationToken ct = default)
+    {
+        using var conexion = await _factory.AbrirAsync(ct);
+
+        int totales = 0, saldados = 0, activos = 0, cancelados = 0;
+        DateOnly? primerPrestamo = null;
+
+        using (var cmd = conexion.CreateCommand())
+        {
+            cmd.CommandText = $"""
+                SELECT COUNT(*)                         AS totales,
+                       SUM(estado = 'pagado')           AS saldados,
+                       SUM(estado = 'activo')           AS activos,
+                       SUM(estado = 'cancelado')        AS cancelados,
+                       MIN(fecha_inicio)                AS primer_prestamo
+                FROM {DbNames.Prestamo}
+                WHERE cliente_id = @clienteId;
+                """;
+            cmd.Parameters.AddWithValue("@clienteId", clienteId);
+
+            using var reader = await cmd.ExecuteReaderAsync(ct);
+            await reader.ReadAsync(ct);
+            totales = reader.GetInt32("totales");
+            // Los SUM() son NULL cuando el cliente no tiene ningún préstamo
+            saldados = LeerEntero(reader, "saldados");
+            activos = LeerEntero(reader, "activos");
+            cancelados = LeerEntero(reader, "cancelados");
+            primerPrestamo = reader.IsDBNull(reader.GetOrdinal("primer_prestamo"))
+                ? null
+                : DateOnly.FromDateTime(reader.GetDateTime("primer_prestamo"));
+        }
+
+        using (var cmd = conexion.CreateCommand())
+        {
+            cmd.CommandText = $"""
+                SELECT COUNT(*)                                        AS cuotas_saldadas,
+                       SUM(s.atraso <= 0)                              AS a_tiempo,
+                       SUM(s.atraso > 0)                               AS tarde,
+                       AVG(CASE WHEN s.atraso > 0 THEN s.atraso END)   AS promedio_atraso,
+                       MAX(s.atraso)                                   AS peor_atraso,
+                       MAX(s.saldada_el)                               AS ultimo_pago
+                FROM (
+                    SELECT DATEDIFF(DATE(MAX(g.fecha_pago) - INTERVAL 4 HOUR),
+                                    q.fecha_vencimiento)        AS atraso,
+                           DATE(MAX(g.fecha_pago) - INTERVAL 4 HOUR) AS saldada_el
+                    FROM {DbNames.Cuota} q
+                    JOIN {DbNames.Prestamo} p ON p.id = q.prestamo_id
+                    JOIN {DbNames.Pago} g     ON g.cuota_id = q.id AND g.deleted_at IS NULL
+                    WHERE p.cliente_id = @clienteId
+                      AND q.estado = 'pagada'
+                    GROUP BY q.id, q.fecha_vencimiento
+                ) AS s;
+                """;
+            cmd.Parameters.AddWithValue("@clienteId", clienteId);
+
+            using var reader = await cmd.ExecuteReaderAsync(ct);
+            await reader.ReadAsync(ct);
+            var saldadas = reader.GetInt32("cuotas_saldadas");
+            var aTiempo = LeerEntero(reader, "a_tiempo");
+            var tarde = LeerEntero(reader, "tarde");
+            var promedio = reader.IsDBNull(reader.GetOrdinal("promedio_atraso"))
+                ? 0
+                : (int)Math.Round(reader.GetDecimal("promedio_atraso"), MidpointRounding.AwayFromZero);
+            var peor = Math.Max(0, LeerEntero(reader, "peor_atraso"));
+            DateOnly? ultimoPago = reader.IsDBNull(reader.GetOrdinal("ultimo_pago"))
+                ? null
+                : DateOnly.FromDateTime(reader.GetDateTime("ultimo_pago"));
+
+            var vencidasHoy = (await ObtenerMetricasAsync(clienteId, hoy, ct)).CuotasVencidas;
+
+            return new ClienteConducta(totales, saldados, activos, cancelados,
+                saldadas, aTiempo, tarde, promedio, peor, vencidasHoy, primerPrestamo, ultimoPago);
+        }
+    }
+
+    /// <summary>SUM() sobre cero filas devuelve NULL, no 0.</summary>
+    private static int LeerEntero(MySqlDataReader reader, string columna)
+    {
+        var i = reader.GetOrdinal(columna);
+        return reader.IsDBNull(i) ? 0 : Convert.ToInt32(reader.GetValue(i));
+    }
+
     private static void AgregarParametrosDatos(MySqlCommand cmd, ClienteDatos datos)
     {
         cmd.Parameters.AddWithValue("@cedula", datos.Cedula);

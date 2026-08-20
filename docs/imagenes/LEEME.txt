@@ -24,8 +24,18 @@ no borronea el texto.
 
 CUANTAS SON
 -----------
-    MANUAL.md    ->  imagen-01   ... imagen-43      (43 capturas)
+    MANUAL.md    ->  imagen-01   ... imagen-46      (46 capturas)
     INSTALL.md   ->  imagen-I-01 ... imagen-I-14    (14 capturas)
+
+Las tres ultimas del manual son de la version 2.0.x y son nuevas:
+
+    imagen-14  ->  ficha del cliente con el recuadro de historial de pago
+    imagen-15  ->  el recuadro de "desde que cuota se cobra el capital"
+    imagen-46  ->  Configuracion > Respaldo con el cartel amarillo de fallo
+
+Ojo: al agregarse la 14 y la 15 en el medio, TODAS las siguientes corrieron
+dos numeros respecto de la version anterior del manual. Si ya tenias capturas
+viejas dando vueltas, no sirven tal cual: hay que renombrarlas.
 
 
 COMO TOMARLAS

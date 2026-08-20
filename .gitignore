@@ -6,11 +6,7 @@ logs/
 publish/
 installer/Output/
 
-# Secretos y config local (NUNCA subir) — ajustes.json
-# Licencia de la instalación y archivos del expediente digital: son del
-# equipo/cliente, nunca del repositorio.
-licencia.json
-expedientes/ guarda el App Password
+# Secretos y config local (NUNCA subir) — ajustes.json guarda el App Password
 # cifrado con DPAPI; los .dll.config del cliente llevan credenciales reales.
 ajustes.json
 *.dll.config
@@ -21,7 +17,19 @@ appsettings.*.Production.json
 *.snk
 .env
 
+# Licencia de la instalación y archivos del expediente digital: son del
+# equipo/cliente, nunca del repositorio.
+#
+# OJO: estas dos líneas venían pegadas dentro del comentario de arriba y el
+# patrón quedaba "expedientes/ guarda el App Password", que no coincide con
+# nada. Resultado: los contratos escaneados del cliente NO estaban ignorados
+# (2026-08-20).
+licencia.json
+expedientes/
+
 # Herramientas / resultados de test
+__pycache__/
+*.pyc
 .idea/
 *.suo
 TestResults/

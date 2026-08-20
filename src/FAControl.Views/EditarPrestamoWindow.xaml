@@ -33,6 +33,7 @@
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="Capital prestado (DOP)"
@@ -64,6 +65,17 @@
                    Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
         <ComboBox  Grid.Row="5" Grid.Column="2" x:Name="ComboMetodo" Height="34"
                    SelectionChanged="Combo_Changed" />
+
+        <!-- Solo con "interés fijo primero, capital después". Sin este campo la
+             corrección recalculaba el préstamo con la cuota SUGERIDA y le
+             cambiaba la tabla al cliente sin avisar. -->
+        <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3"
+                    x:Name="ZonaInicioCapital" Visibility="Collapsed">
+          <TextBlock Text="¿Desde qué cuota se cobra el capital?"
+                     Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
+          <TextBox x:Name="CajaInicioCapital" Height="34" Width="90" HorizontalAlignment="Left"
+                   Style="{DynamicResource Input.Texto}" TextChanged="Campo_TextChanged" />
+        </StackPanel>
       </Grid>
 
       <!-- Vista previa: que va a pasar con la cuota si se guarda asi -->

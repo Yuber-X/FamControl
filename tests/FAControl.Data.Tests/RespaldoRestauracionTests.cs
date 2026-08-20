@@ -1,4 +1,5 @@
 using System.Text;
+using FAControl.Common;
 using FAControl.Services;
 using FluentAssertions;
 using MySqlConnector;
@@ -216,6 +217,51 @@ public class RespaldoRestauracionTests : IAsyncLifetime
         new FileInfo(ruta).Length.Should().BeGreaterThan(primero,
             "el segundo respaldo tiene un cliente mas");
     }
+
+    /// <summary>
+    /// El respaldo automático corre solo al arrancar y se traga sus errores para
+    /// no frenar la app. Hasta el 06/08/2026 solo los mandaba al log: podía estar
+    /// fallando meses y en Configuración se seguía viendo la fecha del último
+    /// respaldo BUENO, que se lee igual que "todavía no toca".
+    /// </summary>
+    [Fact]
+    public async Task RespaldoAutomatico_CuandoFalla_DejaElMotivoAnotado()
+    {
+        await PrepararBaseConDatosAsync();
+        var ajustes = AjustesDeRespaldoAuto();
+        var servicio = new RespaldoService(CadenaServidor.Replace("Pwd=root", "Pwd=clave-mala")
+                                           + $"Database={Bd};");
+
+        await servicio.EjecutarAutomaticoSiTocaAsync(ajustes);
+
+        ajustes.UltimoRespaldoError.Should().NotBeNullOrWhiteSpace(
+            "sin esto el fallo es invisible hasta el día que hace falta el respaldo");
+        ajustes.UltimoRespaldoErrorUtc.Should().NotBeNull();
+        ajustes.UltimoRespaldoUtc.Should().BeNull("no se hizo ningún respaldo bueno");
+    }
+
+    [Fact]
+    public async Task RespaldoAutomatico_CuandoSaleBien_BorraElFalloAnterior()
+    {
+        await PrepararBaseConDatosAsync();
+        var ajustes = AjustesDeRespaldoAuto();
+        ajustes.UltimoRespaldoError = "fallo viejo que ya se resolvió";
+        ajustes.UltimoRespaldoErrorUtc = DateTime.UtcNow.AddDays(-3);
+
+        await new RespaldoService(Cadena).EjecutarAutomaticoSiTocaAsync(ajustes);
+
+        ajustes.UltimoRespaldoError.Should().BeNull("el aviso rojo tiene que apagarse solo");
+        ajustes.UltimoRespaldoErrorUtc.Should().BeNull();
+        ajustes.UltimoRespaldoUtc.Should().NotBeNull();
+    }
+
+    /// <summary>Respaldo automático activo, apuntando a la carpeta temporal de la prueba y vencido.</summary>
+    private AjustesLocales AjustesDeRespaldoAuto() => new()
+    {
+        RespaldoAutomaticoActivo = true,
+        RespaldoAutomaticoCarpeta = _carpeta,
+        UltimoRespaldoUtc = null
+    };
 
     [Fact]
     public void BuscarHerramienta_Inexistente_ExplicaQueHacer()

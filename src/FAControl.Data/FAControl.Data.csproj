@@ -16,6 +16,16 @@
     <EmbeddedResource Include="..\..\scripts\db\001_create_schema.sql"
                       Link="001_create_schema.sql"
                       LogicalName="FAControl.Data.001_create_schema.sql" />
+
+    <!-- Migraciones embebidas: la app pone la base al día sola al arrancar
+         (MigradorEsquema). Es lo que permite ACTUALIZAR sin reinstalar ni
+         correr aplicar.ps1 a mano en la PC del cliente.
+         Quedan afuera a propósito: 001 (va arriba, esquema completo),
+         002 y seed_* (datos de prueba) y 999_rollback (BORRA la base). -->
+    <EmbeddedResource Include="..\..\scripts\db\0*.sql"
+                      Exclude="..\..\scripts\db\001_create_schema.sql;..\..\scripts\db\002_seed_data.sql;..\..\scripts\db\999_rollback.sql;..\..\scripts\db\seed_*.sql"
+                      Link="migraciones\%(Filename)%(Extension)"
+                      LogicalName="FAControl.Data.migraciones.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <PropertyGroup>

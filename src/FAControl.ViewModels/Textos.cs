@@ -33,6 +33,7 @@ public static class Textos
         MetodoAmortizacion.CuotaFija => "Interés fijo (dominicano)",
         MetodoAmortizacion.Frances => "Sistema francés (sobre saldo)",
         MetodoAmortizacion.SoloInteres => "Abierto (solo interés)",
+        MetodoAmortizacion.CapitalDiferido => "Interés fijo primero, capital después",
         _ => m.ToString()
     };
 
@@ -53,6 +54,16 @@ public static class Textos
         SemaforoCuota.Pagada => "Pagada",
         SemaforoCuota.Cancelada => "Cancelada",
         _ => s.ToString()
+    };
+
+    public static string De(ConductaCliente c) => c switch
+    {
+        ConductaCliente.SinHistorial => "Sin historial",
+        ConductaCliente.Excelente => "Excelente pagador",
+        ConductaCliente.Buena => "Buen pagador",
+        ConductaCliente.Regular => "Pagador irregular",
+        ConductaCliente.Riesgosa => "Riesgoso",
+        _ => c.ToString()
     };
 
     public static string De(MetodoPago m) => m switch

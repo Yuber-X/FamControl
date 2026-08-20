@@ -27,10 +27,10 @@ public class PrestamoRepository
         cmd.CommandText = $"""
             INSERT INTO {DbNames.Prestamo}
               (codigo, ncf, cliente_id, vehiculo_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
-               modalidad, metodo_amortizacion, fecha_inicio, garantia, estado, notas)
+               modalidad, metodo_amortizacion, cuota_inicio_capital, fecha_inicio, garantia, estado, notas)
             VALUES
               (@codigo, @ncf, @clienteId, @vehiculoId, @montoCapital, @moneda, @tasaInteres, @plazoCuotas,
-               @modalidad, @metodo, @fechaInicio, @garantia, @estado, @notas);
+               @modalidad, @metodo, @cuotaInicioCapital, @fechaInicio, @garantia, @estado, @notas);
             SELECT LAST_INSERT_ID();
             """;
         cmd.Parameters.AddWithValue("@codigo", prestamo.Codigo);
@@ -43,6 +43,8 @@ public class PrestamoRepository
         cmd.Parameters.AddWithValue("@plazoCuotas", prestamo.PlazoCuotas);
         cmd.Parameters.AddWithValue("@modalidad", EnumMap.ADb(prestamo.Modalidad));
         cmd.Parameters.AddWithValue("@metodo", EnumMap.ADb(prestamo.MetodoAmortizacion));
+        cmd.Parameters.AddWithValue("@cuotaInicioCapital",
+            (object?)prestamo.CuotaInicioCapital ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@fechaInicio", prestamo.FechaInicio.ToDateTime(TimeOnly.MinValue));
         cmd.Parameters.AddWithValue("@garantia", (object?)prestamo.Garantia ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@estado", EnumMap.ADb(prestamo.Estado));
@@ -221,8 +223,8 @@ public class PrestamoRepository
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT id, codigo, ncf, cliente_id, vehiculo_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
-                   modalidad, metodo_amortizacion, fecha_inicio, garantia, estado, notas,
-                   created_at, updated_at
+                   modalidad, metodo_amortizacion, cuota_inicio_capital, fecha_inicio,
+                   garantia, estado, notas, created_at, updated_at
             FROM {DbNames.Prestamo}
             WHERE id = @id;
             """;
@@ -245,6 +247,9 @@ public class PrestamoRepository
             PlazoCuotas = reader.GetInt32("plazo_cuotas"),
             Modalidad = EnumMap.ModalidadDeDb(reader.GetString("modalidad")),
             MetodoAmortizacion = EnumMap.MetodoDeDb(reader.GetString("metodo_amortizacion")),
+            CuotaInicioCapital = reader.IsDBNull(reader.GetOrdinal("cuota_inicio_capital"))
+                ? null
+                : reader.GetInt32("cuota_inicio_capital"),
             FechaInicio = DateOnly.FromDateTime(reader.GetDateTime("fecha_inicio")),
             Garantia = reader.IsDBNull(reader.GetOrdinal("garantia")) ? null : reader.GetString("garantia"),
             Estado = EnumMap.EstadoPrestamoDeDb(reader.GetString("estado")),
@@ -357,7 +362,8 @@ public class PrestamoRepository
             UPDATE {DbNames.Prestamo}
             SET monto_capital = @montoCapital, tasa_interes = @tasaInteres,
                 plazo_cuotas = @plazoCuotas, modalidad = @modalidad,
-                metodo_amortizacion = @metodo, fecha_inicio = @fechaInicio,
+                metodo_amortizacion = @metodo, cuota_inicio_capital = @cuotaInicioCapital,
+                fecha_inicio = @fechaInicio,
                 garantia = @garantia, notas = @notas, updated_at = UTC_TIMESTAMP()
             WHERE id = @id;
             """;
@@ -366,6 +372,8 @@ public class PrestamoRepository
         cmd.Parameters.AddWithValue("@plazoCuotas", prestamo.PlazoCuotas);
         cmd.Parameters.AddWithValue("@modalidad", EnumMap.ADb(prestamo.Modalidad));
         cmd.Parameters.AddWithValue("@metodo", EnumMap.ADb(prestamo.MetodoAmortizacion));
+        cmd.Parameters.AddWithValue("@cuotaInicioCapital",
+            (object?)prestamo.CuotaInicioCapital ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@fechaInicio", prestamo.FechaInicio.ToDateTime(TimeOnly.MinValue));
         cmd.Parameters.AddWithValue("@garantia", (object?)prestamo.Garantia ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@notas", (object?)prestamo.Notas ?? DBNull.Value);

@@ -33,6 +33,76 @@ public record ClienteMetricas(
     int PrestamosActivos,
     int CuotasVencidas);
 
+/// <summary>Calificación de conducta de pago. Se calcula, nunca se guarda.</summary>
+public enum ConductaCliente
+{
+    /// <summary>Todavía no saldó ninguna cuota: no hay con qué juzgarlo.</summary>
+    SinHistorial,
+    Excelente,
+    Buena,
+    Regular,
+    Riesgosa
+}
+
+/// <summary>
+/// Historial de buena conducta del cliente (pedido 2026-08-06): cómo pagó lo
+/// que ya pagó. Todo sale de préstamos, cuotas y pagos que ya están en la base
+/// — no hay tabla nueva ni nada que el usuario tenga que cargar a mano.
+///
+/// "A tiempo" se mide contra la fecha en que la cuota quedó SALDADA (el último
+/// abono que la cubrió), no contra el primer abono: una cuota que se pagó en
+/// tres partes se juzga por cuándo terminó de pagarse.
+/// </summary>
+public record ClienteConducta(
+    int PrestamosTotales,
+    int PrestamosSaldados,
+    int PrestamosActivos,
+    int PrestamosCancelados,
+    /// <summary>Cuotas que el cliente terminó de pagar (las únicas que se pueden juzgar).</summary>
+    int CuotasSaldadas,
+    int CuotasATiempo,
+    int CuotasTarde,
+    /// <summary>Promedio de días de atraso, contando SOLO las que se pagaron tarde.</summary>
+    int DiasPromedioAtraso,
+    int PeorAtrasoDias,
+    /// <summary>Cuotas que hoy están vencidas o en mora sin cubrir.</summary>
+    int CuotasVencidasHoy,
+    DateOnly? PrimerPrestamo,
+    DateOnly? UltimoPago)
+{
+    public bool EsClienteConocido => PrestamosTotales > 0;
+
+    /// <summary>Porcentaje de cuotas saldadas que se pagaron en fecha o antes.</summary>
+    public int PorcentajeATiempo => CuotasSaldadas == 0
+        ? 0
+        : (int)Math.Round(CuotasATiempo * 100m / CuotasSaldadas, MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// Los cortes son una PROPUESTA (2026-08-06) y se ajustan con el cliente:
+    /// cada prestamista tiene su propio umbral de lo que considera "buen pagador".
+    ///
+    /// Riesgosa  → hoy debe cuotas, o alguna vez se atrasó más de 30 días
+    /// Regular   → menos del 70% a tiempo, o promedio de atraso de más de 7 días
+    /// Excelente → 95% o más a tiempo y nada vencido hoy
+    /// Buena     → el resto de los que ya pagaron algo
+    /// </summary>
+    public ConductaCliente Calificacion
+    {
+        get
+        {
+            if (CuotasSaldadas == 0)
+                return ConductaCliente.SinHistorial;
+            if (CuotasVencidasHoy > 0 || PeorAtrasoDias > 30)
+                return ConductaCliente.Riesgosa;
+            if (PorcentajeATiempo < 70 || DiasPromedioAtraso > 7)
+                return ConductaCliente.Regular;
+            if (PorcentajeATiempo >= 95)
+                return ConductaCliente.Excelente;
+            return ConductaCliente.Buena;
+        }
+    }
+}
+
 /// <summary>
 /// Cliente con cuotas vencidas (notificador de vencimientos al iniciar).
 /// PrimerVencimiento = la fecha vencida más antigua sin cubrir.

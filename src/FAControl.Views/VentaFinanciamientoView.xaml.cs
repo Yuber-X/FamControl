@@ -30,40 +30,54 @@ public partial class VentaFinanciamientoView : UserControl
                 await EmitirPapelesAsync(papeles);
         };
 
-        DataContextChanged += (_, e) =>
+        // Se engancha al ViewModel (que es SINGLETON) mientras esta vista esté
+        // en pantalla, y se suelta al salir. Sin el Unloaded, cada "cerrar
+        // sesión" dejaba una vista muerta suscrita: el evento la seguía
+        // llamando y ella intentaba abrir ventanas colgando de un shell ya
+        // cerrado (cliente 2026-08-20). Loaded vuelve a enganchar si WPF
+        // recicla la instancia.
+        DataContextChanged += (_, _) => Reenganchar();
+        Loaded += (_, _) => Reenganchar();
+        Unloaded += (_, _) => Desenganchar();
+    }
+
+    private void Reenganchar()
+    {
+        Desenganchar();
+        _vm = DataContext as VentaFinanciamientoViewModel;
+        if (_vm is not null)
         {
-            if (_vm is not null)
-            {
-                _vm.CartaSolicitada -= MostrarCarta;
-                _vm.SeparacionSolicitada -= MostrarSeparacion;
-            }
-            _vm = e.NewValue as VentaFinanciamientoViewModel;
-            if (_vm is not null)
-            {
-                _vm.CartaSolicitada += MostrarCarta;
-                _vm.SeparacionSolicitada += MostrarSeparacion;
-                _vm.CancelacionSolicitada = PedirCancelacion;
-                _vm.EdicionSolicitada = PedirCorreccion;
-            }
-        };
+            _vm.CartaSolicitada += MostrarCarta;
+            _vm.SeparacionSolicitada += MostrarSeparacion;
+            // Delegados, no eventos: se sobreescriben en vez de acumularse, así
+            // que siempre responde la vista que se enganchó última (la viva).
+            _vm.CancelacionSolicitada = PedirCancelacion;
+            _vm.EdicionSolicitada = PedirCorreccion;
+        }
+    }
+
+    private void Desenganchar()
+    {
+        if (_vm is null)
+            return;
+        _vm.CartaSolicitada -= MostrarCarta;
+        _vm.SeparacionSolicitada -= MostrarSeparacion;
     }
 
     private void MostrarCarta(CartaCompromisoImpresa carta)
     {
         var ventana = new DocumentoDealWindow("Carta de compromiso",
             $"CartaCompromiso_{carta.Codigo}",
-            () => DocumentosDealFactory.CrearCartaCompromiso(carta))
-        { Owner = Window.GetWindow(this) };
-        ventana.ShowDialog();
+            () => DocumentosDealFactory.CrearCartaCompromiso(carta));
+        ventana.MostrarDesde(this);
     }
 
     private void MostrarSeparacion(ReciboSeparacionImpreso recibo)
     {
         var ventana = new DocumentoDealWindow("Recibo de separación",
             $"Separacion_{recibo.Codigo}",
-            () => DocumentosDealFactory.CrearReciboSeparacion(recibo))
-        { Owner = Window.GetWindow(this) };
-        ventana.ShowDialog();
+            () => DocumentosDealFactory.CrearReciboSeparacion(recibo));
+        ventana.MostrarDesde(this);
     }
 
     // ---------- Emisión automática al registrar la venta (033) ----------
@@ -93,9 +107,8 @@ public partial class VentaFinanciamientoView : UserControl
         // 1. La factura
         try
         {
-            var ventana = new FacturaVentaWindow(papeles.Factura, papeles.VentaId, _vm!.Expediente)
-            { Owner = Window.GetWindow(this) };
-            ventana.ShowDialog();
+            new FacturaVentaWindow(papeles.Factura, papeles.VentaId, _vm!.Expediente)
+                .MostrarDesde(this);
         }
         catch (Exception ex)
         {
@@ -149,9 +162,7 @@ public partial class VentaFinanciamientoView : UserControl
 
         try
         {
-            var ventana = new DocumentoDealWindow(titulo, nombreArchivo, fabrica)
-            { Owner = Window.GetWindow(this) };
-            ventana.ShowDialog();
+            new DocumentoDealWindow(titulo, nombreArchivo, fabrica).MostrarDesde(this);
         }
         catch (Exception ex)
         {
@@ -165,8 +176,8 @@ public partial class VentaFinanciamientoView : UserControl
     /// </summary>
     private EdicionVenta? PedirCorreccion(VentaParaEditar datos)
     {
-        var ventana = new EditarVentaWindow(datos) { Owner = Window.GetWindow(this) };
-        return ventana.ShowDialog() == true ? ventana.Resultado : null;
+        var ventana = new EditarVentaWindow(datos);
+        return ventana.MostrarDesde(this) == true ? ventana.Resultado : null;
     }
 
     /// <summary>
@@ -176,11 +187,8 @@ public partial class VentaFinanciamientoView : UserControl
     private (string Motivo, decimal Porcentaje, bool Fijar)? PedirCancelacion(
         string codigo, decimal cobrado, decimal porcentaje, bool fija)
     {
-        var ventana = new CancelarVentaWindow(codigo, cobrado, porcentaje, fija)
-        {
-            Owner = Window.GetWindow(this)
-        };
-        return ventana.ShowDialog() == true
+        var ventana = new CancelarVentaWindow(codigo, cobrado, porcentaje, fija);
+        return ventana.MostrarDesde(this) == true
             ? (ventana.Motivo, ventana.Porcentaje, ventana.FijarPorcentaje)
             : null;
     }

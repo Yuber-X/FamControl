@@ -133,6 +133,32 @@
                  y desaparece en modo noche. -->
             <TextBlock Text="{Binding MetodoAyudaTexto}" TextWrapping="Wrap"
                        Style="{DynamicResource Texto.Caption}" Margin="0,6,0,0" />
+
+            <!-- Solo para "interés fijo primero, capital después" (2026-08-06):
+                 dónde arranca el capital. Automático = un tercio del plazo;
+                 manual = el usuario escribe la cuota exacta. -->
+            <Border Background="{DynamicResource Brush.PrimarioSutil}" CornerRadius="10"
+                    Padding="14,12" Margin="0,10,0,0"
+                    Visibility="{Binding EsCapitalDiferido, Converter={StaticResource BoolAVisibilidad}}">
+              <StackPanel>
+                <TextBlock Text="¿DESDE QUÉ CUOTA SE COBRA EL CAPITAL?"
+                           Style="{DynamicResource Texto.MicroLabel}" />
+                <RadioButton Content="Que lo decida el sistema" Margin="0,8,0,0"
+                             GroupName="InicioCapital"
+                             IsChecked="{Binding InicioCapitalAutomatico, Mode=TwoWay}" />
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                  <RadioButton Content="Elegir la cuota:" VerticalAlignment="Center"
+                               GroupName="InicioCapital"
+                               IsChecked="{Binding InicioCapitalManual, Mode=TwoWay}" />
+                  <TextBox Width="70" Margin="10,0,0,0" Style="{DynamicResource Input.Texto}"
+                           IsEnabled="{Binding InicioCapitalAutomatico,
+                                       Converter={StaticResource InversorBool}}"
+                           Text="{Binding InicioCapitalTexto, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <TextBlock Text="{Binding InicioCapitalAyuda}" TextWrapping="Wrap"
+                           Style="{DynamicResource Texto.Caption}" Margin="0,8,0,0" />
+              </StackPanel>
+            </Border>
           </StackPanel>
 
           <TextBlock Text="Garantía (opcional)" Style="{DynamicResource Input.Label}"

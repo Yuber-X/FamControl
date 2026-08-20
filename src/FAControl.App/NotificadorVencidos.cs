@@ -71,10 +71,13 @@ public class NotificadorVencidos : IAvisoVencidos
             _mostrando = true;
             try
             {
-                var ventana = new AvisoVencidosWindow(vencidos)
-                {
-                    Owner = Application.Current.MainWindow
-                };
+                // El aviso corre en segundo plano y puede caer justo cuando el
+                // shell se está cerrando: sin ventana viva no hay a quién
+                // avisarle, y colgarlo de una cerrada tumbaba la aplicación.
+                if (FAControl.Views.VentanaDuena.Principal() is not { } duena)
+                    return;
+
+                var ventana = new AvisoVencidosWindow(vencidos) { Owner = duena };
                 ventana.ShowDialog();
 
                 var silenciados = ventana.ObtenerSilenciados();

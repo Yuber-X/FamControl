@@ -7,7 +7,7 @@ POR QUE EXISTE
 Los manuales se escriben en Markdown porque es texto plano: se versiona, se
 diffea y se corrige rapido. Pero al cliente hay que entregarle un .docx que
 pueda abrir, imprimir y anotar. Este script hace ese ultimo paso, y sobre todo
-resuelve el trabajo aburrido: pegar 57 capturas en el lugar exacto sin
+resuelve el trabajo aburrido: pegar 60 capturas en el lugar exacto sin
 equivocarse.
 
 COMO SE USA
@@ -21,7 +21,7 @@ DONDE VAN LAS CAPTURAS
 ----------------------
 En `docs/imagenes/`, con el nombre que dice el marcador:
 
-    imagen-01.png ... imagen-43.png     -> las del MANUAL
+    imagen-01.png ... imagen-46.png     -> las del MANUAL
     imagen-I-01.png ... imagen-I-14.png -> las de la GUIA DE INSTALACION
 
 Sirven .png, .jpg y .jpeg: el script prueba las tres extensiones.
@@ -62,6 +62,9 @@ DOCS = os.path.join(RAIZ, "docs")
 DOCUMENTOS = [
     ("MANUAL.md", "FAControl - Manual de usuario.docx", "Manual de usuario"),
     ("INSTALL.md", "FAControl - Guia de instalacion.docx", "Guía de instalación"),
+    # No lleva capturas: son pantallas de Google, que cambian solas cada tanto y
+    # dejarian el documento desactualizado sin que nadie se entere.
+    ("CORREO-GMAIL.md", "FAControl - Correo automatico.docx", "Correo automático"),
 ]
 
 ANCHO_IMAGEN = Inches(6.0)   # ancho util de una hoja carta con margenes de 1"

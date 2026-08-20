@@ -50,8 +50,26 @@ public class AmortizacionService
             MetodoAmortizacion.CuotaFija => CalcularCuotaFija(p),
             MetodoAmortizacion.Frances => CalcularFrances(p),
             MetodoAmortizacion.SoloInteres => CalcularSoloInteres(p),
+            MetodoAmortizacion.CapitalDiferido => CalcularCapitalDiferido(p),
             _ => throw new ArgumentOutOfRangeException(nameof(p.Metodo))
         };
+    }
+
+    /// <summary>
+    /// Cuota en la que EMPIEZA a cobrarse capital cuando el usuario no la elige
+    /// (modo automático del método diferido, pedido del cliente 2026-08-06).
+    ///
+    /// Se usa un TERCIO del plazo como gracia, que es lo que da la cuenta del
+    /// ejemplo que mandó el cliente: 18 cuotas → 6 de interés fijo → arranca en
+    /// la 7. Es una SUGERENCIA: el formulario la muestra y el usuario puede
+    /// escribir cualquier otra (modo manual).
+    /// </summary>
+    public static int CuotaInicioCapitalSugerida(int plazoCuotas)
+    {
+        if (plazoCuotas <= 1)
+            return 1;
+        var gracia = plazoCuotas / 3;                  // 18 → 6
+        return Math.Clamp(gracia + 1, 2, plazoCuotas); // 18 → 7
     }
 
     /// <summary>
@@ -116,6 +134,21 @@ public class AmortizacionService
             throw new ArgumentException("La tasa de interés no puede ser negativa.");
         if (p.PlazoCuotas <= 0)
             throw new ArgumentException("El plazo debe ser de al menos 1 cuota.");
+
+        // Modo manual del método diferido: el usuario escribe la cuota donde
+        // arranca el capital, así que puede escribir cualquier cosa.
+        if (p.Metodo == MetodoAmortizacion.CapitalDiferido &&
+            p.Modalidad != Modalidad.PagoUnico &&
+            p.CuotaInicioCapital is { } inicio)
+        {
+            if (inicio < 1)
+                throw new ArgumentException(
+                    "La cuota donde empieza a cobrarse el capital no puede ser menor que 1.");
+            if (inicio > p.PlazoCuotas)
+                throw new ArgumentException(
+                    $"El capital tiene que empezar a cobrarse en alguna de las {p.PlazoCuotas} cuotas. " +
+                    $"Si empieza en la {inicio}, no se cobraría nunca.");
+        }
     }
 
     /// <summary>
@@ -127,39 +160,44 @@ public class AmortizacionService
     ///   capitalPorCuota = P / n
     ///   cuota           = capitalPorCuota + interésPorCuota
     ///
-    /// Redondeo: cada componente se redondea a 2 decimales (AwayFromZero) y la
-    /// ÚLTIMA cuota absorbe la diferencia para que las sumas cuadren exactas.
+    /// Redondeo: el INTERÉS es el mismo en todas las cuotas, porque en este
+    /// método se calcula siempre sobre el capital original — es la definición
+    /// del interés simple, y así es como el prestamista lo dice ("son 600 de
+    /// interés todos los meses"). Solo el CAPITAL absorbe el redondeo en la
+    /// última cuota, que es donde P/n casi nunca da justo.
+    ///
+    /// ANTES (corregido el 07/08/2026): el interés total se redondeaba aparte y
+    /// la última cuota absorbía TAMBIÉN esa diferencia. Cuando el interés por
+    /// cuota era de centavos y redondeaba para arriba, lo acumulado superaba al
+    /// total y la última cuota salía con INTERÉS NEGATIVO. Pasaba con préstamos
+    /// diarios chicos, que son pan de cada día: RD$500 al 1% a 60 días daba
+    /// −0.03 en la última.
     /// </summary>
     private static List<CuotaCalculada> CalcularCuotaFija(ParametrosAmortizacion p)
     {
         var i = TasaPorPeriodo(p.TasaInteresMensual, p.Modalidad);
         var n = PlazoEfectivo(p);
 
-        // Totales exactos, redondeados una sola vez (regla: redondear al final)
-        var interesTotal = Math.Round(p.MontoCapital * i * n, 2, MidpointRounding.AwayFromZero);
-
         var capitalPorCuota = Math.Round(p.MontoCapital / n, 2, MidpointRounding.AwayFromZero);
         var interesPorCuota = Math.Round(p.MontoCapital * i, 2, MidpointRounding.AwayFromZero);
 
         var tabla = new List<CuotaCalculada>(n);
         var capitalAcumulado = 0m;
-        var interesAcumulado = 0m;
 
         for (var k = 1; k <= n; k++)
         {
-            decimal capital, interes;
+            // El interés no cambia nunca: es P × i, la misma cuenta todos los períodos.
+            var interes = interesPorCuota;
+            decimal capital;
             if (k < n)
             {
                 capital = capitalPorCuota;
-                interes = interesPorCuota;
                 capitalAcumulado += capital;
-                interesAcumulado += interes;
             }
             else
             {
-                // La última cuota absorbe la diferencia de redondeo
+                // La última cuota absorbe la diferencia de redondeo del capital
                 capital = p.MontoCapital - capitalAcumulado;
-                interes = interesTotal - interesAcumulado;
             }
 
             var saldoDespues = k < n ? p.MontoCapital - capitalAcumulado : 0m;
@@ -212,8 +250,15 @@ public class AmortizacionService
 
             if (k < n)
             {
-                capital = cuotaRedondeada - interes;
-                cuota = cuotaRedondeada;
+                // El abono NUNCA puede pasar del saldo que queda.
+                // Corregido el 07/08/2026: la cuota se redondea para arriba, así
+                // que con tasas altas y plazos largos el préstamo se saldaba
+                // ANTES de la última cuota y el código seguía restando capital.
+                // El saldo se iba a negativo (1,000 al 10% × 100 cuotas llegaba
+                // a −135.69) y la última cuota terminaba con capital negativo,
+                // como si el prestamista tuviera que devolver plata.
+                capital = Math.Min(cuotaRedondeada - interes, saldo);
+                cuota = capital + interes;
             }
             else
             {
@@ -269,6 +314,62 @@ public class AmortizacionService
                 capital + interes,
                 // El saldo no se mueve hasta que se salda: es la esencia del abierto
                 esUltima ? 0m : p.MontoCapital));
+        }
+
+        return tabla;
+    }
+
+    /// <summary>
+    /// Interés fijo primero, capital después (cliente 2026-08-06). Es el método
+    /// con el que trabajaban "unos clientes de los viejos" y que no estaba en el
+    /// sistema, así que no podían ni imprimirles la cotización.
+    ///
+    ///   cuotas 1 .. (inicio-1)   interés = P × i,  capital = 0   (el saldo no baja)
+    ///   cuotas inicio .. n       capital = P / (n − inicio + 1)  (constante)
+    ///                            interés = saldo × i             (sobre saldo, ya baja)
+    ///
+    /// El abono a capital es CONSTANTE, no la cuota: por eso el pago total va
+    /// bajando mes a mes. Es amortización alemana con período de gracia.
+    ///
+    /// Redondeo: el capital por cuota se redondea una sola vez y la ÚLTIMA cuota
+    /// se lleva lo que quede, para que el saldo cierre EXACTO en cero. Un saldo
+    /// final de 0.01 obligaría al cliente a volver a pagar por un centavo.
+    /// </summary>
+    private static List<CuotaCalculada> CalcularCapitalDiferido(ParametrosAmortizacion p)
+    {
+        var i = TasaPorPeriodo(p.TasaInteresMensual, p.Modalidad);
+        var n = PlazoEfectivo(p);
+        var inicio = p.CuotaInicioCapital ?? CuotaInicioCapitalSugerida(n);
+
+        var cuotasConCapital = n - inicio + 1;
+        var capitalPorCuota = Math.Round(p.MontoCapital / cuotasConCapital, 2, MidpointRounding.AwayFromZero);
+
+        var tabla = new List<CuotaCalculada>(n);
+        var saldo = p.MontoCapital;
+
+        for (var k = 1; k <= n; k++)
+        {
+            // El interés SIEMPRE se calcula sobre el saldo al empezar la cuota.
+            // Durante la gracia el saldo es el capital entero, así que da el
+            // mismo número todos los meses; después empieza a bajar solo.
+            var interes = Math.Round(saldo * i, 2, MidpointRounding.AwayFromZero);
+
+            decimal capital;
+            if (k < inicio)
+                capital = 0m;
+            else if (k < n)
+                capital = capitalPorCuota;
+            else
+                capital = saldo;   // la última liquida el saldo exacto
+
+            saldo -= capital;
+            tabla.Add(new CuotaCalculada(
+                k,
+                FechaDeCuota(p.FechaPrimerPago, p.Modalidad, k),
+                capital,
+                interes,
+                capital + interes,
+                saldo));
         }
 
         return tabla;

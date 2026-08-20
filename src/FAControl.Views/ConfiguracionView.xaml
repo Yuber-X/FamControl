@@ -292,12 +292,27 @@
                      Margin="0,0,0,4" />
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,4"
                      Text="{Binding RecordatoriosDescripcion}" />
-          <!-- Guía del App Password: la causa #1 de fallos es usar la contraseña normal -->
+          <!-- Guía del App Password: la causa #1 de fallos es usar la contraseña
+               normal, y la #2 es entrar a /apppasswords SIN la verificación en 2
+               pasos prendida — ahí Google contesta "esa opción no está
+               disponible para tu cuenta" y no explica por qué (cliente
+               2026-08-20). Por eso el paso 1 ahora es prender los 2 pasos. -->
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12">
-            <Run Text="La 'Contraseña de aplicación' NO es tu contraseña de Gmail, ni tu PIN, ni la de FAControl: es un código de 16 letras que genera Google (la cuenta remitente debe tener la verificación en 2 pasos activada). Pasos: 1) abrí " />
+            <Run Text="La 'Contraseña de aplicación' NO es tu contraseña de Gmail, ni tu PIN, ni la de FAControl: es un código de 16 letras que genera Google." />
+            <LineBreak />
+            <Run Text="1) Prendé la verificación en 2 pasos de la cuenta remitente en " />
+            <Hyperlink NavigateUri="https://myaccount.google.com/signinoptions/twosv"
+                       RequestNavigate="Hyperlink_RequestNavigate">myaccount.google.com/signinoptions/twosv</Hyperlink>
+            <Run Text=". SIN esto el paso 2 no existe: Google responde que 'esa opción no está disponible para tu cuenta'." />
+            <LineBreak />
+            <Run Text="2) Entrá a " />
             <Hyperlink NavigateUri="https://myaccount.google.com/apppasswords"
                        RequestNavigate="Hyperlink_RequestNavigate">myaccount.google.com/apppasswords</Hyperlink>
-            <Run Text="; 2) escribí un nombre (ej: FAControl) y tocá 'Crear'; 3) copiá las 16 letras que aparecen y pegalas acá (los espacios se quitan solos)." />
+            <Run Text=", escribí un nombre (ej: FAControl) y tocá 'Crear'." />
+            <LineBreak />
+            <Run Text="3) Copiá las 16 letras que aparecen y pegalas acá (los espacios se quitan solos)." />
+            <LineBreak />
+            <Run Text="Guía completa con capturas: docs\CORREO-GMAIL.md" />
           </TextBlock>
 
           <CheckBox Content="{Binding RecordatoriosActivarTexto}" FontSize="13"
@@ -393,6 +408,15 @@
           </WrapPanel>
           <TextBlock Text="{Binding UltimoRespaldoTexto}" Style="{DynamicResource Texto.Caption}"
                      Margin="24,4,0,0" />
+          <!-- El respaldo automático corre solo al arrancar: si falla, este es el
+               único lugar donde el usuario se puede enterar. -->
+          <Border Background="{DynamicResource Brush.Aviso.Fondo}" CornerRadius="8"
+                  Padding="12,10" Margin="24,8,0,0"
+                  Visibility="{Binding HayFalloDeRespaldo, Converter={StaticResource BoolAVisibilidad}}">
+            <TextBlock Text="{Binding RespaldoFalloTexto}" TextWrapping="Wrap"
+                       Style="{DynamicResource Texto.Caption}"
+                       Foreground="{DynamicResource Brush.Aviso.Texto}" />
+          </Border>
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="24,6,0,0"
                      Foreground="{DynamicResource Brush.TextoTerciario}"
                      Text="Consejo: si elegís la carpeta de OneDrive o Google Drive de tu PC, cada respaldo se sube solo a la nube." />

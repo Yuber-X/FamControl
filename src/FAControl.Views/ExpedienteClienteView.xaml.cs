@@ -79,7 +79,6 @@ public partial class ExpedienteClienteView : UserControl
         if (Vm is not { } vm)
             return;
 
-        var ventana = new DocumentoAccionesWindow(vm, fila) { Owner = Window.GetWindow(this) };
-        ventana.ShowDialog();
+        new DocumentoAccionesWindow(vm, fila).MostrarDesde(this);
     }
 }

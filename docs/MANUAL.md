@@ -1,7 +1,7 @@
 # Manual de usuario — FAControl
 
 **Familia Almonte Auto Import SRL**
-Versión del programa: 1.9.2 · Fecha de este manual: 2 de agosto de 2026
+Versión del programa: 2.0.2 · Fecha de este manual: 20 de agosto de 2026
 
 ---
 
@@ -19,7 +19,7 @@ Versión del programa: 1.9.2 · Fecha de este manual: 2 de agosto de 2026
 > fotografiar. Guardá la captura con ese número (`imagen-00.png`) y pegala
 > justo debajo del bloque.
 >
-> **Total de imágenes: 43.**
+> **Total de imágenes: 46.**
 
 ---
 
@@ -73,6 +73,16 @@ La instalación está explicada paso por paso en el otro documento:
 falta, en qué orden se instalan y qué poner en cada pantalla.
 
 Este manual arranca **después** de que el programa ya está instalado.
+
+**Para actualizar a una versión nueva no hay que reinstalar nada.** Se corre el
+archivo `FAControl_Update` y listo: reemplaza solo el programa y **no toca la
+base de datos**. Los clientes, préstamos, cobros, vehículos, ventas, la
+contraseña y los documentos escaneados quedan igual. Si el programa está
+abierto, lo cierra solo y lo vuelve a abrir al terminar.
+
+> 💡 La primera vez que abrís FAControl después de actualizar puede **tardar
+> unos segundos más**: está acomodando la base de datos sola. Es normal y pasa
+> una sola vez.
 
 ---
 
@@ -270,6 +280,45 @@ sus préstamos, lo que debe y sus documentos.
 > es que esa persona ya está cargada: buscala en la lista en vez de crearla
 > de nuevo.
 
+#### El historial de pago
+
+En la ficha, arriba de los datos de contacto, hay un recuadro con una **franja
+de color** que contesta lo primero que uno se pregunta cuando alguien vuelve a
+pedir: *¿este ya me pagó antes, y cómo?*
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  📷 IMAGEN 14 — Ficha del cliente mostrando el recuadro de     │
+│     historial de pago con su franja de color                   │
+└────────────────────────────────────────────────────────────────┘
+```
+
+Dice tres cosas:
+
+1. **La calificación**, con color
+2. **Cuántas cuotas pagó en fecha** de las que ya terminó de pagar
+3. **Sus contratos**: cuántos saldó, cuántos tiene abiertos y desde cuándo es
+   cliente
+
+| Calificación | Qué significa |
+|---|---|
+| 🟢 **Excelente pagador** | 95% o más de las cuotas en fecha y hoy no debe nada |
+| 🔵 **Buen pagador** | Cumple, con algún atraso suelto y chico |
+| 🟡 **Pagador irregular** | Menos del 70% en fecha, o se atrasa más de una semana en promedio |
+| 🔴 **Riesgoso** | **Hoy tiene cuotas vencidas**, o alguna vez se atrasó más de 30 días |
+| ⚪ **Sin historial** | Todavía no terminó de pagar ninguna cuota |
+
+**No hay nada que cargar:** el programa lo saca solo de los préstamos, las
+cuotas y los pagos que ya están cargados.
+
+> 💡 **Lo de hoy pesa más que lo de antes.** Un cliente que siempre pagó bien
+> pero en este momento debe una cuota aparece como **Riesgoso**. Es a propósito:
+> de nada sirve decir "buen pagador" de alguien que está debiendo ahora mismo.
+
+> ⚠️ Un cliente **Sin historial** no es un mal cliente: es uno nuevo, o uno que
+> tiene préstamos abiertos pero todavía no terminó de pagar ninguna cuota
+> completa. El programa no inventa una nota cuando no tiene con qué juzgarlo.
+
 ### 7.3. Nuevo préstamo
 
 Acá se arma un préstamo. Se llena en orden:
@@ -279,14 +328,79 @@ Acá se arma un préstamo. Se llena en orden:
 3. **Tasa de interés** — el porcentaje por período
 4. **Cantidad de cuotas** — en cuántas veces lo va a pagar
 5. **Modalidad** — diaria, semanal, quincenal o mensual
-6. **Fecha de la primera cuota**
+6. **Método de cálculo** — ver el cuadro de abajo
+7. **Fecha de la primera cuota**
 
 A medida que escribís, **abajo aparece la tabla de cuotas** con lo que va a
 pagar en cada una. Revisala con el cliente **antes** de guardar.
 
+#### Los cuatro métodos de cálculo
+
+Debajo del combo, el programa explica en una línea el que elegiste. En corto:
+
+| Método | Cómo paga el cliente | Cuándo usarlo |
+|---|---|---|
+| **Interés fijo (dominicano)** | Cuota siempre igual. El interés se saca sobre el monto prestado | Es el de siempre y el que viene puesto |
+| **Sistema francés** | Cuota siempre igual, pero el interés se saca sobre lo que falta | Cuando querés que la cuota no cambie y el interés baje solo |
+| **Abierto (solo interés)** | Paga **solo el interés** todos los meses; el capital queda abierto | Montos grandes "a sola firma", que se renuevan |
+| **Interés fijo primero, capital después** | Los primeros meses solo interés; después empieza a bajar el capital | El trato de los clientes viejos (ver abajo) |
+
+#### Interés fijo primero, capital después
+
+Es el que pidieron los clientes de siempre: *"tasa fija de 6 meses, y del 7 en
+adelante cambia según el capital que dejaron"*.
+
+Funciona así:
+
+- Las **primeras cuotas son solo interés**. El cliente paga lo mismo todos los
+  meses y lo que debe no baja.
+- **Desde la cuota que elijas**, cada cuota lleva además un **abono a capital
+  fijo**. Como la deuda empieza a bajar, el interés también baja, y **la cuota
+  va bajando mes a mes** hasta saldar todo.
+
+Ejemplo real — RD$150,000 al 5% mensual, 18 cuotas, capital desde la 7:
+
+| Cuota | Interés | Abono a capital | **Paga** | Le queda debiendo |
+|---|---|---|---|---|
+| 1 a 6 | 7,500 | 0 | **7,500** | 150,000 |
+| 7 | 7,500 | 12,500 | **20,000** | 137,500 |
+| 8 | 6,875 | 12,500 | **19,375** | 125,000 |
+| … | … | … | … | … |
+| 18 | 625 | 12,500 | **13,125** | 0 |
+
+Cuando elegís este método aparece un recuadro con dos opciones:
+
+- **Que lo decida el sistema** — usa un tercio del plazo como meses de solo
+  interés (con 18 cuotas, arranca el capital en la 7)
+- **Elegir la cuota** — escribís vos el número exacto, que es lo normal cuando
+  ya lo hablaste con el cliente
+
+**Ojo con qué número va ahí:** es la cuota en la que **empieza a cobrarse el
+capital**, no la última de solo interés. Para que el cliente pague seis meses de
+puro interés, el número es **7**.
+
+Debajo, el programa te dice en palabras lo que va a pasar: *"Cuotas 1 a 6: solo
+interés. Desde la 7 se agrega el abono a capital (12 cuotas para saldar)."*
+Leelo antes de guardar: es la forma más rápida de confirmar que entendió lo
+mismo que vos.
+
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 14 — Pantalla de nuevo préstamo con la tabla de     │
+│  📷 IMAGEN 15 — El recuadro de "¿desde qué cuota se cobra el   │
+│     capital?" con la tabla de cuotas abajo                     │
+└────────────────────────────────────────────────────────────────┘
+```
+
+> 💡 **La diferencia con el Abierto:** en el abierto el capital nunca se paga
+> hasta que el cliente decida saldarlo. Acá **sí se termina de pagar**, en la
+> fecha pactada.
+
+> 💡 **La diferencia con el Francés:** en el francés la cuota es siempre la
+> misma. Acá **la cuota va bajando** desde que arranca el capital.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  📷 IMAGEN 16 — Pantalla de nuevo préstamo con la tabla de     │
 │     cuotas calculada abajo                                     │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -296,7 +410,7 @@ cliente).
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 15 — Vista previa del pagaré, listo para imprimir   │
+│  📷 IMAGEN 17 — Vista previa del pagaré, listo para imprimir   │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -315,7 +429,7 @@ va:
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 16 — Lista de préstamos con filas de varios colores │
+│  📷 IMAGEN 18 — Lista de préstamos con filas de varios colores │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -324,7 +438,7 @@ pagadas y cuánto falta.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 17 — Detalle de un préstamo con su tabla de cuotas  │
+│  📷 IMAGEN 19 — Detalle de un préstamo con su tabla de cuotas  │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -340,7 +454,7 @@ pagadas y cuánto falta.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 18 — Pantalla de cobros con un pago cargado         │
+│  📷 IMAGEN 20 — Pantalla de cobros con un pago cargado         │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -348,7 +462,7 @@ El programa **imprime el recibo** solo. Ese papel es del cliente.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 19 — Recibo de pago (vista previa o impreso)        │
+│  📷 IMAGEN 21 — Recibo de pago (vista previa o impreso)        │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -374,14 +488,14 @@ Cada fila tiene dos botones:
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 20 — Pantalla de Contratos con los botones          │
+│  📷 IMAGEN 22 — Pantalla de Contratos con los botones          │
 │     Archivos y Pagaré en las filas                             │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 21 — Expediente de un contrato con archivos subidos │
+│  📷 IMAGEN 23 — Expediente de un contrato con archivos subidos │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -398,7 +512,7 @@ cuánta plata te deben.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 22 — Panel de DealControl completo                  │
+│  📷 IMAGEN 24 — Panel de DealControl completo                  │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -419,7 +533,7 @@ cuando el alquiler se cierra vuelve a Disponible. No hay que tocarlo a mano.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 23 — Lista de vehículos con los distintos estados   │
+│  📷 IMAGEN 25 — Lista de vehículos con los distintos estados   │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -429,13 +543,13 @@ cuánto lo vas a vender.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 24 — Formulario de vehículo nuevo                   │
+│  📷 IMAGEN 26 — Formulario de vehículo nuevo                   │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 25 — Ficha de un vehículo con sus fotos y gastos    │
+│  📷 IMAGEN 27 — Ficha de un vehículo con sus fotos y gastos    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -450,7 +564,7 @@ que ves es mentira.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 26 — Pantalla de gastos de importación de un        │
+│  📷 IMAGEN 28 — Pantalla de gastos de importación de un        │
 │     vehículo, con varios gastos cargados                       │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -463,7 +577,7 @@ el cliente, el precio y el método de pago. El vehículo pasa solo a
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 27 — Pantalla de venta al contado                   │
+│  📷 IMAGEN 29 — Pantalla de venta al contado                   │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -482,7 +596,7 @@ El programa arma el plan de pagos y lo muestra antes de guardar.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 28 — Nueva venta financiada con el plan de plazos   │
+│  📷 IMAGEN 30 — Nueva venta financiada con el plan de plazos   │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -491,7 +605,7 @@ registrás el cobro. Ahí ves cuánto lleva pagado y cuánto falta.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 29 — Detalle de una venta financiada: plazos,       │
+│  📷 IMAGEN 31 — Detalle de una venta financiada: plazos,       │
 │     cobros y lo que falta                                      │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -510,11 +624,26 @@ registrás el cobro. Ahí ves cuánto lleva pagado y cuánto falta.
 Alquilar un vehículo por días.
 
 Al crear el alquiler ponés el vehículo, el cliente, **desde cuándo hasta
-cuándo** y la **tarifa por día**. El programa calcula el total.
+cuándo** y la **tarifa**. El programa calcula el total.
+
+**La tarifa se puede poner por día o por mes.** Hay dos casillas y escribís la
+que tengas a mano: al llenar una, **la otra se completa sola**. Un mes cuenta
+como 30 días.
+
+| Si escribís… | El programa pone… |
+|---|---|
+| Tarifa por día: `1,500` | Tarifa por mes: `45,000` |
+| Tarifa por mes: `30,000` | Tarifa por día: `1,000` |
+
+Sirve para cuando el trato se habla en meses ("se lo dejo en 30 mil al mes")
+pero el contrato se cobra por días.
+
+> 💡 El total siempre se calcula con la **tarifa por día**, que es la que queda
+> guardada. La mensual es solo una comodidad para no sacar la cuenta a mano.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 30 — Pantalla de nuevo alquiler                     │
+│  📷 IMAGEN 32 — Pantalla de nuevo alquiler                     │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -522,7 +651,7 @@ En el **detalle del alquiler** está todo lo demás:
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 31 — Detalle de un alquiler activo, con los botones │
+│  📷 IMAGEN 33 — Detalle de un alquiler activo, con los botones │
 │     Renovar, Editar y Cerrar arriba                            │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -538,7 +667,7 @@ la tarifa (la misma o una nueva). El vehículo **no** vuelve al inventario.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 32 — Ventana de "Renovar alquiler" con la fecha     │
+│  📷 IMAGEN 34 — Ventana de "Renovar alquiler" con la fecha     │
 │     nueva y la tarifa                                          │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -556,7 +685,7 @@ las dos cosas pasó**:
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 33 — Ventana de cierre preguntando Devuelto o       │
+│  📷 IMAGEN 35 — Ventana de cierre preguntando Devuelto o       │
 │     Cancelado                                                  │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -569,7 +698,7 @@ decidís: lo cerrás o lo renovás.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 34 — Cartel de alquiler atrasado                    │
+│  📷 IMAGEN 36 — Cartel de alquiler atrasado                    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -598,7 +727,7 @@ La oficina del mostrador.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 35 — Pantalla de Vender con varios productos en el  │
+│  📷 IMAGEN 37 — Pantalla de Vender con varios productos en el  │
 │     carrito y el total abajo                                   │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -607,7 +736,7 @@ La factura se **imprime sola**. El stock de cada producto **baja solo**.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 36 — Factura / ticket impreso                       │
+│  📷 IMAGEN 38 — Factura / ticket impreso                       │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -621,13 +750,13 @@ stock** y, si aplica, **fecha de caducidad**.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 37 — Lista de productos                             │
+│  📷 IMAGEN 39 — Lista de productos                             │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 38 — Formulario de producto nuevo                   │
+│  📷 IMAGEN 40 — Formulario de producto nuevo                   │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -641,7 +770,7 @@ conteo). Queda anotado en el historial: así después se sabe qué pasó.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 39 — Pantalla de Almacén con una entrada de         │
+│  📷 IMAGEN 41 — Pantalla de Almacén con una entrada de         │
 │     mercancía                                                  │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -656,7 +785,7 @@ Configuración → Correo.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 40 — Pantalla de Caducidad con productos por vencer │
+│  📷 IMAGEN 42 — Pantalla de Caducidad con productos por vencer │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -670,7 +799,7 @@ Desde acá se **reimprime** o se **anula**.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 41 — Pantalla de Buscar comprobante                 │
+│  📷 IMAGEN 43 — Pantalla de Buscar comprobante                 │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -684,7 +813,7 @@ falta, ahí se ve.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 42 — Pantalla de Cuadre de caja                     │
+│  📷 IMAGEN 44 — Pantalla de Cuadre de caja                     │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -706,7 +835,7 @@ quién cambió tal precio.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  📷 IMAGEN 43 — Pantalla de Historial con varios movimientos   │
+│  📷 IMAGEN 45 — Pantalla de Historial con varios movimientos   │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -728,7 +857,7 @@ quien puede todo.
 | **Comprobante fiscal (NCF)** | La secuencia autorizada por la DGII |
 | **Respaldo** | Copias de seguridad, manuales y automáticas |
 | **Exportar a Excel** | Bajar toda la información a una planilla |
-| **Correo** | Para los avisos automáticos |
+| **Correo** | Para los avisos automáticos — ver abajo |
 | **ITBIS y comisión** *(solo POS-500)* | El impuesto y la comisión del vendedor |
 
 **Sobre el comprobante fiscal (NCF):** cuando marcás la casilla **"Usar
@@ -738,6 +867,16 @@ Escribí ahí la secuencia que **la DGII le autorizó a tu negocio**.
 
 > ⚠️ Cada oficina lleva **su propia** secuencia. Lo que configures en
 > DealControl no afecta a PrestControl ni al POS-500.
+
+**Sobre el correo automático:** la casilla no alcanza. Gmail exige una
+**contraseña de aplicación** —un código de 16 letras que genera Google, distinto
+de la contraseña de la cuenta— y para poder generarla la cuenta tiene que tener
+la **verificación en 2 pasos** prendida.
+
+Si al entrar a la página de contraseñas de aplicación Google contesta *"la
+configuración que buscas no está disponible para tu cuenta"*, es exactamente
+eso: falta prender la verificación en 2 pasos. El paso a paso completo está en
+**`docs\CORREO-GMAIL.md`**, en la misma carpeta donde se instaló FAControl.
 
 **Sobre exportar a Excel:** el archivo sale con el nombre de la oficina al
 final (`FAControl_Export_2026-08-01 DealControl.xlsx`), así no se pisan entre
@@ -758,6 +897,31 @@ dónde guardar el archivo. Hacelo **antes de cualquier cosa importante**.
 **Respaldo automático** — en la misma pantalla se activa y se elige cada
 cuántos días. Poné como carpeta destino la de **Google Drive**: así el
 respaldo sube solo a internet y sobrevive aunque la computadora no.
+
+Debajo de la casilla dice **cuándo fue el último respaldo automático**. Miralo
+de vez en cuando.
+
+#### Si el respaldo automático falla
+
+El respaldo automático corre solo al abrir el programa. Si alguna vez no puede
+hacerlo, aparece **un cartel amarillo** en esa misma pantalla con la fecha y el
+motivo, y **no se va hasta que un respaldo salga bien**.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  📷 IMAGEN 46 — Configuración → Respaldo, con el cartel        │
+│     amarillo de respaldo automático fallido                    │
+└────────────────────────────────────────────────────────────────┘
+```
+
+Si lo ves: **hacé un respaldo a mano con el botón de arriba** y avisá. Los
+motivos más comunes son que la carpeta de destino ya no existe (se borró la de
+Google Drive) o que el disco se llenó.
+
+> 🔴 **Por qué importa tanto:** antes este error no se veía en ningún lado. El
+> respaldo podía estar fallando meses y en la pantalla se seguía leyendo la
+> fecha del último respaldo **bueno**, que se confunde con "todavía no toca".
+> Uno se enteraba el día que necesitaba el respaldo, que es el peor día.
 
 **Restaurar** — el botón está al lado. Elegís el archivo de respaldo y el
 programa vuelve a como estaba ese día.

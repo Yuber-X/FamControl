@@ -34,20 +34,20 @@ public partial class AlquilerDetalleView : UserControl
     /// </summary>
     private CierreAlquilerDatos? PedirCierre(CierreAlquilerPedido pedido)
     {
-        var ventana = new CerrarAlquilerWindow(pedido) { Owner = Window.GetWindow(this) };
-        return ventana.ShowDialog() == true ? ventana.Resultado : null;
+        var ventana = new CerrarAlquilerWindow(pedido);
+        return ventana.MostrarDesde(this) == true ? ventana.Resultado : null;
     }
 
     private EdicionAlquiler? PedirCorreccion(AlquilerParaEditar datos)
     {
-        var ventana = new EditarAlquilerWindow(datos) { Owner = Window.GetWindow(this) };
-        return ventana.ShowDialog() == true ? ventana.Resultado : null;
+        var ventana = new EditarAlquilerWindow(datos);
+        return ventana.MostrarDesde(this) == true ? ventana.Resultado : null;
     }
 
     /// <summary>El cliente sigue con el auto: hasta cuándo y a qué precio (039).</summary>
     private RenovacionAlquiler? PedirRenovacion(RenovacionAlquilerPedido pedido)
     {
-        var ventana = new RenovarAlquilerWindow(pedido) { Owner = Window.GetWindow(this) };
-        return ventana.ShowDialog() == true ? ventana.Resultado : null;
+        var ventana = new RenovarAlquilerWindow(pedido);
+        return ventana.MostrarDesde(this) == true ? ventana.Resultado : null;
     }
 }

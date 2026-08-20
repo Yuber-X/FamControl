@@ -21,7 +21,13 @@ public record NuevoPrestamo(
     /// Préstamo ANTIGUO con fecha atrasada (pedido 2026-07-25): las primeras N
     /// cuotas nacen pagadas, con recibos históricos fechados en su vencimiento.
     /// </summary>
-    int CuotasPagadasAlCrear = 0);
+    int CuotasPagadasAlCrear = 0,
+    /// <summary>
+    /// Solo para <see cref="MetodoAmortizacion.CapitalDiferido"/> (2026-08-06):
+    /// primera cuota que ya lleva abono a capital (modo manual). NULL = que lo
+    /// decida el sistema (modo automático).
+    /// </summary>
+    int? CuotaInicioCapital = null);
 
 /// <summary>
 /// Fila de la lista de préstamos: préstamo + cliente + agregados de sus cuotas
@@ -66,7 +72,13 @@ public record EdicionPrestamo(
     string? Garantia,
     string? Notas,
     /// <summary>Por que se corrige. Va a la auditoria; obligatorio.</summary>
-    string Motivo);
+    string Motivo,
+    /// <summary>
+    /// Solo para <see cref="MetodoAmortizacion.CapitalDiferido"/>: primera cuota
+    /// con abono a capital. NULL = automatico. Corregir un prestamo diferido sin
+    /// este dato lo recalcularia con la cuota sugerida en vez de la pactada.
+    /// </summary>
+    int? CuotaInicioCapital = null);
 
 /// <summary>
 /// Que tanto se puede corregir de un prestamo, segun si ya tiene cobros.

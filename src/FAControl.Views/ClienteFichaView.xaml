@@ -7,6 +7,7 @@
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
@@ -90,8 +91,103 @@
       </Border>
     </UniformGrid>
 
+    <!-- Historial de buena conducta (pedido 2026-08-06).
+         Lo primero que se pregunta el prestamista cuando alguien vuelve a pedir:
+         "¿este ya me pagó antes, y cómo?". El color de la barra lateral y de la
+         etiqueta salen de ConductaClave, que es el nombre del enum. -->
+    <Border Grid.Row="2" Style="{DynamicResource Card}" Margin="0,0,0,12" Padding="0">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="6" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Franja de color: se ve la calificación sin leer nada -->
+        <Border Grid.Column="0" CornerRadius="10,0,0,10">
+          <Border.Style>
+            <Style TargetType="Border">
+              <Setter Property="Background" Value="{DynamicResource Brush.Cancelado.Fondo}" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding ConductaClave}" Value="Excelente">
+                  <Setter Property="Background" Value="{DynamicResource Brush.AlDia.Texto}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ConductaClave}" Value="Buena">
+                  <Setter Property="Background" Value="{DynamicResource Brush.Pagado.Texto}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ConductaClave}" Value="Regular">
+                  <Setter Property="Background" Value="{DynamicResource Brush.PorVencer.Texto}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ConductaClave}" Value="Riesgosa">
+                  <Setter Property="Background" Value="{DynamicResource Brush.EnMora.Texto}" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
+        </Border>
+
+        <StackPanel Grid.Column="1" Margin="20,14,20,14">
+          <DockPanel>
+            <Border DockPanel.Dock="Left" CornerRadius="6" Padding="10,3" VerticalAlignment="Center">
+              <Border.Style>
+                <Style TargetType="Border">
+                  <Setter Property="Background" Value="{DynamicResource Brush.Cancelado.Fondo}" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding ConductaClave}" Value="Excelente">
+                      <Setter Property="Background" Value="{DynamicResource Brush.AlDia.Fondo}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding ConductaClave}" Value="Buena">
+                      <Setter Property="Background" Value="{DynamicResource Brush.Pagado.Fondo}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding ConductaClave}" Value="Regular">
+                      <Setter Property="Background" Value="{DynamicResource Brush.PorVencer.Fondo}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding ConductaClave}" Value="Riesgosa">
+                      <Setter Property="Background" Value="{DynamicResource Brush.EnMora.Fondo}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Border.Style>
+              <TextBlock Text="{Binding ConductaTitulo}" FontWeight="SemiBold" FontSize="13">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="Foreground" Value="{DynamicResource Brush.Cancelado.Texto}" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding ConductaClave}" Value="Excelente">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.AlDia.Texto}" />
+                      </DataTrigger>
+                      <DataTrigger Binding="{Binding ConductaClave}" Value="Buena">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.Pagado.Texto}" />
+                      </DataTrigger>
+                      <DataTrigger Binding="{Binding ConductaClave}" Value="Regular">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.PorVencer.Texto}" />
+                      </DataTrigger>
+                      <DataTrigger Binding="{Binding ConductaClave}" Value="Riesgosa">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.EnMora.Texto}" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+            </Border>
+            <TextBlock Text="HISTORIAL DE PAGO" Style="{DynamicResource Texto.MicroLabel}"
+                       VerticalAlignment="Center" Margin="12,0,0,0" />
+          </DockPanel>
+
+          <TextBlock Text="{Binding ConductaResumen}" Style="{DynamicResource Texto.CuerpoEnfatizado}"
+                     TextWrapping="Wrap" Margin="0,10,0,0" />
+          <TextBlock Text="{Binding ConductaContratos}" Style="{DynamicResource Texto.Caption}"
+                     Foreground="{DynamicResource Brush.TextoSecundario}"
+                     TextWrapping="Wrap" Margin="0,4,0,0" />
+          <TextBlock Text="{Binding ConductaAtrasos}" Style="{DynamicResource Texto.Caption}"
+                     Foreground="{DynamicResource Brush.TextoSecundario}"
+                     TextWrapping="Wrap" Margin="0,4,0,0"
+                     Visibility="{Binding ConductaAtrasos, Converter={StaticResource TextoAVisibilidad}}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
     <!-- Información de contacto -->
-    <Border Grid.Row="2" Style="{DynamicResource Card}" Margin="0,0,0,12" Padding="20,14">
+    <Border Grid.Row="3" Style="{DynamicResource Card}" Margin="0,0,0,12" Padding="20,14">
       <WrapPanel>
         <StackPanel Margin="0,0,32,0">
           <TextBlock Text="TELÉFONO" Style="{DynamicResource Texto.MicroLabel}" />
@@ -119,7 +215,7 @@
     </Border>
 
     <!-- Préstamos del cliente -->
-    <Border Grid.Row="3" Style="{DynamicResource Card}" Padding="0">
+    <Border Grid.Row="4" Style="{DynamicResource Card}" Padding="0">
       <Grid>
         <TextBlock Text="Este cliente aún no tiene préstamos."
                    HorizontalAlignment="Center" VerticalAlignment="Center">

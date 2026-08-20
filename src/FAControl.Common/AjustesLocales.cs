@@ -73,6 +73,16 @@ public class AjustesLocales
     public string? RespaldoAutomaticoCarpeta { get; set; }
     public DateTime? UltimoRespaldoUtc { get; set; }
 
+    /// <summary>
+    /// Motivo del último respaldo automático que falló, o null si el último salió
+    /// bien. Existe desde el 2026-08-06: el respaldo automático corre solo al
+    /// arrancar y su error solo iba al log, así que podía estar fallando meses
+    /// sin que nadie se enterara. La pantalla de Configuración mostraba la fecha
+    /// del último respaldo BUENO, que se lee igual que "todavía no toca".
+    /// </summary>
+    public string? UltimoRespaldoError { get; set; }
+    public DateTime? UltimoRespaldoErrorUtc { get; set; }
+
     /// <summary>Días equivalentes del intervalo de respaldo (1 mes ≈ 30 días).</summary>
     public int RespaldoIntervaloEnDias =>
         Math.Max(1, RespaldoAutomaticoCada) * (RespaldoAutomaticoUnidad == "meses" ? 30 : 1);

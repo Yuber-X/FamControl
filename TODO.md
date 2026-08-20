@@ -1,6 +1,47 @@
 # TODO.md — FAControl
 
-> Actualizado: 2026-07-30 (POS-500 integrado + expediente de prestamos)
+> Actualizado: 2026-08-20 (ronda de la prueba de Veronica — version 2.0.2)
+
+## Ronda de la prueba de Veronica (2026-08-20) — 2.0.2
+
+- [x] Icono propio: monograma FA sobre navy, generado del logo vectorial
+      (`scripts/marca/generar_icono.py`), 9 tamanos. Reemplaza la "P" morada
+      heredada de la plantilla
+- [x] Pagare al crear un prestamo: "no se puede establecer Owner en un Window
+      que se ha cerrado". Las vistas se sueltan del ViewModel singleton al salir
+      de pantalla, y ninguna ventana se cuelga de otra ya cerrada (`VentanaDuena`)
+- [x] Corregir un prestamo diferido conservaba la cuota pactada: la ventana de
+      correccion no mandaba `CuotaInicioCapital` y el servicio recalculaba con
+      la sugerida, cambiandole la tabla al cliente
+- [x] `docs/CORREO-GMAIL.md`: paso a paso del correo automatico, empezando por
+      prender la verificacion en 2 pasos (sin eso Google esconde la pagina de
+      contrasenas de aplicacion). La ayuda en Configuracion tambien
+- [x] Barrido de invariantes de los calculos del POS-500
+      (`AuditoriaCalculosPosTests`): totales, ITBIS, redondeo, cambio, comision,
+      numero de factura y semaforo de caducidad. No encontro errores
+- [x] `scripts/calidad/verificar_recursos_xaml.py` traido de MED-100: 90 claves
+      usadas, todas definidas
+- [x] Actualizador e instalador 2.0.2 recompilados
+- [~] "¿Desde que cuota se cobra el capital?": se dio vuelta la pregunta y se
+      REVIRTIO. Era confusion de uso, no un bug — el campo ya permite escribir
+      la cuota. Si vuelve a aparecer el reporte, es tema de explicacion, no de
+      codigo
+
+### Pendiente de probar a mano
+- [ ] Crear un prestamo despues de "Cambiar de usuario": el pagare tiene que
+      salir (es el camino exacto que fallaba)
+- [ ] Prestamo diferido: crear con "capital desde la 4", corregirlo sin tocar
+      nada y verificar que la tabla NO se mueve
+- [ ] Correo: seguir `docs/CORREO-GMAIL.md` con la cuenta del negocio y mandar
+      la prueba
+- [ ] Confirmar que el icono nuevo aparece en la barra de tareas y el escritorio
+      (si queda el viejo: `ie4uinit.exe -show`)
+
+### Deuda conocida (no bloquea)
+- [ ] Las vistas que NO se suscriben a eventos del ViewModel (listas, formularios)
+      siguen sin ciclo de vida explicito. No hacen dano —no abren ventanas— pero
+      el dia que una lo haga, hay que engancharla con el mismo patron de
+      Reenganchar/Desenganchar
 
 ## Ronda de correcciones y cierre de PrestControl (2026-07-30)
 

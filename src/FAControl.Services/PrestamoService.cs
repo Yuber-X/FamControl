@@ -68,7 +68,8 @@ public class PrestamoService
             solicitud.PlazoCuotas,
             solicitud.Modalidad,
             solicitud.Metodo,
-            solicitud.FechaPrimerPago));
+            solicitud.FechaPrimerPago,
+            solicitud.CuotaInicioCapital));
 
         // AutoControl: si el préstamo financia un vehículo, valida que esté
         // disponible ANTES de la transacción y usa su descripción como garantía.
@@ -108,6 +109,12 @@ public class PrestamoService
                 PlazoCuotas = solicitud.PlazoCuotas,
                 Modalidad = solicitud.Modalidad,
                 MetodoAmortizacion = solicitud.Metodo,
+                // Solo tiene sentido en el diferido: en los otros métodos se
+                // guarda NULL para que la ficha no muestre un dato que no aplica.
+                CuotaInicioCapital = solicitud.Metodo == MetodoAmortizacion.CapitalDiferido
+                    ? solicitud.CuotaInicioCapital ??
+                      AmortizacionService.CuotaInicioCapitalSugerida(solicitud.PlazoCuotas)
+                    : null,
                 FechaInicio = solicitud.FechaPrimerPago,
                 // Garantía: la del formulario o, en un crédito vehicular, el propio vehículo.
                 Garantia = string.IsNullOrWhiteSpace(solicitud.Garantia) && vehiculo is not null
@@ -242,7 +249,8 @@ public class PrestamoService
             // deja lista la tabla definitiva (mismo criterio que CrearAsync).
             tabla = _amortizacion.Calcular(new ParametrosAmortizacion(
                 cambios.MontoCapital, cambios.TasaInteresMensual, cambios.PlazoCuotas,
-                cambios.Modalidad, cambios.Metodo, cambios.FechaPrimerPago));
+                cambios.Modalidad, cambios.Metodo, cambios.FechaPrimerPago,
+                cambios.CuotaInicioCapital));
 
             if (prestamo.MontoCapital != cambios.MontoCapital)
                 detalle.Add($"capital {prestamo.MontoCapital:N2} → {cambios.MontoCapital:N2}");
@@ -262,6 +270,10 @@ public class PrestamoService
             prestamo.PlazoCuotas = cambios.PlazoCuotas;
             prestamo.Modalidad = cambios.Modalidad;
             prestamo.MetodoAmortizacion = cambios.Metodo;
+            prestamo.CuotaInicioCapital = cambios.Metodo == MetodoAmortizacion.CapitalDiferido
+                ? cambios.CuotaInicioCapital ??
+                  AmortizacionService.CuotaInicioCapitalSugerida(cambios.PlazoCuotas)
+                : null;
             prestamo.FechaInicio = cambios.FechaPrimerPago;
         }
 

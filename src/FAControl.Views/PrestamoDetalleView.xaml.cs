@@ -36,14 +36,13 @@ public partial class PrestamoDetalleView : UserControl
     /// </summary>
     private EdicionPrestamo? PedirCorreccion(PrestamoParaEditar datos)
     {
-        var ventana = new EditarPrestamoWindow(datos) { Owner = Window.GetWindow(this) };
-        return ventana.ShowDialog() == true ? ventana.Resultado : null;
+        var ventana = new EditarPrestamoWindow(datos);
+        return ventana.MostrarDesde(this) == true ? ventana.Resultado : null;
     }
 
     private void MostrarImpresion(PrestamoImpreso prestamo)
     {
-        var ventana = new PrestamoImpresionWindow(prestamo) { Owner = Window.GetWindow(this) };
-        ventana.ShowDialog();
+        new PrestamoImpresionWindow(prestamo).MostrarDesde(this);
     }
 
     private void MostrarIntimacion(IntimacionImpresa intimacion)
@@ -53,11 +52,8 @@ public partial class PrestamoDetalleView : UserControl
             $"Requerimiento formal de pago para {intimacion.DeudorNombre} — préstamo {intimacion.CodigoPrestamo}.",
             () => IntimacionDocumentFactory.Crear(intimacion),
             // Al imprimirla queda archivada sola en el expediente del cliente (026)
-            archivar: () => ArchivarIntimacionAsync(intimacion))
-        {
-            Owner = Window.GetWindow(this)
-        };
-        ventana.ShowDialog();
+            archivar: () => ArchivarIntimacionAsync(intimacion));
+        ventana.MostrarDesde(this);
     }
 
     /// <summary>

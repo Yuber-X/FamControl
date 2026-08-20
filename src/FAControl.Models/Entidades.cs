@@ -102,6 +102,13 @@ public class Prestamo
     public int PlazoCuotas { get; set; }
     public Modalidad Modalidad { get; set; } = Modalidad.Mensual;
     public MetodoAmortizacion MetodoAmortizacion { get; set; } = MetodoAmortizacion.CuotaFija;
+    /// <summary>
+    /// Solo para <see cref="MetodoAmortizacion.CapitalDiferido"/> (040): primera
+    /// cuota que ya lleva abono a capital. NULL = lo decidió el sistema. Es un
+    /// dato del CONTRATO ("acordamos 6 meses de solo interés"), por eso se
+    /// guarda en vez de deducirlo mirando las cuotas.
+    /// </summary>
+    public int? CuotaInicioCapital { get; set; }
     /// <summary>Fecha del primer pago (fecha de negocio, sin componente horario).</summary>
     public DateOnly FechaInicio { get; set; }
     public string? Garantia { get; set; }

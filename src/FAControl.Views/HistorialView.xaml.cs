@@ -19,9 +19,6 @@ public partial class HistorialView : UserControl
             : $"{fila.EntidadTexto} (#{fila.EntidadIdTexto})";
 
         new HistorialFichaWindow(fila.FechaTexto, fila.UsuarioTexto, fila.AccionTexto,
-            entidad, fila.DescripcionTexto)
-        {
-            Owner = Window.GetWindow(this)
-        }.ShowDialog();
+            entidad, fila.DescripcionTexto).MostrarDesde(this);
     }
 }

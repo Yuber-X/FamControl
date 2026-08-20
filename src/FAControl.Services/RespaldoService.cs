@@ -133,13 +133,27 @@ public class RespaldoService
                 ExpedienteService.CarpetaRaiz(ajustes), ajustes.RespaldoAutomaticoCarpeta);
 
             ajustes.UltimoRespaldoUtc = DateTime.UtcNow;
+            ajustes.UltimoRespaldoError = null;
+            ajustes.UltimoRespaldoErrorUtc = null;
             ajustes.Guardar();
             Log.Information("Respaldo automático completado: {Ruta}{Expedientes}", ruta,
                 expedientes is null ? string.Empty : $" (+ expedientes en {expedientes})");
         }
         catch (Exception ex)
         {
+            // El error se GUARDA, no solo se loguea: este respaldo corre solo al
+            // arrancar y nadie mira el log. Configuración lo muestra en rojo.
             Log.Error(ex, "Falló el respaldo automático");
+            try
+            {
+                ajustes.UltimoRespaldoError = ex.Message;
+                ajustes.UltimoRespaldoErrorUtc = DateTime.UtcNow;
+                ajustes.Guardar();
+            }
+            catch (Exception guardando)
+            {
+                Log.Error(guardando, "Tampoco se pudo anotar el fallo del respaldo automático");
+            }
         }
     }
 

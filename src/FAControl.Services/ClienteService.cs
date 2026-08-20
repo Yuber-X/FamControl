@@ -38,6 +38,10 @@ public class ClienteService
     public Task<ClienteMetricas> ObtenerMetricasAsync(long clienteId, CancellationToken ct = default) =>
         _clientes.ObtenerMetricasAsync(clienteId, FechaNegocio.Hoy, ct);
 
+    /// <summary>Historial de buena conducta del cliente (pedido 2026-08-06).</summary>
+    public Task<ClienteConducta> ObtenerConductaAsync(long clienteId, CancellationToken ct = default) =>
+        _clientes.ObtenerConductaAsync(clienteId, FechaNegocio.Hoy, ct);
+
     /// <summary>Clientes que se pasaron de su fecha de pago (notificador de vencimientos).</summary>
     public Task<IReadOnlyList<ClienteVencido>> ObtenerClientesConVencidasAsync(CancellationToken ct = default) =>
         _clientes.ObtenerClientesConVencidasAsync(FechaNegocio.Hoy, SesionActual.Modo, ct);

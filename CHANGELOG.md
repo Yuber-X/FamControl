@@ -2,6 +2,175 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [2.0.2] — 2026-08-20 · La ronda de la prueba de Verónica
+
+### Corregido
+
+- **El pagaré no salía al crear un préstamo**, y en su lugar aparecía *"No se
+  puede establecer la propiedad Owner en un elemento Window que se ha cerrado"*.
+  La causa no estaba en el pagaré: los ViewModels son **singleton** y el shell
+  se **rehace** en cada "Cerrar sesión" / "Cambiar usuario". Las vistas de los
+  shells viejos nunca se soltaban del ViewModel, así que al pedir el pagaré
+  atendía primero una vista muerta, que intentaba abrir su ventana colgando de
+  un shell ya cerrado. La excepción cortaba la lista y la vista buena —la que
+  estaba en pantalla— nunca llegaba a mostrar el papel.
+
+  Dos arreglos, no uno:
+  1. Las vistas **se sueltan del ViewModel al salir de pantalla** (`Unloaded`)
+     y se vuelven a enganchar al entrar. Deja de acumularse basura por cada
+     inicio de sesión.
+  2. Ninguna ventana se abre colgando de otra que ya se cerró
+     (`VentanaDuena`). Vale para las 20 ventanas de la aplicación, no solo para
+     el pagaré: el recibo, la factura, la intimación, el cierre de caja, el
+     ticket del POS, los avisos automáticos y los diálogos de confirmación
+     tenían todos la misma puerta abierta.
+
+  Se llegaba con: entrar → **Cambiar de usuario** → crear un préstamo.
+
+- **Corregir un préstamo de "interés fijo primero, capital después" le cambiaba
+  la tabla al cliente.** La ventana de corrección no mostraba desde qué cuota se
+  cobra el capital, así que al guardar se recalculaba con la cuota **sugerida**
+  en vez de la **pactada**: un préstamo pactado con capital desde la 4 volvía a
+  salir desde la 5, con otras cuotas que las que el cliente firmó. Ahora el dato
+  está en la ventana, con lo que se pactó, y se puede corregir.
+
+### Cambiado
+
+- **El ícono es el de Familia Almonte.** Era una "P" morada heredada de la
+  plantilla del proyecto anterior. Ahora es el monograma **FA** sobre el navy
+  de la marca, generado del **mismo logo vectorial** que usa la aplicación
+  (`scripts/marca/generar_icono.py`), en los nueve tamaños que pide Windows.
+  Se ve en la barra de tareas, en el escritorio, en el instalador y en
+  "Agregar o quitar programas".
+
+### Agregado
+
+- **`docs/CORREO-GMAIL.md`**: la guía paso a paso del correo automático, y va
+  instalada con la aplicación. Existe por un motivo concreto: al ir a generar
+  la contraseña de aplicación, Google contesta *"la configuración que buscas no
+  está disponible para tu cuenta"* y no explica nada. Lo que falta es
+  **prender la verificación en 2 pasos** — sin eso la página de contraseñas de
+  aplicación no existe. La ayuda de Configuración ahora empieza por ese paso y
+  lleva el enlace directo.
+
+- **Barrido de invariantes de los cálculos del POS-500**
+  (`AuditoriaCalculosPosTests`), hermano del que ya existía para la
+  amortización. Recorre cientos de combinaciones de canasta, tasa de ITBIS y
+  modo de redondeo y verifica lo que nunca puede romperse: el subtotal es
+  exactamente la suma de las líneas, el ITBIS sale del subtotal de una sola vez
+  (nunca acumulado por línea), ningún importe pasa de 2 decimales, el redondeo
+  no mueve el total más de un peso y "hacia arriba" nunca cobra de menos.
+  También cubre el cambio, la comisión del vendedor, el número de factura y el
+  semáforo de caducidad. **No encontró errores**: queda como red para los
+  cambios que vengan.
+
+- **`scripts/calidad/verificar_recursos_xaml.py`**, traído de MED-100. WPF
+  resuelve `StaticResource`/`DynamicResource` en tiempo de EJECUCIÓN: una clave
+  mal escrita compila sin una advertencia y revienta recién cuando alguien abre
+  esa pantalla. Acá el riesgo es mayor que en MED-100 porque las tres estancias
+  pisan claves con sus propias paletas. 90 claves usadas, todas definidas.
+
+### Sin cambios (a propósito)
+
+- **"Interés fijo primero, capital después" sigue preguntando "¿desde qué cuota
+  se cobra el capital?"**. Vino el reporte de que poniendo 6 el sistema mostraba
+  "cuotas 1 a 5", y se llegó a dar vuelta la pregunta; pero era una confusión de
+  uso, no un error: el campo ya permite escribir la cuota exacta, y para seis
+  meses de puro interés el número es 7. Se deja como estaba.
+
+### Notas para el técnico
+
+- **Qué mandar:** `FAControl_Update_2.0.2.exe` a la PC que ya tiene FAControl.
+  El instalador completo solo para una PC nueva.
+- El ícono nuevo puede tardar en aparecer en el escritorio: Windows cachea los
+  íconos. Si queda el viejo, `ie4uinit.exe -show` lo refresca.
+
+## [2.0.1] — 2026-08-07 · Dos errores de centavos en la amortización
+
+Salieron de una auditoría de los cálculos: un barrido de más de 2,600
+combinaciones de monto, tasa, plazo y modalidad contra los cuatro métodos,
+verificando las reglas que nunca pueden romperse (el capital devuelto es
+exactamente el prestado, el saldo termina en cero y nunca sube, ningún importe
+es negativo). Los dos errores estaban desde antes de esta ronda.
+
+### Corregido
+
+- **Interés negativo en la última cuota (interés fijo dominicano).** El interés
+  total se redondeaba aparte del interés por cuota y la última absorbía la
+  diferencia; cuando el interés por cuota era de centavos y redondeaba para
+  arriba, lo acumulado superaba al total y la última cuota salía en negativo.
+  Pasaba con **préstamos diarios chicos**, que son los de todos los días:
+  RD$500 al 1% a 60 días daba −0.03; RD$700 al 0.5% a 100 días, −0.21.
+  Ahora el interés es el mismo en todas las cuotas —que es la definición del
+  interés simple, y lo que el prestamista le dice al cliente— y solo el capital
+  absorbe el redondeo en la última.
+- **Saldo negativo en el sistema francés.** La cuota se redondea para arriba, así
+  que con tasas altas y plazos largos el préstamo se saldaba antes de la última
+  cuota y el cálculo seguía restando capital: el saldo se iba a negativo
+  (RD$1,000 al 10% × 100 cuotas llegaba a −135.69) y la última cuota terminaba
+  con capital negativo, como si hubiera que devolverle plata al cliente. Ahora
+  el abono nunca puede pasar del saldo que queda.
+
+### Notas
+
+- **No afecta a los préstamos ya cargados**: sus cuotas están guardadas y no se
+  recalculan. El cambio rige para los préstamos nuevos.
+- En los casos extremos del francés (tasa alta y plazo muy largo) la deuda queda
+  saldada antes de la última cuota y las que sobran salen en cero. Es correcto:
+  ya no hay nada que cobrar. Si aparece eso, el método que corresponde a ese
+  préstamo es el abierto, no el francés.
+
+## [2.0.0] — 2026-08-06 · Se actualiza sin reinstalar
+
+Es 2.0.0 y no 1.9.3 por una sola razón: **a partir de esta versión FAControl se
+actualiza solo**. Es el último release que hay que instalar entero.
+
+### Agregado
+
+- **Actualizador** (`FAControl_Update_2.0.0.exe`, ~63 MB contra los ~886 MB del
+  instalador completo). Reemplaza solo el programa: no trae MySQL ni AnyDesk ni
+  Google Drive, no pregunta carpeta y **no toca la base de datos**. Conserva la
+  contraseña configurada, la licencia, los ajustes y los expedientes escaneados.
+  Si FAControl no está instalado en el equipo, se niega a correr y manda a usar
+  el instalador completo.
+- **La aplicación pone la base al día sola al arrancar** (`MigradorEsquema`). Las
+  migraciones viajan dentro del ejecutable y se aplican las que falten, anotadas
+  en la misma tabla `esquema_migracion` que usa `aplicar.ps1`. Ya no hace falta
+  correr PowerShell ni saber la contraseña de MySQL en la PC del cliente.
+  Las migraciones históricas (hasta la 039) nunca se ejecutan, solo se anotan:
+  varias no son repetibles y correrlas rompería la base en vez de arreglarla.
+- **Método de cálculo "interés fijo primero, capital después"** (040). Las
+  primeras cuotas son de puro interés y, desde la cuota que se elija, cada una
+  lleva además un abono a capital fijo; el interés pasa a calcularse sobre el
+  saldo y la cuota va bajando. Con **modo automático** (un tercio del plazo) y
+  **modo manual** (el usuario escribe la cuota exacta). Reproduce, número por
+  número, la tabla de amortización que mandó el cliente: 150,000 al 5% mensual,
+  18 cuotas con 6 de interés fijo.
+- **Historial de buena conducta en la ficha del cliente**. Cuántos préstamos
+  saldó, qué porcentaje de cuotas pagó en fecha, el promedio y el peor atraso, y
+  una calificación (Excelente / Buen pagador / Irregular / Riesgoso). Todo sale
+  de lo que ya está en la base: no hay nada que cargar a mano.
+- **Alquileres: tarifa por día y por mes**. Se escribe una y la otra se completa
+  sola (mes = 30 días). Muchos alquileres se pactan hablando de "tanto al mes" y
+  la cuenta se venía haciendo a mano.
+- **Aviso cuando el respaldo automático falla**. Antes el error solo iba al log:
+  podía estar fallando meses y en Configuración se seguía viendo la fecha del
+  último respaldo bueno, que se lee igual que "todavía no toca".
+
+### Corregido
+
+- El respaldo automático dejaba de avisar sus fallos (ver arriba). Se anota el
+  motivo y se muestra en Configuración hasta que un respaldo salga bien.
+
+### Notas para el técnico
+
+- **Qué mandar:** `FAControl_Update_2.0.0.exe` a la PC que ya tiene FAControl;
+  `FAControl_Setup_2.0.0.exe` solo a una PC nueva.
+- Al abrir FAControl la primera vez después de actualizar, el arranque puede
+  tardar unos segundos más: está aplicando la migración 040.
+- Si la migración fallara, la aplicación **no abre** y lo dice con el motivo. Los
+  datos no se tocan y la versión anterior sigue sirviendo.
+
 ## [1.8.0] — 2026-07-30 · Contratos de PrestControl con expediente
 
 ### Agregado

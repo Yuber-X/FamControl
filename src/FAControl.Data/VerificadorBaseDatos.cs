@@ -164,10 +164,17 @@ public class VerificadorBaseDatos
     /// Hace falta porque DELIMITER es un comando del CLIENTE mysql.exe, no SQL:
     /// mandarlo por el protocolo revienta. Patrón heredado de POS-500.
     /// </summary>
-    internal static List<string> ObtenerBloquesEjecutables()
+    internal static List<string> ObtenerBloquesEjecutables() =>
+        TrocearParaProtocolo(LeerEsquemaSinEncabezado());
+
+    /// <summary>
+    /// El troceo en sí, sobre cualquier SQL. Lo comparte
+    /// <see cref="MigradorEsquema"/>: las migraciones tienen el mismo problema
+    /// (005_multicuentas.sql crea triggers con DELIMITER).
+    /// </summary>
+    internal static List<string> TrocearParaProtocolo(string sql)
     {
         var bloques = new List<string>();
-        var sql = LeerEsquemaSinEncabezado();
 
         // Zona de triggers: DELIMITER $$ ... DELIMITER ;
         var partes = Regex.Split(sql, @"^\s*DELIMITER\s+\$\$\s*$", RegexOptions.Multiline);

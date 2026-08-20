@@ -36,7 +36,26 @@ public enum MetodoAmortizacion
     /// use para proyectar), no una obligación de saldar: si el cliente sigue
     /// pagando interés, el préstamo se renueva.
     /// </summary>
-    SoloInteres
+    SoloInteres,
+
+    /// <summary>
+    /// Interés fijo primero y capital después (pedido del cliente 2026-08-06):
+    /// "ellos le prestan con una tasa fija de 6 meses, y del 7 en adelante
+    /// cambia según el capital que dejaron".
+    ///
+    /// Las primeras cuotas son de PURO INTERÉS, igual que el abierto. A partir
+    /// de la cuota que se elija, cada cuota lleva además un abono a capital
+    /// CONSTANTE (capital ÷ cuotas que quedan) y el interés pasa a calcularse
+    /// sobre el saldo, que ahora sí baja. Por eso la cuota total va bajando.
+    ///
+    /// Ejemplo que pasó el cliente: 150,000 al 5% mensual, 18 cuotas con 6 de
+    /// interés fijo. Cuotas 1-6: 7,500. Cuota 7: 7,500 de interés + 12,500 de
+    /// capital = 20,000. Cuota 18: 625 + 12,500 = 13,125 y el saldo queda en 0.
+    ///
+    /// Es distinto del ABIERTO (acá el capital sí se termina de pagar) y del
+    /// FRANCÉS (acá la cuota no es fija: va bajando).
+    /// </summary>
+    CapitalDiferido
 }
 
 /// <summary>Estado del contrato de préstamo. Coincide con ENUM prestamo.estado.</summary>

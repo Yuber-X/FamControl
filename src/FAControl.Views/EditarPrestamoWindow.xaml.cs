@@ -59,6 +59,12 @@ public partial class EditarPrestamoWindow : Window
         CajaGarantia.Text = actual.Garantia ?? string.Empty;
         CajaNotas.Text = actual.Notas ?? string.Empty;
 
+        // Se muestra la cuota PACTADA, no la sugerencia: es el dato que hay que
+        // conservar al corregir un préstamo diferido.
+        if (actual.CuotaInicioCapital is { } inicio)
+            CajaInicioCapital.Text = inicio.ToString(CultureInfo.InvariantCulture);
+        MostrarZonaInicioCapital();
+
         if (datos.Permitido.SoloDescriptivo)
         {
             AvisoLimite.Visibility = Visibility.Visible;
@@ -73,7 +79,29 @@ public partial class EditarPrestamoWindow : Window
 
     private void Campo_TextChanged(object sender, TextChangedEventArgs e) => ActualizarPreview();
     private void Fecha_Changed(object sender, SelectionChangedEventArgs e) => ActualizarPreview();
-    private void Combo_Changed(object sender, SelectionChangedEventArgs e) => ActualizarPreview();
+
+    private void Combo_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        MostrarZonaInicioCapital();
+        ActualizarPreview();
+    }
+
+    /// <summary>La cuota donde arranca el capital vive con el método diferido.</summary>
+    private void MostrarZonaInicioCapital()
+    {
+        // Los combos disparan SelectionChanged durante InitializeComponent,
+        // cuando los demás controles todavía no existen.
+        if (ZonaInicioCapital is null)
+            return;
+
+        ZonaInicioCapital.Visibility =
+            ComboMetodo.SelectedItem is Opcion<MetodoAmortizacion> m &&
+            m.Valor == MetodoAmortizacion.CapitalDiferido &&
+            ComboModalidad.SelectedItem is Opcion<Modalidad> mod &&
+            mod.Valor != Modalidad.PagoUnico
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+    }
 
     /// <summary>Muestra en qué queda la cuota con los valores tipeados hasta ahora.</summary>
     private void ActualizarPreview()
@@ -115,8 +143,22 @@ public partial class EditarPrestamoWindow : Window
         if (ComboMetodo.SelectedItem is not Opcion<MetodoAmortizacion> metodo)
             return false;
 
+        // Cuota donde arranca el capital. Vacío = que lo decida el sistema, la
+        // misma regla que el formulario de préstamo nuevo.
+        int? inicioCapital = null;
+        if (metodo.Valor == MetodoAmortizacion.CapitalDiferido &&
+            modalidad.Valor != Modalidad.PagoUnico &&
+            !string.IsNullOrWhiteSpace(CajaInicioCapital.Text))
+        {
+            if (!int.TryParse(CajaInicioCapital.Text, NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out var inicio) ||
+                inicio < 1 || inicio > plazo)
+                return false;
+            inicioCapital = inicio;
+        }
+
         parametros = new ParametrosAmortizacion(capital, tasa, plazo, modalidad.Valor, metodo.Valor,
-            DateOnly.FromDateTime(fecha));
+            DateOnly.FromDateTime(fecha), inicioCapital);
         return true;
     }
 
@@ -141,14 +183,18 @@ public partial class EditarPrestamoWindow : Window
         // tenía el préstamo, que además es lo que el servicio va a respetar.
         var actual = _datos.Actual;
         parametros ??= new ParametrosAmortizacion(actual.MontoCapital, actual.TasaInteres,
-            actual.PlazoCuotas, actual.Modalidad, actual.MetodoAmortizacion, actual.FechaInicio);
+            actual.PlazoCuotas, actual.Modalidad, actual.MetodoAmortizacion, actual.FechaInicio,
+            actual.CuotaInicioCapital);
 
         Resultado = new EdicionPrestamo(_datos.PrestamoId,
             parametros.MontoCapital, parametros.TasaInteresMensual, parametros.PlazoCuotas,
             parametros.Modalidad, parametros.Metodo, parametros.FechaPrimerPago,
             Garantia: string.IsNullOrWhiteSpace(CajaGarantia.Text) ? null : CajaGarantia.Text.Trim(),
             Notas: string.IsNullOrWhiteSpace(CajaNotas.Text) ? null : CajaNotas.Text.Trim(),
-            Motivo: CajaMotivo.Text.Trim());
+            Motivo: CajaMotivo.Text.Trim(),
+            // Sin esto la corrección recalculaba el préstamo diferido con la
+            // cuota sugerida en vez de la pactada (bug 2026-08-20).
+            CuotaInicioCapital: parametros.CuotaInicioCapital);
         DialogResult = true;
     }
 

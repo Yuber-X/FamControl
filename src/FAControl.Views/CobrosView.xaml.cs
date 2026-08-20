@@ -24,7 +24,6 @@ public partial class CobrosView : UserControl
 
     private void MostrarRecibo(ReciboPago recibo)
     {
-        var ventana = new ReciboWindow(recibo) { Owner = Window.GetWindow(this) };
-        ventana.ShowDialog();
+        new ReciboWindow(recibo).MostrarDesde(this);
     }
 }

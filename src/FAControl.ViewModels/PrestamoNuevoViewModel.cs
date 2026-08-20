@@ -54,7 +54,12 @@ public partial class PrestamoNuevoViewModel : ObservableObject
             new Opcion<MetodoAmortizacion>(MetodoAmortizacion.Frances, Textos.De(MetodoAmortizacion.Frances)),
             // Préstamo abierto: solo interés y el capital queda abierto. Es la
             // mitad de la cartera real del cliente (2026-07-29).
-            new Opcion<MetodoAmortizacion>(MetodoAmortizacion.SoloInteres, Textos.De(MetodoAmortizacion.SoloInteres))
+            new Opcion<MetodoAmortizacion>(MetodoAmortizacion.SoloInteres, Textos.De(MetodoAmortizacion.SoloInteres)),
+            // Interés fijo unos meses y después también capital (2026-08-06):
+            // la forma de prestar de "los clientes viejos", que no estaba en el
+            // sistema y por eso no se les podía ni imprimir la cotización.
+            new Opcion<MetodoAmortizacion>(MetodoAmortizacion.CapitalDiferido,
+                Textos.De(MetodoAmortizacion.CapitalDiferido))
         ];
         _modalidadSeleccionada = Modalidades[0];
         _metodoSeleccionado = Metodos[0];
@@ -141,8 +146,76 @@ public partial class PrestamoNuevoViewModel : ObservableObject
             "Préstamo abierto: cada cuota es SOLO el interés y el capital queda abierto. " +
             "La cantidad de cuotas es hasta dónde se proyecta; el capital entero aparece en la " +
             "última. Si el cliente sigue pagando interés, se renueva.",
+        MetodoAmortizacion.CapitalDiferido =>
+            "Las primeras cuotas son solo interés. Desde la cuota que elijas se agrega un abono " +
+            "a capital fijo y el interés empieza a bajar, así que la cuota va bajando mes a mes " +
+            "hasta saldar todo.",
         _ => string.Empty
     };
+
+    // ---------- Método diferido: dónde arranca el capital ----------
+
+    /// <summary>El campo de la cuota de inicio solo aparece con el método diferido.</summary>
+    public bool EsCapitalDiferido =>
+        MetodoSeleccionado?.Valor == MetodoAmortizacion.CapitalDiferido && !EsPagoUnico;
+
+    /// <summary>
+    /// Modo automático (marcado por defecto): el sistema propone un tercio del
+    /// plazo como gracia. Al desmarcarlo el usuario escribe la cuota exacta, que
+    /// es el "modo manual" que pidió el cliente.
+    /// </summary>
+    [ObservableProperty] private bool _inicioCapitalAutomatico = true;
+    [ObservableProperty] private string _inicioCapitalTexto = string.Empty;
+
+    /// <summary>
+    /// El otro RadioButton del par. Existe como propiedad propia porque un
+    /// RadioButton necesita escribir en su binding al hacer clic: con un
+    /// converter de solo lectura el clic no llegaría al ViewModel.
+    /// </summary>
+    public bool InicioCapitalManual
+    {
+        get => !InicioCapitalAutomatico;
+        set => InicioCapitalAutomatico = !value;
+    }
+
+    /// <summary>Explica en palabras lo que va a pasar, con los números del formulario.</summary>
+    [ObservableProperty] private string _inicioCapitalAyuda = string.Empty;
+
+    partial void OnInicioCapitalAutomaticoChanged(bool value)
+    {
+        OnPropertyChanged(nameof(InicioCapitalManual));
+        // Al pasar a manual se precarga la sugerencia, así el usuario corrige un
+        // número en vez de arrancar de un campo vacío.
+        if (!value && string.IsNullOrWhiteSpace(InicioCapitalTexto) &&
+            int.TryParse(PlazoTexto, NumberStyles.Integer, CulturaRd, out var plazo) && plazo > 0)
+            InicioCapitalTexto = AmortizacionService.CuotaInicioCapitalSugerida(plazo)
+                .ToString(CulturaRd);
+        Recalcular();
+    }
+
+    partial void OnInicioCapitalTextoChanged(string value) => Recalcular();
+
+    /// <summary>La cuota de inicio a usar, o null si la decide el sistema.</summary>
+    private int? InicioCapitalElegido =>
+        InicioCapitalAutomatico
+            ? null
+            : int.TryParse(InicioCapitalTexto, NumberStyles.Integer, CulturaRd, out var c) ? c : null;
+
+    private void ActualizarAyudaInicioCapital(ParametrosAmortizacion? p)
+    {
+        if (p is null || p.Metodo != MetodoAmortizacion.CapitalDiferido)
+        {
+            InicioCapitalAyuda = string.Empty;
+            return;
+        }
+
+        var inicio = p.CuotaInicioCapital ?? AmortizacionService.CuotaInicioCapitalSugerida(p.PlazoCuotas);
+        var gracia = inicio - 1;
+        InicioCapitalAyuda = gracia <= 0
+            ? "Se cobra capital desde la primera cuota: no hay meses de solo interés."
+            : $"Cuotas 1 a {gracia}: solo interés. Desde la {inicio} se agrega el abono a capital " +
+              $"({p.PlazoCuotas - gracia} cuotas para saldar).";
+    }
 
     // ---------- Preview ----------
 
@@ -161,6 +234,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     partial void OnMetodoSeleccionadoChanged(Opcion<MetodoAmortizacion> value)
     {
         OnPropertyChanged(nameof(MetodoAyudaTexto));
+        OnPropertyChanged(nameof(EsCapitalDiferido));
         Recalcular();
     }
     partial void OnFechaPrimerPagoChanged(DateTime value) => Recalcular();
@@ -171,6 +245,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(EsPagoUnico));
         OnPropertyChanged(nameof(MuestraPlazoYMetodo));
+        OnPropertyChanged(nameof(EsCapitalDiferido));
         OnPropertyChanged(nameof(EtiquetaFecha));
         Recalcular();
     }
@@ -286,9 +361,29 @@ public partial class PrestamoNuevoViewModel : ObservableObject
             }
         }
 
+        // Modo manual del método diferido: el usuario escribe la cuota donde
+        // arranca el capital, así que se valida acá y con el mensaje del
+        // formulario. El Service vuelve a validarlo: esto es para la UX.
+        int? inicioCapital = null;
+        if (metodo == MetodoAmortizacion.CapitalDiferido && modalidad != Modalidad.PagoUnico &&
+            !InicioCapitalAutomatico)
+        {
+            if (!int.TryParse(InicioCapitalTexto, NumberStyles.Integer, CulturaRd, out var inicio))
+            {
+                mensaje = "Indicá en qué cuota empieza a cobrarse el capital (ej. 7).";
+                return null;
+            }
+            if (inicio < 1 || inicio > plazo)
+            {
+                mensaje = $"El capital tiene que empezar entre la cuota 1 y la {plazo}.";
+                return null;
+            }
+            inicioCapital = inicio;
+        }
+
         return new ParametrosAmortizacion(
             monto, tasa, plazo, modalidad, metodo,
-            DateOnly.FromDateTime(FechaPrimerPago));
+            DateOnly.FromDateTime(FechaPrimerPago), inicioCapital);
     }
 
     private void Recalcular()
@@ -296,6 +391,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         var parametros = ParsearParametros(out var mensaje);
         MensajeValidacion = mensaje;
         Preview.Clear();
+        ActualizarAyudaInicioCapital(parametros);
 
         if (parametros is null)
         {
@@ -404,7 +500,10 @@ public partial class PrestamoNuevoViewModel : ObservableObject
                 EsVehicular ? VehiculoSeleccionado?.Id : null,
                 Ncf: string.IsNullOrWhiteSpace(NcfTexto) ? null : NcfTexto.Trim(),
                 AsignarNcfAuto: NcfDeSecuencia,
-                CuotasPagadasAlCrear: cuotasPagadasAlCrear);
+                CuotasPagadasAlCrear: cuotasPagadasAlCrear,
+                // Sale de los parámetros, no del formulario: así se guarda
+                // exactamente la cuota con la que se calculó el preview.
+                CuotaInicioCapital: parametros.CuotaInicioCapital);
 
             var (id, codigo) = await _prestamos.CrearAsync(solicitud, autorizacion);
 
@@ -481,6 +580,8 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         TasaCalculadaTexto = string.Empty;
         ModalidadSeleccionada = Modalidades[0];
         MetodoSeleccionado = Metodos[0];
+        InicioCapitalAutomatico = true;
+        InicioCapitalTexto = string.Empty;
         FechaPrimerPago = FechaNegocio.Hoy.AddMonths(1).ToDateTime(TimeOnly.MinValue);
         Garantia = string.Empty;
         Notas = string.Empty;

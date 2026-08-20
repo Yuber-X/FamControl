@@ -215,7 +215,12 @@ CREATE TABLE prestamo (
   plazo_cuotas        INT UNSIGNED  NOT NULL,
   modalidad           ENUM('diaria','semanal','quincenal','mensual','pago_unico') NOT NULL,
   -- solo_interes (021): prestamo ABIERTO, paga solo interes y el capital queda abierto
-  metodo_amortizacion ENUM('frances','cuota_fija','solo_interes') NOT NULL DEFAULT 'cuota_fija',
+  -- capital_diferido (040): interes fijo los primeros meses y capital despues
+  metodo_amortizacion ENUM('frances','cuota_fija','solo_interes','capital_diferido')
+                      NOT NULL DEFAULT 'cuota_fija',
+  -- capital_diferido (040): primera cuota que ya lleva abono a capital.
+  -- NULL = automatico (un tercio del plazo). Se ignora en los otros metodos.
+  cuota_inicio_capital INT UNSIGNED NULL,
   fecha_inicio        DATE          NOT NULL,     -- fecha del primer pago (hora local del negocio)
   garantia            VARCHAR(255)  NULL,
   estado              ENUM('activo','pagado','cancelado') NOT NULL DEFAULT 'activo',

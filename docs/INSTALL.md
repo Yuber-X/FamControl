@@ -1,7 +1,7 @@
 # Guía de instalación — FAControl
 
 **Familia Almonte Auto Import SRL**
-Versión del programa: 1.9.2 · Fecha de esta guía: 2 de agosto de 2026
+Versión del programa: 2.0.2 · Fecha de esta guía: 20 de agosto de 2026
 
 > Esta guía es para **quien instala el programa** en la computadora del
 > negocio. Está escrita paso por paso: si seguís el orden, no te podés perder.
@@ -31,6 +31,7 @@ Versión del programa: 1.9.2 · Fecha de esta guía: 2 de agosto de 2026
 7. [Primer arranque de FAControl](#7-primer-arranque-de-facontrol)
 8. [Cargar la cartera de préstamos](#8-cargar-la-cartera-de-préstamos)
 9. [Dejar el respaldo automático andando](#9-dejar-el-respaldo-automático-andando)
+9.b [Dejar el correo automático andando](#9b-dejar-el-correo-automático-andando)
 10. [Actualizar a una versión nueva](#10-actualizar-a-una-versión-nueva)
 11. [Desinstalar](#11-desinstalar)
 12. [Lista de verificación final](#12-lista-de-verificación-final)
@@ -53,7 +54,7 @@ Versión del programa: 1.9.2 · Fecha de esta guía: 2 de agosto de 2026
 
 ### Lo que tenés que tener a mano
 
-- [ ] El archivo **`FAControl_Setup_1.9.2.exe`**
+- [ ] El archivo **`FAControl_Setup_2.0.1.exe`**
 - [ ] Los **códigos de activación** de las oficinas que compró el cliente
 - [ ] Una **contraseña para MySQL** ya pensada y anotada
 - [ ] La **cuenta de Google** del negocio (para Google Drive)
@@ -66,8 +67,15 @@ Versión del programa: 1.9.2 · Fecha de esta guía: 2 de agosto de 2026
 
 ## 2. Qué trae el instalador
 
-El instalador es **uno solo** y adentro viene todo. No hay que descargar nada
-por separado:
+Hay **dos archivos** y esta guía usa el primero. El segundo es para actualizar
+después (ver el paso 10):
+
+| Archivo | Para qué | Tamaño |
+|---|---|---|
+| `FAControl_Setup_2.0.1.exe` | **Computadora nueva.** Es el de esta guía | ~886 MB |
+| `FAControl_Update_2.0.1.exe` | Solo para actualizar una que ya lo tiene | ~63 MB |
+
+El Setup trae todo adentro. No hay que descargar nada por separado:
 
 | Programa | Para qué sirve | ¿Obligatorio? |
 |---|---|---|
@@ -78,13 +86,17 @@ por separado:
 
 > 💡 **No hace falta instalar .NET.** El programa lo trae adentro.
 
+> ⚠️ **No uses el Update en una máquina nueva.** No trae MySQL, así que
+> FAControl quedaría instalado sin base de datos. El programa se da cuenta y se
+> niega a instalarse, pero es tiempo perdido.
+
 ---
 
 ## 3. Paso a paso de la instalación
 
 ### 3.1. Ejecutar el instalador
 
-Clic derecho sobre `FAControl_Setup_1.9.2.exe` → **Ejecutar como
+Clic derecho sobre `FAControl_Setup_2.0.1.exe` → **Ejecutar como
 administrador**.
 
 ```
@@ -476,22 +488,84 @@ tenga el ícono de "sincronizado" (una nube o una tilde verde).
 
 ---
 
+## 9.b Dejar el correo automático andando
+
+Opcional, pero es lo que le ahorra al dueño llamar cliente por cliente para
+recordarle la cuota. Se hace **una sola vez** y toma unos 10 minutos.
+
+**El paso a paso completo está en `docs\CORREO-GMAIL.md`**, que queda instalado
+junto a FAControl. Acá va el resumen y la única trampa que tiene.
+
+1. **Prender la verificación en 2 pasos** de la cuenta de Gmail del negocio, en
+   `myaccount.google.com/signinoptions/twosv`.
+2. Generar una **contraseña de aplicación** en
+   `myaccount.google.com/apppasswords` (nombre: `FAControl`). Son 16 letras.
+3. En FAControl: **Configuración → Recordatorios por correo** → cuenta,
+   contraseña de aplicación, correo del dueño y días de anticipación.
+4. **Enviar prueba**. Si llega, listo.
+
+> 🔴 **La trampa.** Si vas directo al paso 2, Google contesta *"la configuración
+> que buscas no está disponible para tu cuenta"* y no dice por qué. **No es un
+> error**: la página de contraseñas de aplicación **no existe** hasta que la
+> cuenta tenga la verificación en 2 pasos prendida. Hacé el paso 1 primero.
+>
+> La otra causa del mismo mensaje: estar con **otra cuenta de Google** abierta
+> en el navegador. Confirmá en `myaccount.google.com` que el correo que aparece
+> sea el del negocio.
+
+> ⚠️ La contraseña de aplicación se guarda **cifrada y atada a esta PC y a esta
+> cuenta de Windows**. Si el negocio cambia de computadora, hay que **volver a
+> pegar las 16 letras** — no viaja en el respaldo, a propósito.
+
+---
+
 ## 10. Actualizar a una versión nueva
 
-Para actualizar FAControl:
+**No hay que reinstalar nada.** Desde la versión 2.0.0 hay dos archivos y lo
+único que hay que saber es cuál usar:
+
+| Archivo | Cuándo | Tamaño |
+|---|---|---|
+| `FAControl_Update_2.0.1.exe` | La computadora **ya tiene FAControl** | ~63 MB |
+| `FAControl_Setup_2.0.1.exe` | Computadora **nueva**, sin nada instalado | ~886 MB |
+
+Para actualizar se usa **siempre el Update**. El Setup completo solo sirve para
+una máquina nueva: trae MySQL, AnyDesk y Google Drive adentro, y por eso pesa
+catorce veces más.
+
+### Cómo se actualiza
 
 1. **Hacé un respaldo primero** (Configuración → Respaldo → Respaldar ahora)
-2. Cerrá FAControl
-3. Ejecutá el instalador nuevo **como administrador**
-4. **Desmarcá** las casillas de MySQL, AnyDesk y Google Drive: ya están
-   instalados
-5. Instalar
+2. Ejecutá `FAControl_Update_2.0.1.exe` **como administrador**
+3. Siguiente → Instalar
 
-**No se pierde nada:** la base de datos, la configuración, la activación y
-los expedientes quedan intactos. El instalador solo reemplaza el programa.
+Y ya está. No pregunta carpeta, no pide la contraseña de MySQL y no hay
+casillas que desmarcar. **Si FAControl está abierto lo cierra solo** y lo vuelve
+a abrir al terminar.
 
-> 💡 Si la versión nueva trae cambios en la base de datos, FAControl los
-> aplica solo al abrir. No hay que correr nada a mano.
+### Qué NO toca la actualización
+
+Nada de esto se pierde ni se pisa:
+
+- La **base de datos** completa: clientes, préstamos, cobros, vehículos, ventas
+- La **contraseña de MySQL** que configuraste en el paso 4.6
+- La **activación** de las oficinas
+- La configuración: respaldo automático, tema, escala, correo
+- La carpeta `expedientes` con los documentos escaneados
+
+### La base se acomoda sola
+
+Si la versión nueva necesita cambios en la base de datos, **FAControl los aplica
+al abrir**. Por eso el primer arranque después de actualizar puede tardar unos
+segundos más de lo normal. No hay que correr ningún script ni abrir Workbench.
+
+> ⚠️ Si algo saliera mal con esos cambios, **FAControl no abre** y muestra el
+> motivo en pantalla. Los datos no se tocan. En ese caso: sacale una foto al
+> mensaje, mandámelo, y mientras tanto volvé a instalar la versión anterior —
+> sigue funcionando con la misma base.
+
+> 💡 Si por error corrés el Update en una computadora que **no** tiene FAControl,
+> el programa te avisa y no instala nada. No rompe nada: usá el Setup completo.
 
 ---
 

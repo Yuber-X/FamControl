@@ -1005,6 +1005,9 @@ public partial class ConfiguracionViewModel : ObservableObject
     [ObservableProperty] private Opcion<string> _respaldoUnidad;
     [ObservableProperty] private string _respaldoCarpeta;
     [ObservableProperty] private string _ultimoRespaldoTexto = string.Empty;
+    /// <summary>Aviso del último respaldo automático que falló. Vacío = el último salió bien.</summary>
+    [ObservableProperty] private string _respaldoFalloTexto = string.Empty;
+    [ObservableProperty] private bool _hayFalloDeRespaldo;
 
     partial void OnRespaldoAutoActivoChanged(bool value) => GuardarAjustesRespaldoAuto();
     partial void OnRespaldoCadaTextoChanged(string value) => GuardarAjustesRespaldoAuto();
@@ -1021,10 +1024,20 @@ public partial class ConfiguracionViewModel : ObservableObject
         _ajustes.Guardar();
     }
 
-    private void ActualizarUltimoRespaldo() =>
+    private void ActualizarUltimoRespaldo()
+    {
         UltimoRespaldoTexto = _ajustes.UltimoRespaldoUtc is { } fecha
             ? $"Último respaldo automático: {FechaNegocio.AUtcLocal(fecha):dd/MM/yyyy hh:mm tt}"
             : "Aún no se ha hecho un respaldo automático.";
+
+        HayFalloDeRespaldo = !string.IsNullOrWhiteSpace(_ajustes.UltimoRespaldoError);
+        RespaldoFalloTexto = HayFalloDeRespaldo
+            ? $"⚠️ El respaldo automático del " +
+              $"{FechaNegocio.AUtcLocal(_ajustes.UltimoRespaldoErrorUtc ?? DateTime.UtcNow):dd/MM/yyyy hh:mm tt} " +
+              $"NO se pudo hacer: {_ajustes.UltimoRespaldoError}\n" +
+              "Hacé un respaldo a mano con el botón de arriba hasta resolverlo."
+            : string.Empty;
+    }
 
     public async Task ExportarAhoraAsync(string ruta)
     {
