@@ -1,4 +1,4 @@
-// Portado de POS500.Printing el 2026-07-30 al integrar el punto de venta a la
+﻿// Portado de POS500.Printing el 2026-07-30 al integrar el punto de venta a la
 // suite. Los datos que imprime vienen de pos500_db; el usuario que factura,
 // del SesionActual compartido de FAControl.
 using System.Windows;
@@ -29,14 +29,36 @@ public static class ImpresoraTickets
     /// Imprime SIN preguntar (flujo por defecto al cobrar, pedido Yuber
     /// 2026-07-12): usa la impresora configurada o la predeterminada.
     /// </summary>
+    /// <remarks>
+    /// PrintQueue y PrintServer se LIBERAN: los dos son IDisposable y envuelven
+    /// handles del spooler de Windows. Sin liberarlos, cada ticket dejaba uno
+    /// colgando, y en un mostrador que factura todo el dia eso se acumula hasta
+    /// que el spooler falla — con el sintoma ("de repente dejo de imprimir")
+    /// apareciendo horas despues y lejos de la causa.
+    ///
+    /// Si la impresora configurada ya no existe, el constructor de PrintQueue
+    /// tira y se deja propagar: quien llama lo atrapa y cae a la vista previa.
+    /// </remarks>
     public static void ImprimirDirecto(FrameworkElement visual, string descripcion,
         int copias = 1, string? nombreImpresora = null)
     {
         var dialogo = new PrintDialog();
-        if (!string.IsNullOrWhiteSpace(nombreImpresora))
-            dialogo.PrintQueue = new System.Printing.PrintQueue(
-                new System.Printing.PrintServer(), nombreImpresora);
 
+        if (string.IsNullOrWhiteSpace(nombreImpresora))
+        {
+            ImprimirCopias(dialogo, visual, descripcion, copias);
+            return;
+        }
+
+        using var servidor = new System.Printing.PrintServer();
+        using var cola = new System.Printing.PrintQueue(servidor, nombreImpresora);
+        dialogo.PrintQueue = cola;
+        ImprimirCopias(dialogo, visual, descripcion, copias);
+    }
+
+    private static void ImprimirCopias(PrintDialog dialogo, FrameworkElement visual,
+        string descripcion, int copias)
+    {
         for (var i = 0; i < Math.Max(1, copias); i++)
             dialogo.PrintVisual(visual, descripcion);
     }
