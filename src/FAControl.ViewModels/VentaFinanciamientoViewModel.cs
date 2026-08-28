@@ -36,6 +36,8 @@ public record AbonoFila(VentaPlazoPago Pago)
         FechaNegocio.AUtcLocal(Pago.FechaPagoUtc).ToString(Textos.FormatoFecha, Textos.CulturaRd);
     public decimal Monto => Pago.Monto;
     public string MetodoTexto => Textos.De(Pago.MetodoPago);
+    /// <summary>Comprobante fiscal del cobro (042). "—" cuando no lleva.</summary>
+    public string NcfTexto => string.IsNullOrWhiteSpace(Pago.Ncf) ? "—" : Pago.Ncf!;
     public string NotasTexto => Pago.Notas ?? "—";
 }
 
@@ -316,6 +318,21 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     [RelayCommand]
     private void Volver() => VolverSolicitado?.Invoke();
 
+    /// <summary>
+    /// Comprobante fiscal del cobro (pedido 2026-08-24). Mismo par que en
+    /// PrestControl: o se pega el e-NCF del Facturador Gratuito de la DGII, o
+    /// el switch toma el siguiente de la secuencia de ESTA estancia (030).
+    /// </summary>
+    [ObservableProperty] private string _ncfTexto = string.Empty;
+    [ObservableProperty] private bool _ncfDeSecuencia;
+
+    /// <summary>Al prender el switch el NCF escrito se borra: el servicio lo ignora.</summary>
+    partial void OnNcfDeSecuenciaChanged(bool value)
+    {
+        if (value)
+            NcfTexto = string.Empty;
+    }
+
     [RelayCommand]
     private async Task CobrarAsync()
     {
@@ -334,8 +351,13 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
         try
         {
             var abono = await _plazos.CobrarPlazoAsync(plazo.Id, monto,
-                MetodoSeleccionado.Valor, NotasAbono);
+                MetodoSeleccionado.Valor, NotasAbono,
+                ncfManual: string.IsNullOrWhiteSpace(NcfTexto) ? null : NcfTexto.Trim(),
+                asignarNcfAuto: NcfDeSecuencia);
             NotasAbono = string.Empty;
+            // El comprobante se limpia: un NCF se consume una sola vez.
+            NcfTexto = string.Empty;
+            NcfDeSecuencia = false;
             await CargarAsync(_ventaId);
 
             // Si el excedente bajó a los plazos siguientes hay que DECIRLO: el

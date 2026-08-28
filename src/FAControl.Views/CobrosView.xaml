@@ -136,8 +136,8 @@
           <TextBlock Text="Se aplica al capital de las próximas cuotas y exonera su interés."
                      Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,4,0,0" />
 
-          <CheckBox Content="Liquidación anticipada (exonera interés futuro)"
-                    FontSize="12" Margin="0,10,0,0"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,12,0,0"
+                    Content="Liquidación anticipada (exonera interés futuro)"
                     IsChecked="{Binding EsLiquidacion}" />
 
           <TextBlock Text="Método de pago" Style="{DynamicResource Input.Label}"
@@ -145,6 +145,19 @@
           <ComboBox Height="40" FontSize="13"
                     ItemsSource="{Binding Metodos}"
                     SelectedItem="{Binding MetodoSeleccionado}" />
+
+          <!-- Comprobante fiscal del cobro (pedido 2026-08-24). Igual que en
+               "Nuevo préstamo": se pega el e-NCF, o el switch toma el siguiente
+               de la secuencia. Cada cobro consume el suyo. -->
+          <TextBlock Text="Comprobante fiscal — NCF (opcional)" Style="{DynamicResource Input.Label}"
+                     Margin="0,14,0,6" />
+          <TextBox Style="{DynamicResource Input.Texto}"
+                   ToolTip="Pegá el e-NCF del Facturador Gratuito DGII, o prendé el switch para tomar el siguiente de la secuencia"
+                   IsEnabled="{Binding NcfDeSecuencia, Converter={StaticResource InversorBool}}"
+                   Text="{Binding NcfTexto, UpdateSourceTrigger=PropertyChanged}" />
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,10,0,0"
+                    Content="Tomar el siguiente de la secuencia configurada (Configuración → Comprobante fiscal)"
+                    IsChecked="{Binding NcfDeSecuencia}" />
 
           <TextBlock Text="Notas (opcional)" Style="{DynamicResource Input.Label}"
                      Margin="0,14,0,6" />

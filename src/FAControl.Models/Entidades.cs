@@ -1,4 +1,4 @@
-namespace FAControl.Models;
+﻿namespace FAControl.Models;
 
 /// <summary>Cuenta única del prestamista (sistema mono-usuario).</summary>
 public class Usuario
@@ -130,6 +130,12 @@ public class Cuota
     public decimal MontoTotal { get; set; }
     public decimal SaldoDespues { get; set; }
     public decimal MontoPagado { get; set; }
+    /// <summary>
+    /// Del acumulado, cuánto fue a CAPITAL (043). Se GUARDA, no se deduce: un
+    /// abono a capital no paga interés, y la vieja regla "primero interés" lo
+    /// repartía mal (ver el encabezado de 043_capital_pagado_por_cuota.sql).
+    /// </summary>
+    public decimal CapitalPagado { get; set; }
     public EstadoCuota Estado { get; set; } = EstadoCuota.Pendiente;
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? UpdatedAtUtc { get; set; }
@@ -151,6 +157,12 @@ public class Pago
     public decimal MontoInteres { get; set; }
     public decimal MontoCapital { get; set; }
     public MetodoPago MetodoPago { get; set; } = MetodoPago.Efectivo;
+    /// <summary>
+    /// Comprobante fiscal del COBRO (041). Un cobro puede tocar varias cuotas y
+    /// generar varias filas de pago, pero fiscalmente es UN documento: el NCF
+    /// va solo en la fila principal y las demás quedan en NULL.
+    /// </summary>
+    public string? Ncf { get; set; }
     public string? Notas { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? UpdatedAtUtc { get; set; }

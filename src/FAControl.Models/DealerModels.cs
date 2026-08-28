@@ -247,6 +247,8 @@ public class AlquilerPago
     public DateTime FechaPagoUtc { get; set; }
     public decimal Monto { get; set; }
     public MetodoPago MetodoPago { get; set; } = MetodoPago.Efectivo;
+    /// <summary>Comprobante fiscal del cobro (042). NULL = sin comprobante.</summary>
+    public string? Ncf { get; set; }
     public string? Notas { get; set; }
     public string? CobradoPor { get; set; }
 }
@@ -298,4 +300,8 @@ public record CobroAlquiler(
     long AlquilerId,
     decimal Monto,
     MetodoPago Metodo,
-    string? Notas = null);
+    string? Notas = null,
+    /// <summary>Comprobante fiscal pegado a mano (Facturador Gratuito DGII). NULL = sin comprobante.</summary>
+    string? Ncf = null,
+    /// <summary>True = tomar el siguiente NCF de la secuencia del modo (ignora <see cref="Ncf"/>).</summary>
+    bool AsignarNcfAuto = false);

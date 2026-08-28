@@ -197,14 +197,15 @@ public class AlquilerRepository
         cmd.Transaction = transaccion;
         cmd.CommandText = $"""
             INSERT INTO {DbNames.AlquilerPago}
-              (alquiler_id, numero_recibo, monto, metodo_pago, notas, created_by)
-            VALUES (@alquiler, @recibo, @monto, @metodo, @notas, @usuario);
+              (alquiler_id, numero_recibo, monto, metodo_pago, ncf, notas, created_by)
+            VALUES (@alquiler, @recibo, @monto, @metodo, @ncf, @notas, @usuario);
             SELECT LAST_INSERT_ID();
             """;
         cmd.Parameters.AddWithValue("@alquiler", pago.AlquilerId);
         cmd.Parameters.AddWithValue("@recibo", pago.NumeroRecibo);
         cmd.Parameters.AddWithValue("@monto", pago.Monto);
         cmd.Parameters.AddWithValue("@metodo", EnumMap.ADb(pago.MetodoPago));
+        cmd.Parameters.AddWithValue("@ncf", (object?)pago.Ncf ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@notas", (object?)pago.Notas ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@usuario",
             SesionActual.HaySesionActiva ? SesionActual.Id : (object)DBNull.Value);
@@ -245,7 +246,7 @@ public class AlquilerRepository
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT p.id, p.alquiler_id, p.numero_recibo, p.fecha_pago, p.monto,
-                   p.metodo_pago, p.notas,
+                   p.metodo_pago, p.ncf, p.notas,
                    TRIM(CONCAT(u.nombre, ' ', COALESCE(u.apellido, ''))) AS cobrado_por
             FROM {DbNames.AlquilerPago} p
             -- LEFT: el cobro no desaparece si se borro el usuario que lo tomo
@@ -267,6 +268,7 @@ public class AlquilerRepository
                 FechaPagoUtc = DateTime.SpecifyKind(reader.GetDateTime("fecha_pago"), DateTimeKind.Utc),
                 Monto = reader.GetDecimal("monto"),
                 MetodoPago = EnumMap.MetodoPagoDeDb(reader.GetString("metodo_pago")),
+                Ncf = reader.IsDBNull(reader.GetOrdinal("ncf")) ? null : reader.GetString("ncf"),
                 Notas = reader.IsDBNull(reader.GetOrdinal("notas")) ? null : reader.GetString("notas"),
                 CobradoPor = reader.IsDBNull(reader.GetOrdinal("cobrado_por"))
                     ? null : reader.GetString("cobrado_por")

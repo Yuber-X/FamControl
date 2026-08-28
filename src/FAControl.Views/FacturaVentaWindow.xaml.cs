@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows;
 using Microsoft.Win32;
 using FAControl.Models;
@@ -122,7 +122,8 @@ public partial class FacturaVentaWindow : Window
         try
         {
             var visualPdf = FacturaVentaVisualFactory.Crear(_factura);
-            ImpresoraRecibos.GuardarPdf(visualPdf, dialogo.FileName);
+            ImpresoraRecibos.GuardarPdf(visualPdf, dialogo.FileName,
+                $"Factura {_factura.Codigo} — FAControl");
             MessageBox.Show(this, $"Factura guardada en:\n{dialogo.FileName}",
                 "Guardar PDF", MessageBoxButton.OK, MessageBoxImage.Information);
         }

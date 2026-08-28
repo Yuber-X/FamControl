@@ -191,9 +191,9 @@ public class VentaPlazoRepository
         cmd.Transaction = transaccion;
         cmd.CommandText = $"""
             INSERT INTO {DbNames.VentaPlazoPago}
-              (plazo_id, numero_recibo, fecha_pago, monto, metodo_pago, notas, created_by)
+              (plazo_id, numero_recibo, fecha_pago, monto, metodo_pago, ncf, notas, created_by)
             VALUES
-              (@plazoId, @recibo, @fecha, @monto, @metodoPago, @notas, @createdBy);
+              (@plazoId, @recibo, @fecha, @monto, @metodoPago, @ncf, @notas, @createdBy);
             SELECT LAST_INSERT_ID();
             """;
         cmd.Parameters.AddWithValue("@plazoId", pago.PlazoId);
@@ -201,6 +201,8 @@ public class VentaPlazoRepository
         cmd.Parameters.AddWithValue("@fecha", pago.FechaPagoUtc);
         cmd.Parameters.AddWithValue("@monto", pago.Monto);
         cmd.Parameters.AddWithValue("@metodoPago", EnumMap.ADb(pago.MetodoPago));
+        // Solo la primera fila del abono lleva comprobante (uq_plazo_pago_ncf)
+        cmd.Parameters.AddWithValue("@ncf", (object?)pago.Ncf ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@notas", (object?)pago.Notas ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@createdBy",
             SesionActual.HaySesionActiva ? SesionActual.Id : (object)DBNull.Value);
@@ -214,7 +216,8 @@ public class VentaPlazoRepository
         using var conexion = await _factory.AbrirAsync(ct);
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
-            SELECT p.id, p.plazo_id, p.numero_recibo, p.fecha_pago, p.monto, p.metodo_pago, p.notas
+            SELECT p.id, p.plazo_id, p.numero_recibo, p.fecha_pago, p.monto, p.metodo_pago,
+                   p.ncf, p.notas
             FROM {DbNames.VentaPlazoPago} p
             JOIN {DbNames.VentaPlazo} z ON z.id = p.plazo_id
             WHERE z.venta_id = @ventaId AND p.deleted_at IS NULL
@@ -233,6 +236,7 @@ public class VentaPlazoRepository
                 FechaPagoUtc = DateTime.SpecifyKind(reader.GetDateTime("fecha_pago"), DateTimeKind.Utc),
                 Monto = reader.GetDecimal("monto"),
                 MetodoPago = EnumMap.MetodoPagoDeDb(reader.GetString("metodo_pago")),
+                Ncf = reader.IsDBNull(reader.GetOrdinal("ncf")) ? null : reader.GetString("ncf"),
                 Notas = reader.IsDBNull(reader.GetOrdinal("notas")) ? null : reader.GetString("notas")
             });
         return lista;

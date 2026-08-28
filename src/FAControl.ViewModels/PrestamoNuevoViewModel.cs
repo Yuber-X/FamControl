@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -105,6 +105,19 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     // DGII, o tomado de la secuencia local configurada en Configuración.
     [ObservableProperty] private string _ncfTexto = string.Empty;
     [ObservableProperty] private bool _ncfDeSecuencia;
+
+    /// <summary>
+    /// Al prender el switch, el NCF escrito a mano se borra. El servicio ya lo
+    /// ignora (AsignarNcfAuto manda), asi que dejarlo a la vista haria creer
+    /// que se va a usar ese numero. Mismo criterio que pidio el cliente el
+    /// 2026-08-02 para la secuencia de Configuracion.
+    /// </summary>
+    partial void OnNcfDeSecuenciaChanged(bool value)
+    {
+        if (value)
+            NcfTexto = string.Empty;
+    }
+
 
     // Préstamo ANTIGUO (pedido 2026-07-25): con fecha atrasada se autodetectan
     // las cuotas ya vencidas y se pregunta si el cliente está al día o cuántas pagó.

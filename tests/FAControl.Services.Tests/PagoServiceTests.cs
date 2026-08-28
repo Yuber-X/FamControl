@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using FAControl.Models;
 using FAControl.Services;
 using Xunit;
@@ -12,8 +12,16 @@ namespace FAControl.Services.Tests;
 /// </summary>
 public class PagoServiceTests
 {
+    /// <summary>
+    /// `capitalPagado` refleja lo que un cobro real habria persistido (043): el
+    /// reparto ya no se deduce con "primero interes", se guarda. Para un cobro
+    /// normal da lo mismo que la deduccion vieja —de 800 sobre una cuota de
+    /// 600 de interes, 200 van a capital—; la diferencia aparece solo en los
+    /// abonos a capital, que no pagan interes.
+    /// </summary>
     private static Cuota CrearCuota(int numero, decimal capital = 1_000m, decimal interes = 600m,
-        decimal montoPagado = 0m, DateOnly? vencimiento = null) => new()
+        decimal montoPagado = 0m, DateOnly? vencimiento = null,
+        decimal? capitalPagado = null) => new()
     {
         Id = numero,
         PrestamoId = 1,
@@ -23,6 +31,7 @@ public class PagoServiceTests
         Interes = interes,
         MontoTotal = capital + interes,
         MontoPagado = montoPagado,
+        CapitalPagado = capitalPagado ?? Math.Max(0m, montoPagado - interes),
         Estado = EstadoCuota.Pendiente
     };
 

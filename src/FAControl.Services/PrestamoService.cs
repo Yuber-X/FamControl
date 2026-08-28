@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 using Serilog;
@@ -152,7 +152,8 @@ public class PrestamoService
                     };
                     await _pagos.InsertarAsync(pago, conexion, transaccion, ct);
                     await _prestamos.ActualizarCuotaTrasPagoAsync(
-                        cuota.Id, cuota.MontoTotal, EstadoCuota.Pagada, conexion, transaccion, ct);
+                        cuota.Id, cuota.MontoTotal, cuota.Capital, EstadoCuota.Pagada,
+                        conexion, transaccion, ct);
                 }
                 // Caso borde: el cliente ya había pagado TODO el préstamo
                 if (cuotasHistoricas == tabla.Count)

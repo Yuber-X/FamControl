@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using Microsoft.Win32;
 using FAControl.Models;
 using FAControl.Printing;
@@ -51,7 +51,8 @@ public partial class FichaVehiculoWindow : Window
         try
         {
             var visualPdf = FichaVehiculoVisualFactory.Crear(_ficha);
-            ImpresoraRecibos.GuardarPdf(visualPdf, dialogo.FileName);
+            ImpresoraRecibos.GuardarPdf(visualPdf, dialogo.FileName,
+                $"Ficha {_ficha.Codigo} — FAControl");
             MessageBox.Show(this, $"Ficha guardada en:\n{dialogo.FileName}",
                 "Guardar PDF", MessageBoxButton.OK, MessageBoxImage.Information);
         }

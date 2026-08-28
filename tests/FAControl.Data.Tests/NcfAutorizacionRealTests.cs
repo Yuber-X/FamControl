@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using MySqlConnector;
 using FAControl.Common;
 using FAControl.Data;
@@ -177,6 +177,17 @@ public class NcfAutorizacionRealTests : IAsyncLifetime
         secuencia!.Proxima.Should().Be(1);   // sigue disponible
     }
 
+    private PagoService CrearServicioDePagos() =>
+        new(_factory, new PrestamoRepository(_factory),
+            new PagoRepository(_factory), new ClienteRepository(_factory),
+            new ContadorRepository(),
+            new AuditoriaService(new AuditoriaRepository(_factory),
+                new SesionRepository(_factory), new UsuarioRepository(_factory)),
+            new AjustesLocales(), _ncfRepo);
+
+    // Cuota de 20,000 al 3% x 6 = 3,333.33 capital + 600 interes
+    private const decimal UnaCuota = 3_933.33m;
+
     /// <summary>
     /// El último eslabón: el comprobante tiene que llegar al RECIBO que se le
     /// entrega al cliente. Si se queda en la base no sirve de nada ante la DGII.
@@ -185,19 +196,80 @@ public class NcfAutorizacionRealTests : IAsyncLifetime
     public async Task El_comprobante_sale_impreso_en_el_recibo_del_cobro()
     {
         var (prestamoId, _) = await CrearPrestamoConComprobanteAsync();
+        var pagos = CrearServicioDePagos();
 
-        var pagos = new PagoService(_factory, new PrestamoRepository(_factory),
-            new PagoRepository(_factory), new ClienteRepository(_factory),
-            new ContadorRepository(),
-            new AuditoriaService(new AuditoriaRepository(_factory),
-                new SesionRepository(_factory), new UsuarioRepository(_factory)),
-            new AjustesLocales());
-
-        // Cuota de 20,000 al 3% × 6 = 3,333.33 capital + 600 interés
         var resultado = await pagos.RegistrarPagoAsync(new SolicitudPago(
-            prestamoId, 3_933.33m, MetodoPago.Efectivo, "Prueba de comprobante"));
+            prestamoId, UnaCuota, MetodoPago.Efectivo, "Prueba de comprobante",
+            AsignarNcfAuto: true));
 
-        resultado.Recibo.Ncf.Should().Be("B0100000001");
+        // El préstamo se llevó el B0100000001 al crearse; este cobro consume
+        // el SIGUIENTE de la secuencia, no repite el del préstamo.
+        resultado.Recibo.Ncf.Should().Be("B0100000002");
+    }
+
+    /// <summary>
+    /// El reporte de Verónica (2026-08-26): "las facturas de ese préstamos
+    /// todas salen con es NCF y eso se debe cambiar con cada factura".
+    ///
+    /// Hasta el 041 el recibo copiaba `prestamo.Ncf`, así que las 24 facturas
+    /// de un préstamo salían con UN solo comprobante repetido. Ante la DGII
+    /// cada factura ampara su propio comprobante: dos cobros, dos números.
+    /// </summary>
+    [Fact]
+    public async Task Cada_cobro_del_mismo_prestamo_consume_su_propio_comprobante()
+    {
+        var (prestamoId, _) = await CrearPrestamoConComprobanteAsync();
+        var pagos = CrearServicioDePagos();
+
+        var primero = await pagos.RegistrarPagoAsync(new SolicitudPago(
+            prestamoId, UnaCuota, MetodoPago.Efectivo, null, AsignarNcfAuto: true));
+        var segundo = await pagos.RegistrarPagoAsync(new SolicitudPago(
+            prestamoId, UnaCuota, MetodoPago.Efectivo, null, AsignarNcfAuto: true));
+
+        primero.Recibo.Ncf.Should().Be("B0100000002");
+        segundo.Recibo.Ncf.Should().Be("B0100000003");
+        segundo.Recibo.Ncf.Should().NotBe(primero.Recibo.Ncf,
+            "cada factura consume su propio comprobante (regla DGII)");
+    }
+
+    /// <summary>
+    /// Un cobro SIN comprobante no hereda el del préstamo. Antes del 041 sí lo
+    /// hacía, y ese era exactamente el número repetido que el cliente reportó.
+    /// </summary>
+    [Fact]
+    public async Task Un_cobro_sin_comprobante_no_hereda_el_del_prestamo()
+    {
+        var (prestamoId, _) = await CrearPrestamoConComprobanteAsync();
+        var pagos = CrearServicioDePagos();
+
+        var prestamo = await new PrestamoRepository(_factory).ObtenerPorIdAsync(prestamoId);
+        prestamo!.Ncf.Should().Be("B0100000001", "el préstamo sí tiene el suyo");
+
+        var resultado = await pagos.RegistrarPagoAsync(new SolicitudPago(
+            prestamoId, UnaCuota, MetodoPago.Efectivo, null));
+
+        resultado.Recibo.Ncf.Should().BeNull(
+            "el recibo de un cobro sin comprobante no muestra ninguno");
+    }
+
+    /// <summary>
+    /// El e-NCF pegado a mano (Facturador Gratuito de la DGII) manda tal cual,
+    /// en mayúsculas, y NO mueve el contador de la secuencia local: ese número
+    /// lo emitió el portal, no la app.
+    /// </summary>
+    [Fact]
+    public async Task El_comprobante_pegado_a_mano_va_al_recibo_sin_tocar_la_secuencia()
+    {
+        var (prestamoId, _) = await CrearPrestamoConComprobanteAsync();
+        var pagos = CrearServicioDePagos();
+        var antes = (await _ncfRepo.ObtenerActivaAsync(SesionActual.Modo))!.Proxima;
+
+        var resultado = await pagos.RegistrarPagoAsync(new SolicitudPago(
+            prestamoId, UnaCuota, MetodoPago.Efectivo, null, Ncf: "e320000000045"));
+
+        resultado.Recibo.Ncf.Should().Be("E320000000045");
+        (await _ncfRepo.ObtenerActivaAsync(SesionActual.Modo))!.Proxima
+            .Should().Be(antes, "un comprobante externo no consume la secuencia local");
     }
 
     /// <summary>

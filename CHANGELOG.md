@@ -1,6 +1,99 @@
-# Changelog — FAControl
+﻿# Changelog — FAControl
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
+
+## [No publicado] — Comprobante fiscal por cobro y arreglos de impresión
+
+### Corregido
+
+- **El capital abonado se guardaba mal.** `cuota.monto_pagado` era un solo
+  acumulador y el reparto interés/capital se DEDUCÍA con la regla "primero
+  interés". Esa regla vale para un cobro normal, pero un abono a capital NO
+  paga interés: de cada abono se comía una cuota de interés. En el ejemplo del
+  cliente, tras abonar 200,000 el capital pendiente quedaba en 820,000 en vez
+  de 800,000, y el error se acumulaba con cada abono siguiente.
+
+  Ahora se guarda en vez de deducirse (`cuota.capital_pagado`, migración `043`).
+  El backfill es exacto: `pago.monto_capital` lleva el reparto verdadero desde
+  el primer día, así que la columna nueva es la suma de lo que ya existía.
+
+- **El saldo restante del recibo restaba el cobro dos veces** en un caso
+  introducido durante esta misma ronda: el bucle de cobro pasó a actualizar las
+  cuotas en memoria (las necesita el recálculo del préstamo abierto), pero
+  `saldoAntes` se leía DESPUÉS del bucle. Se movió a antes, que es donde el
+  nombre dice la verdad. Lo cazó `FlujoPrestamoPagoTests`.
+
+- **Las facturas de un préstamo salían todas con el mismo comprobante fiscal.**
+  Reporte de Verónica (2026-08-26): *"las facturas de ese préstamos todas salen
+  con es NCF y eso se debe cambiar con cada factura"*.
+
+  El NCF vivía solo en `prestamo`, y `PagoService` copiaba ese número al recibo
+  de cada cobro (`Ncf: prestamo.Ncf`). Un préstamo de 24 cuotas entregaba 24
+  facturas con UN comprobante repetido — ante la DGII cada factura ampara el
+  suyo, así que el libro de ventas no cuadraba.
+
+  El comprobante pasó a la operación que de verdad factura: el cobro
+  (migración `041`). Un cobro que toca varias cuotas guarda el NCF en su fila
+  principal, porque fiscalmente es UN documento aunque genere N recibos; así
+  `uq_pago_ncf` protege de repetir un número entre cobros, igual que
+  `uq_prestamo_ncf`. Un cobro sin comprobante ya **no hereda** el del préstamo.
+
+- **El recibo decía "Abonado" en una cuota pagada completa.** Reporte del
+  cliente (2026-08-27): *"dice abonado y pone el total de interés y capital
+  pagado en una cuota normal"*. "Abonado" es un pago PARCIAL en el habla
+  dominicana, así que la palabra contradecía el hecho. Ahora dice "Pagado:" si
+  la cuota quedó saldada y "Abonado (parcial):" si no. El dato ya existía
+  (`AplicacionPago.QuedaPagada`); simplemente no llegaba al papel.
+
+- **Todo PDF se guardaba en papel de 80mm.** `ImpresoraRecibos.GuardarPdf`
+  fijaba el ancho a mano, pero lo llaman tres ventanas con dos anchos: el
+  recibo (302 DIU = 80mm) y la factura de venta y la ficha de vehículo (816
+  DIU = carta). Guardar una factura daba una tira de 8cm con el contenido de
+  una hoja carta encogido adentro. Ahora el tamaño se **deriva** del visual.
+  De paso: título propio por documento (antes todos decían "Recibo de pago"),
+  medición defensiva si el visual llega sin layout, y fondo blanco explícito.
+
+- **La hoja del préstamo se recortaba al imprimir.** `PrestamoImpresionWindow`
+  usaba `PrintVisual`, que no pagina, sobre un visual carta con la tabla de
+  amortización completa: en un préstamo largo la cola de la tabla se perdía sin
+  aviso. Es el mismo defecto que fue el BLOCKER del pagaré el 2026-07-17, que
+  entonces se arregló solo para el pagaré. Nuevo `PrestamoDocumentFactory`
+  (FlowDocument, pagina solo); en pantalla sigue el visual con scroll.
+
+### Agregado
+
+- **El interés se recalcula sobre el capital rebajado** en el préstamo abierto
+  (pedido del cliente 2026-08-27): *"si un cliente toma RD$1,000,000 [...] en
+  noviembre realiza un abono de RD$200,000 al capital [...] A partir del
+  siguiente mes, los intereses deben calcularse únicamente sobre los RD$800,000
+  restantes"*. Antes el deudor seguía pagando 20,000 de interés cuando le
+  correspondían 16,000 — 4,000 de más por mes.
+
+  Alcance acotado a propósito (decisión de Yuber 2026-08-27):
+  * **Solo `SoloInteres`.** En francés y cuota fija la tabla se pacta al firmar;
+    reescribirla cambiaría un contrato ya acordado con el cliente.
+  * **Solo si hubo abono a capital.** Un cobro normal no reescribe nada.
+  * **Solo cuotas NO vencidas y NO pagadas.** El interés de una cuota vencida se
+    devengó sobre plata que el deudor efectivamente tenía; bajarlo hacia atrás
+    le perdonaría interés ya ganado. Queda anotado en la auditoría del cobro.
+
+- **Comprobante fiscal manual en los tres puntos de cobro** (pedido 2026-08-24):
+  "Registrar pago" de PrestControl, cobro de alquiler y abono a plazo de una
+  venta. En cada uno se pega el e-NCF del Facturador Gratuito de la DGII, o se
+  prende el switch y se toma el siguiente de la secuencia de esa estancia.
+  Migraciones `041` y `042`.
+
+  La reserva vive **dentro de la transacción del cobro**: usa `FOR UPDATE`, así
+  que dos cajas cobrando a la vez no se llevan el mismo número, y si el cobro
+  falla el rollback devuelve el comprobante sin consumir.
+
+- **`Switch.Moderno`**: el "checkbox moderno" que pidió el cliente. El CheckBox
+  nativo usa el chrome de Windows —el mismo look que ya se cambió en los
+  ComboBox—. Sigue siendo un CheckBox, así que ningún binding cambia.
+
+- Columna **NCF** en las grillas de cobros de alquiler y de abonos: DealControl
+  no imprime recibo individual del cobro, y sin la columna el número quedaría
+  guardado pero invisible.
 
 ## [2.0.2] — 2026-08-20 · La ronda de la prueba de Verónica
 

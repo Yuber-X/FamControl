@@ -81,6 +81,12 @@ public class VentaPlazoPago
     public DateTime FechaPagoUtc { get; set; }
     public decimal Monto { get; set; }
     public MetodoPago MetodoPago { get; set; } = MetodoPago.Efectivo;
+    /// <summary>
+    /// Comprobante fiscal del COBRO (042). Un abono puede repartirse en varios
+    /// plazos y generar varias filas, pero fiscalmente es UN documento: el NCF
+    /// va solo en la primera y las demas quedan en NULL.
+    /// </summary>
+    public string? Ncf { get; set; }
     public string? Notas { get; set; }
 }
 

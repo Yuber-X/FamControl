@@ -1,4 +1,4 @@
-using MySqlConnector;
+﻿using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models;
 
@@ -23,9 +23,9 @@ public class PagoRepository
         cmd.Transaction = transaccion;
         cmd.CommandText = $"""
             INSERT INTO {DbNames.Pago}
-              (cuota_id, numero_recibo, fecha_pago, monto_pagado, monto_interes, monto_capital, metodo_pago, notas, created_by)
+              (cuota_id, numero_recibo, fecha_pago, monto_pagado, monto_interes, monto_capital, metodo_pago, ncf, notas, created_by)
             VALUES
-              (@cuotaId, @numeroRecibo, @fechaPago, @montoPagado, @montoInteres, @montoCapital, @metodoPago, @notas, @createdBy);
+              (@cuotaId, @numeroRecibo, @fechaPago, @montoPagado, @montoInteres, @montoCapital, @metodoPago, @ncf, @notas, @createdBy);
             SELECT LAST_INSERT_ID();
             """;
         cmd.Parameters.AddWithValue("@cuotaId", pago.CuotaId);
@@ -35,6 +35,10 @@ public class PagoRepository
         cmd.Parameters.AddWithValue("@montoInteres", pago.MontoInteres);
         cmd.Parameters.AddWithValue("@montoCapital", pago.MontoCapital);
         cmd.Parameters.AddWithValue("@metodoPago", EnumMap.ADb(pago.MetodoPago));
+        // Solo la fila principal del cobro lleva comprobante; el resto va NULL
+        // (uq_pago_ncf rechazaria el duplicado, y ademas seria falso: un cobro
+        // es UN documento fiscal aunque toque varias cuotas).
+        cmd.Parameters.AddWithValue("@ncf", (object?)pago.Ncf ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@notas", (object?)pago.Notas ?? DBNull.Value);
         // Quién cobró: la sesión activa. NULL si (por alguna razón) no hay sesión.
         cmd.Parameters.AddWithValue("@createdBy",

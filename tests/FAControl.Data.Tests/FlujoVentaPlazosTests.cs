@@ -39,7 +39,7 @@ public class FlujoVentaPlazosTests : IAsyncLifetime
         _ventas = new VentaVehiculoService(new VentaVehiculoRepository(_factory), _vehiculos,
             new ClienteRepository(_factory), contador, _factory, auditoria, plazoRepo);
         _plazos = new VentaPlazoService(_factory, plazoRepo, new VentaVehiculoRepository(_factory),
-            contador, auditoria, new VehiculoRepository(_factory));
+            contador, auditoria, new VehiculoRepository(_factory), new NcfRepository(_factory));
 
         using var conexion = await _factory.AbrirAsync();
         using (var cmd = conexion.CreateCommand())

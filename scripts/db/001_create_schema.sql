@@ -255,6 +255,7 @@ CREATE TABLE cuota (
   monto_total       DECIMAL(15,2) NOT NULL,
   saldo_despues     DECIMAL(15,2) NOT NULL,       -- saldo de capital tras pagar esta cuota
   monto_pagado      DECIMAL(15,2) NOT NULL DEFAULT 0.00, -- acumulado de abonos aplicados
+  capital_pagado    DECIMAL(15,2) NOT NULL DEFAULT 0.00, -- del acumulado, cuánto fue a CAPITAL (043)
   estado            ENUM('pendiente','pagada','vencida','en_mora','cancelada') NOT NULL DEFAULT 'pendiente',
   created_at        DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
   updated_at        DATETIME      NULL,
@@ -280,6 +281,7 @@ CREATE TABLE pago (
   monto_interes DECIMAL(15,2) NOT NULL DEFAULT 0.00,
   monto_capital DECIMAL(15,2) NOT NULL DEFAULT 0.00,
   metodo_pago   ENUM('efectivo','transferencia','cheque','otro') NOT NULL DEFAULT 'efectivo',
+  ncf           VARCHAR(19)   NULL,               -- comprobante fiscal del cobro (041): solo en la fila principal
   notas         TEXT          NULL,
   created_by    BIGINT UNSIGNED NULL,             -- quién cobró (para el reporte por usuario)
   created_at    DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
@@ -287,6 +289,7 @@ CREATE TABLE pago (
   deleted_at    DATETIME      NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_pago_recibo (numero_recibo),
+  UNIQUE KEY uq_pago_ncf (ncf),                   -- un NCF no se repite entre cobros (regla DGII)
   KEY ix_pago_cuota (cuota_id),
   KEY ix_pago_fecha (fecha_pago),
   CONSTRAINT fk_pago_cuota FOREIGN KEY (cuota_id)
@@ -430,12 +433,14 @@ CREATE TABLE venta_plazo_pago (
   fecha_pago     DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
   monto          DECIMAL(15,2) NOT NULL,
   metodo_pago    ENUM('efectivo','transferencia','cheque','otro') NOT NULL DEFAULT 'efectivo',
+  ncf            VARCHAR(19)   NULL,               -- comprobante fiscal del cobro (042)
   notas          TEXT          NULL,
   created_at     DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
   created_by     BIGINT UNSIGNED NULL,
   deleted_at     DATETIME      NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_plazo_pago_recibo (numero_recibo),
+  UNIQUE KEY uq_plazo_pago_ncf (ncf),              -- un NCF no se repite (regla DGII)
   KEY ix_plazo_pago_plazo (plazo_id),
   CONSTRAINT fk_plazo_pago_plazo   FOREIGN KEY (plazo_id)   REFERENCES venta_plazo (id) ON DELETE RESTRICT,
   CONSTRAINT fk_plazo_pago_usuario FOREIGN KEY (created_by) REFERENCES usuario (id)     ON DELETE SET NULL
@@ -491,12 +496,14 @@ CREATE TABLE alquiler_pago (
   fecha_pago     DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
   monto          DECIMAL(15,2) NOT NULL,
   metodo_pago    ENUM('efectivo','transferencia','cheque','otro') NOT NULL DEFAULT 'efectivo',
+  ncf            VARCHAR(19)   NULL,               -- comprobante fiscal del cobro (042)
   notas          TEXT          NULL,
   created_at     DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
   created_by     BIGINT UNSIGNED NULL,
   deleted_at     DATETIME      NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_alquiler_pago_recibo (numero_recibo),
+  UNIQUE KEY uq_alquiler_pago_ncf (ncf),           -- un NCF no se repite (regla DGII)
   KEY ix_alquiler_pago_alquiler (alquiler_id),
   CONSTRAINT fk_alquiler_pago_alquiler FOREIGN KEY (alquiler_id)
     REFERENCES alquiler (id) ON DELETE RESTRICT,

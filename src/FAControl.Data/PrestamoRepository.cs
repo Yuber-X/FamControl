@@ -1,4 +1,4 @@
-using MySqlConnector;
+﻿using MySqlConnector;
 using FAControl.Common;
 using FAControl.Models;
 
@@ -112,18 +112,49 @@ public class PrestamoRepository
 
     /// <summary>Aplica el resultado de un abono sobre la cuota (acumulado + estado).</summary>
     public async Task ActualizarCuotaTrasPagoAsync(long cuotaId, decimal nuevoMontoPagado,
-        EstadoCuota nuevoEstado, MySqlConnection conexion, MySqlTransaction transaccion,
+        decimal nuevoCapitalPagado, EstadoCuota nuevoEstado,
+        MySqlConnection conexion, MySqlTransaction transaccion,
         CancellationToken ct = default)
     {
         using var cmd = conexion.CreateCommand();
         cmd.Transaction = transaccion;
         cmd.CommandText = $"""
             UPDATE {DbNames.Cuota}
-            SET monto_pagado = @montoPagado, estado = @estado, updated_at = UTC_TIMESTAMP()
+            SET monto_pagado = @montoPagado, capital_pagado = @capitalPagado,
+                estado = @estado, updated_at = UTC_TIMESTAMP()
             WHERE id = @id;
             """;
         cmd.Parameters.AddWithValue("@montoPagado", nuevoMontoPagado);
+        // Se guarda junto al acumulado y en la misma transaccion: si se
+        // escribieran por separado, una caida en el medio dejaria una cuota
+        // diciendo que cobro mas capital del que cobro (043).
+        cmd.Parameters.AddWithValue("@capitalPagado", nuevoCapitalPagado);
         cmd.Parameters.AddWithValue("@estado", EnumMap.ADb(nuevoEstado));
+        cmd.Parameters.AddWithValue("@id", cuotaId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Reescribe el interes de una cuota (043 + recalculo del prestamo abierto).
+    /// Solo se usa sobre cuotas NO vencidas y NO pagadas: el interes ya
+    /// devengado no se toca.
+    /// </summary>
+    public async Task ActualizarInteresCuotaAsync(long cuotaId, decimal interes,
+        decimal montoTotal, decimal saldoDespues,
+        MySqlConnection conexion, MySqlTransaction transaccion,
+        CancellationToken ct = default)
+    {
+        using var cmd = conexion.CreateCommand();
+        cmd.Transaction = transaccion;
+        cmd.CommandText = $"""
+            UPDATE {DbNames.Cuota}
+            SET interes = @interes, monto_total = @montoTotal,
+                saldo_despues = @saldoDespues, updated_at = UTC_TIMESTAMP()
+            WHERE id = @id;
+            """;
+        cmd.Parameters.AddWithValue("@interes", interes);
+        cmd.Parameters.AddWithValue("@montoTotal", montoTotal);
+        cmd.Parameters.AddWithValue("@saldoDespues", saldoDespues);
         cmd.Parameters.AddWithValue("@id", cuotaId);
         await cmd.ExecuteNonQueryAsync(ct);
     }
@@ -139,7 +170,8 @@ public class PrestamoRepository
         cmd.Transaction = transaccion;
         cmd.CommandText = $"""
             SELECT id, prestamo_id, numero_cuota, fecha_vencimiento, capital, interes,
-                   monto_total, saldo_despues, monto_pagado, estado, created_at, updated_at
+                   monto_total, saldo_despues, monto_pagado, capital_pagado, estado,
+                   created_at, updated_at
             FROM {DbNames.Cuota}
             WHERE prestamo_id = @prestamoId
               AND estado IN ('pendiente', 'vencida', 'en_mora')
@@ -313,7 +345,8 @@ public class PrestamoRepository
         using var cmd = conexion.CreateCommand();
         cmd.CommandText = $"""
             SELECT id, prestamo_id, numero_cuota, fecha_vencimiento, capital, interes,
-                   monto_total, saldo_despues, monto_pagado, estado, created_at, updated_at
+                   monto_total, saldo_despues, monto_pagado, capital_pagado, estado,
+                   created_at, updated_at
             FROM {DbNames.Cuota}
             WHERE prestamo_id = @prestamoId
             ORDER BY numero_cuota;
@@ -416,6 +449,7 @@ public class PrestamoRepository
         MontoTotal = reader.GetDecimal("monto_total"),
         SaldoDespues = reader.GetDecimal("saldo_despues"),
         MontoPagado = reader.GetDecimal("monto_pagado"),
+        CapitalPagado = reader.GetDecimal("capital_pagado"),
         Estado = EnumMap.EstadoCuotaDeDb(reader.GetString("estado")),
         CreatedAtUtc = DateTime.SpecifyKind(reader.GetDateTime("created_at"), DateTimeKind.Utc),
         UpdatedAtUtc = reader.IsDBNull(reader.GetOrdinal("updated_at"))

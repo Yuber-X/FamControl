@@ -18,10 +18,11 @@ public class AlquilerService
     private readonly ContadorRepository _contador;
     private readonly ConexionFactory _factory;
     private readonly AuditoriaService _auditoria;
+    private readonly NcfRepository _ncf;
 
     public AlquilerService(AlquilerRepository alquileres, VehiculoRepository vehiculos,
         ClienteRepository clientes, ContadorRepository contador, ConexionFactory factory,
-        AuditoriaService auditoria)
+        AuditoriaService auditoria, NcfRepository ncf)
     {
         _alquileres = alquileres;
         _vehiculos = vehiculos;
@@ -29,6 +30,7 @@ public class AlquilerService
         _contador = contador;
         _factory = factory;
         _auditoria = auditoria;
+        _ncf = ncf;
     }
 
     public Task<IReadOnlyList<AlquilerResumen>> ObtenerResumenesAsync(CancellationToken ct = default)
@@ -611,12 +613,25 @@ public class AlquilerService
 
             var numero = await _contador.SiguienteAsync(
                 ContadorRepository.ReciboAlquiler, conexion, transaccion, ct);
+
+            // Comprobante fiscal del cobro (042). Va DENTRO de la transaccion:
+            // la reserva de la secuencia usa FOR UPDATE, y si el cobro falla el
+            // rollback devuelve el numero sin consumir. Sale del talonario de
+            // la estancia activa (030), no del de los prestamos.
+            var ncf = cobro.AsignarNcfAuto
+                ? await _ncf.ReservarSiguienteAsync(
+                    SesionActual.Modo, conexion, transaccion, FechaNegocio.Hoy, ct)
+                : string.IsNullOrWhiteSpace(cobro.Ncf)
+                    ? null
+                    : cobro.Ncf.Trim().ToUpperInvariant();
+
             var pago = new AlquilerPago
             {
                 AlquilerId = cobro.AlquilerId,
                 NumeroRecibo = $"RA-{numero:D6}",
                 Monto = monto,
                 MetodoPago = cobro.Metodo,
+                Ncf = ncf,
                 Notas = cobro.Notas
             };
             pago.Id = await _alquileres.InsertarPagoAsync(pago, conexion, transaccion, ct);
@@ -626,7 +641,9 @@ public class AlquilerService
                 DbNames.AlquilerPago, pago.Id,
                 $"Cobro {pago.NumeroRecibo} del alquiler {alquiler.Codigo}: {monto:N2} DOP " +
                 $"({cobro.Metodo}). Falta {(aCobrar - cobrado - monto):N2} DOP" +
-                (saldado ? " — alquiler SALDADO" : ""),
+                (saldado ? " — alquiler SALDADO" : "") +
+                (ncf is null ? "" : $" — comprobante fiscal {ncf}" +
+                    (cobro.AsignarNcfAuto ? " (de la secuencia)" : " (registrado externo)")),
                 conexion, transaccion, ct);
 
             await transaccion.CommitAsync(ct);

@@ -1,4 +1,4 @@
-namespace FAControl.Models;
+﻿namespace FAControl.Models;
 
 /// <summary>
 /// Resultado de distribuir un monto entre cuotas: cuánto recibe cada cuota
@@ -23,7 +23,11 @@ public record SolicitudPago(
     bool EsLiquidacion = false,
     /// <summary>Abono a capital adicional (cliente 2026-07-17). Se aplica sobre
     /// el capital de las cuotas más próximas, exonerando su interés.</summary>
-    decimal AbonoCapital = 0m);
+    decimal AbonoCapital = 0m,
+    /// <summary>Comprobante fiscal pegado a mano (Facturador Gratuito DGII). NULL = sin comprobante.</summary>
+    string? Ncf = null,
+    /// <summary>True = tomar el siguiente NCF de la secuencia configurada (ignora <see cref="Ncf"/>).</summary>
+    bool AsignarNcfAuto = false);
 
 /// <summary>Línea del recibo impreso (una por cuota afectada).</summary>
 public record ReciboLinea(
@@ -31,7 +35,13 @@ public record ReciboLinea(
     int NumeroCuota,
     decimal InteresAplicado,
     decimal CapitalAplicado,
-    decimal MontoAplicado);
+    decimal MontoAplicado,
+    /// <summary>
+    /// True = con este pago la cuota quedó saldada. Manda la palabra que se
+    /// imprime: "Abonado" es un pago PARCIAL en el habla dominicana, y usarlo
+    /// para una cuota pagada completa confundió al cliente (2026-08-27).
+    /// </summary>
+    bool QuedaPagada = false);
 
 /// <summary>
 /// Contenido completo de un recibo de pago (una operación de cobro puede

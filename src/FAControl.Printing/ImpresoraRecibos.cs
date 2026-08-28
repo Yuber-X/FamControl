@@ -112,14 +112,47 @@ public static class ImpresoraRecibos
         }
     }
 
-    /// <summary>Guarda el recibo como PDF de 80mm de ancho y alto proporcional.</summary>
-    public static void GuardarPdf(FrameworkElement visual, string rutaDestino)
+    /// <summary>
+    /// Guarda un visual de UNA página como PDF del MISMO tamaño físico que el
+    /// visual: el recibo de 302 DIU sale en 80mm y la factura o la ficha de
+    /// 816 DIU salen en hoja carta (216mm).
+    ///
+    /// El ancho se DERIVA del visual y no se fija a mano: hasta el 2026-08-27
+    /// esto escribía 80mm siempre, así que la factura de venta y la ficha del
+    /// vehículo se guardaban en una tira de 8cm con el contenido de una carta
+    /// encogido adentro.
+    /// </summary>
+    /// <param name="titulo">Título del PDF (el que muestra el lector en su barra).</param>
+    public static void GuardarPdf(FrameworkElement visual, string rutaDestino,
+        string titulo = "Documento — FAControl")
     {
         const double escala = 2.0; // 192 DPI: nítido sin archivos gigantes
+
+        // Las factories miden y arreglan antes de devolver, pero un visual que
+        // llegue sin layout daría 0×0: RenderTargetBitmap tira y la división
+        // del alto se iría a infinito. Se mide acá antes de confiar en el tamaño.
+        if (visual.ActualWidth <= 0 || visual.ActualHeight <= 0)
+        {
+            visual.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            visual.Arrange(new Rect(visual.DesiredSize));
+            visual.UpdateLayout();
+        }
+        if (visual.ActualWidth <= 0 || visual.ActualHeight <= 0)
+            throw new InvalidOperationException(
+                "El visual no tiene tamaño después de medirlo; no se puede exportar a PDF.");
+
         var ancho = (int)Math.Ceiling(visual.ActualWidth * escala);
         var alto = (int)Math.Ceiling(visual.ActualHeight * escala);
 
         var bitmap = new RenderTargetBitmap(ancho, alto, 96 * escala, 96 * escala, PixelFormats.Pbgra32);
+
+        // Fondo blanco explícito: el visual puede tener zonas transparentes y
+        // el PDF las mostraría negras en algunos lectores.
+        var fondo = new DrawingVisual();
+        using (var dc = fondo.RenderOpen())
+            dc.DrawRectangle(Brushes.White, null,
+                new Rect(0, 0, visual.ActualWidth, visual.ActualHeight));
+        bitmap.Render(fondo);
         bitmap.Render(visual);
 
         var encoder = new PngBitmapEncoder();
@@ -132,11 +165,12 @@ public static class ImpresoraRecibos
                 encoder.Save(archivoPng);
 
             using var documento = new PdfDocument();
-            documento.Info.Title = "Recibo de pago — FAControl";
+            documento.Info.Title = titulo;
 
+            // DIU (96/pulgada) → puntos (72/pulgada), igual que GuardarDocumentoPdf
             var pagina = documento.AddPage();
-            pagina.Width = XUnit.FromMillimeter(80);
-            pagina.Height = XUnit.FromMillimeter(80 * visual.ActualHeight / visual.ActualWidth);
+            pagina.Width = XUnit.FromPoint(visual.ActualWidth * 72.0 / 96.0);
+            pagina.Height = XUnit.FromPoint(visual.ActualHeight * 72.0 / 96.0);
 
             using (var grafico = XGraphics.FromPdfPage(pagina))
             using (var imagen = XImage.FromFile(rutaPng))

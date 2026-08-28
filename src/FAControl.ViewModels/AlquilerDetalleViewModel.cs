@@ -510,6 +510,21 @@ public partial class AlquilerDetalleViewModel : ObservableObject
         OnPropertyChanged(nameof(MostrarSaldado));
     }
 
+    /// <summary>
+    /// Comprobante fiscal del cobro (pedido 2026-08-24). Mismo par que en
+    /// PrestControl: o se pega el e-NCF del Facturador Gratuito de la DGII, o
+    /// el switch toma el siguiente de la secuencia de ESTA estancia (030).
+    /// </summary>
+    [ObservableProperty] private string _ncfTexto = string.Empty;
+    [ObservableProperty] private bool _ncfDeSecuencia;
+
+    /// <summary>Al prender el switch el NCF escrito se borra: el servicio lo ignora.</summary>
+    partial void OnNcfDeSecuenciaChanged(bool value)
+    {
+        if (value)
+            NcfTexto = string.Empty;
+    }
+
     /// <summary>Registra un cobro contra el alquiler.</summary>
     [RelayCommand]
     private async Task CobrarAsync()
@@ -525,14 +540,20 @@ public partial class AlquilerDetalleViewModel : ObservableObject
         {
             var pago = await _alquileres.RegistrarCobroAsync(new CobroAlquiler(
                 _alquilerId, monto, MetodoCobro.Valor,
-                string.IsNullOrWhiteSpace(NotaCobro) ? null : NotaCobro.Trim()));
+                string.IsNullOrWhiteSpace(NotaCobro) ? null : NotaCobro.Trim(),
+                Ncf: string.IsNullOrWhiteSpace(NcfTexto) ? null : NcfTexto.Trim(),
+                AsignarNcfAuto: NcfDeSecuencia));
 
             MontoCobroTexto = string.Empty;
             NotaCobro = string.Empty;
+            // El comprobante se limpia: un NCF se consume una sola vez.
+            NcfTexto = string.Empty;
+            NcfDeSecuencia = false;
             await CargarCobrosAsync();
 
             _dialogos.Informar("Cobro registrado",
                 $"Recibo {pago.NumeroRecibo} por {pago.Monto.ToString("N2", Textos.CulturaRd)} DOP." +
+                (pago.Ncf is null ? "" : $"\nComprobante fiscal {pago.Ncf}.") +
                 (EstaSaldado
                     ? "\n\nEl alquiler quedó saldado."
                     : $"\n\nQuedan {Pendiente.ToString("N2", Textos.CulturaRd)} DOP por cobrar."));
@@ -577,6 +598,8 @@ public record AlquilerPagoFila(AlquilerPago Pago)
     public decimal Monto => Pago.Monto;
     public string MetodoTexto => Textos.De(Pago.MetodoPago);
     public string NotasTexto => string.IsNullOrWhiteSpace(Pago.Notas) ? "—" : Pago.Notas!;
+    /// <summary>Comprobante fiscal del cobro (042). "—" cuando no lleva.</summary>
+    public string NcfTexto => string.IsNullOrWhiteSpace(Pago.Ncf) ? "—" : Pago.Ncf!;
     public string CobradoPorTexto => string.IsNullOrWhiteSpace(Pago.CobradoPor) ? "—" : Pago.CobradoPor!;
 }
 

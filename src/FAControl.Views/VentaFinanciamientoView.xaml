@@ -198,6 +198,19 @@
               <TextBox Width="260" Height="34" Style="{DynamicResource Input.Texto}"
                        Text="{Binding NotasAbono, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
+            <StackPanel Margin="0,0,12,6">
+              <!-- Comprobante fiscal del cobro (pedido 2026-08-24) -->
+              <TextBlock Text="Comprobante fiscal — NCF (opcional)"
+                         Style="{DynamicResource Input.Label}" />
+              <TextBox Width="200" Height="34" Style="{DynamicResource Input.Texto}"
+                       ToolTip="Pegá el e-NCF del Facturador Gratuito DGII, o prendé el switch para tomar el siguiente de la secuencia"
+                       IsEnabled="{Binding NcfDeSecuencia, Converter={StaticResource InversorBool}}"
+                       Text="{Binding NcfTexto, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <CheckBox Style="{DynamicResource Switch.Moderno}"
+                      VerticalAlignment="Bottom" Margin="0,0,12,12"
+                      Content="Tomar el siguiente de la secuencia"
+                      IsChecked="{Binding NcfDeSecuencia}" />
             <Button Content="Registrar cobro" Style="{DynamicResource Boton.Primario}"
                     VerticalAlignment="Bottom" Margin="0,0,0,6"
                     Command="{Binding CobrarCommand}" />
@@ -243,6 +256,14 @@
                 </DataGridTextColumn.ElementStyle>
               </DataGridTextColumn>
               <DataGridTextColumn Header="Forma de pago" Binding="{Binding MetodoTexto}" Width="150" />
+              <DataGridTextColumn Header="NCF" Binding="{Binding NcfTexto}" Width="Auto" MinWidth="120"
+                                  HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
+                <DataGridTextColumn.ElementStyle>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="FontFamily" Value="{DynamicResource Fuente.Mono}" />
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
               <DataGridTextColumn Header="Nota" Binding="{Binding NotasTexto}" Width="Auto" MinWidth="140" />
             </DataGrid.Columns>
           </DataGrid>

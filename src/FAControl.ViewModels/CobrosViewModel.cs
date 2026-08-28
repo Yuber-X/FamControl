@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -65,12 +65,31 @@ public partial class CobrosViewModel : ObservableObject
     [ObservableProperty] private bool _esLiquidacion;
     [ObservableProperty] private Opcion<MetodoPago> _metodoSeleccionado;
     [ObservableProperty] private string _notas = string.Empty;
+    /// <summary>
+    /// Comprobante fiscal del cobro (pedido 2026-08-24). Igual que en "Nuevo
+    /// préstamo": o se pega el e-NCF del Facturador Gratuito de la DGII, o se
+    /// prende el switch y se toma el siguiente de la secuencia configurada.
+    /// </summary>
+    [ObservableProperty] private string _ncfTexto = string.Empty;
+    [ObservableProperty] private bool _ncfDeSecuencia;
     [ObservableProperty] private string _mensajeValidacion = string.Empty;
     [ObservableProperty] private bool _tienePreview;
     [ObservableProperty] private decimal _deudaTotal;
     [ObservableProperty] private decimal _saldoProximaCuota;
     [ObservableProperty] private decimal _montoLiquidacion;
     [ObservableProperty] private bool _tienePrestamo;
+
+    /// <summary>
+    /// Al prender el switch, el NCF escrito a mano se borra. El servicio ya lo
+    /// ignora (AsignarNcfAuto manda), asi que dejarlo a la vista haria creer
+    /// que se va a usar ese numero. Mismo criterio que pidio el cliente el
+    /// 2026-08-02 para la secuencia de Configuracion.
+    /// </summary>
+    partial void OnNcfDeSecuenciaChanged(bool value)
+    {
+        if (value)
+            NcfTexto = string.Empty;
+    }
 
     partial void OnPrestamoSeleccionadoChanged(PrestamoResumen? value) =>
         _ = CargarCuotasAsync(); // fire-and-forget: CargarCuotasAsync captura sus propias excepciones
@@ -278,7 +297,9 @@ public partial class CobrosViewModel : ObservableObject
                 MetodoSeleccionado.Valor,
                 string.IsNullOrWhiteSpace(Notas) ? null : Notas.Trim(),
                 EsLiquidacion,
-                abono);
+                abono,
+                Ncf: string.IsNullOrWhiteSpace(NcfTexto) ? null : NcfTexto.Trim(),
+                AsignarNcfAuto: NcfDeSecuencia);
 
             var resultado = await _pagos.RegistrarPagoAsync(solicitud);
 
@@ -287,6 +308,11 @@ public partial class CobrosViewModel : ObservableObject
                     $"Con este cobro el préstamo {PrestamoSeleccionado.Codigo} quedó completamente pagado.");
 
             Notas = string.Empty;
+            // El comprobante se limpia siempre: un NCF se consume una sola vez,
+            // y dejarlo escrito invitaria a mandar el mismo al proximo cobro
+            // (uq_pago_ncf lo rechazaria, pero el error saldria tarde y feo).
+            NcfTexto = string.Empty;
+            NcfDeSecuencia = false;
             PagoRegistrado?.Invoke(resultado.Recibo);
             await CargarAsync(resultado.PrestamoQuedoPagado ? null : PrestamoSeleccionado?.Id);
         }

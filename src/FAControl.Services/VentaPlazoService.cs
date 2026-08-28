@@ -25,9 +25,11 @@ public class VentaPlazoService
     private readonly ContadorRepository _contador;
     private readonly AuditoriaService _auditoria;
     private readonly VehiculoRepository _vehiculos;
+    private readonly NcfRepository _ncf;
 
     public VentaPlazoService(ConexionFactory factory, VentaPlazoRepository plazos,
-        VentaVehiculoRepository ventas, ContadorRepository contador, AuditoriaService auditoria, VehiculoRepository vehiculos)
+        VentaVehiculoRepository ventas, ContadorRepository contador, AuditoriaService auditoria,
+        VehiculoRepository vehiculos, NcfRepository ncf)
     {
         _factory = factory;
         _plazos = plazos;
@@ -35,6 +37,7 @@ public class VentaPlazoService
         _contador = contador;
         _vehiculos = vehiculos;
         _auditoria = auditoria;
+        _ncf = ncf;
     }
 
     // ============================================================
@@ -138,8 +141,11 @@ public class VentaPlazoService
     /// Todo va en UNA transacción, con los plazos bloqueados de entrada: sin eso,
     /// dos cajeros cobrando a la vez aplicarían el mismo excedente dos veces.
     /// </summary>
+    /// <param name="ncfManual">e-NCF pegado a mano (Facturador Gratuito DGII). NULL = sin comprobante.</param>
+    /// <param name="asignarNcfAuto">True = tomar el siguiente de la secuencia del modo (ignora <paramref name="ncfManual"/>).</param>
     public async Task<AbonoVentaResultado> CobrarPlazoAsync(long plazoId, decimal monto,
-        MetodoPago metodo, string? notas = null, CancellationToken ct = default)
+        MetodoPago metodo, string? notas = null, CancellationToken ct = default,
+        string? ncfManual = null, bool asignarNcfAuto = false)
     {
         ExigirEscritura();
         if (monto <= 0m)
@@ -167,6 +173,16 @@ public class VentaPlazoService
                     $"El abono ({porAplicar:N2}) supera todo lo que falta de la venta ({deudaTotal:N2}). " +
                     "Cobrá como máximo el saldo pendiente.");
 
+            // Comprobante fiscal del cobro (042). Se resuelve con los plazos ya
+            // bloqueados: la reserva usa FOR UPDATE y tiene que vivir en la
+            // misma transaccion, o dos cajas se llevan el mismo numero.
+            var ncfDelCobro = asignarNcfAuto
+                ? await _ncf.ReservarSiguienteAsync(
+                    SesionActual.Modo, conexion, transaccion, FechaNegocio.Hoy, ct)
+                : string.IsNullOrWhiteSpace(ncfManual)
+                    ? null
+                    : ncfManual.Trim().ToUpperInvariant();
+
             var recibos = new List<string>();
             var saldados = 0;
             var aplicado = 0m;
@@ -191,6 +207,9 @@ public class VentaPlazoService
                     FechaPagoUtc = DateTime.UtcNow,
                     Monto = aEste,
                     MetodoPago = metodo,
+                    // Solo la primera fila: el abono es UN documento fiscal
+                    // aunque se reparta entre varios plazos.
+                    Ncf = recibos.Count == 0 ? ncfDelCobro : null,
                     Notas = string.IsNullOrWhiteSpace(notas) ? null : notas.Trim()
                 }, conexion, transaccion, ct);
 
@@ -212,7 +231,9 @@ public class VentaPlazoService
                   $"#{plazo.Numero} (recibos {string.Join(", ", recibos)})";
             await _auditoria.RegistrarEnTransaccionAsync(AccionAuditoria.Crear, DbNames.VentaPlazoPago,
                 plazoId, $"{detalle} de la venta #{plazo.VentaId} ({metodo})" +
-                (saldados > 0 ? $" — {saldados} plazo(s) saldado(s)" : string.Empty),
+                (saldados > 0 ? $" — {saldados} plazo(s) saldado(s)" : string.Empty) +
+                (ncfDelCobro is null ? string.Empty : $" — comprobante fiscal {ncfDelCobro}" +
+                    (asignarNcfAuto ? " (de la secuencia)" : " (registrado externo)")),
                 conexion, transaccion, ct);
 
             await transaccion.CommitAsync(ct);

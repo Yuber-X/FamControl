@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using Microsoft.Win32;
 using FAControl.Models;
 using FAControl.Printing;
@@ -54,7 +54,8 @@ public partial class ReciboWindow : Window
         try
         {
             var visualPdf = ReciboVisualFactory.Crear(_recibo);
-            ImpresoraRecibos.GuardarPdf(visualPdf, dialogo.FileName);
+            ImpresoraRecibos.GuardarPdf(visualPdf, dialogo.FileName,
+                $"Recibo {_recibo.NumeroReciboPrincipal} — FAControl");
             MessageBox.Show(this, $"Recibo guardado en:\n{dialogo.FileName}",
                 "Guardar PDF", MessageBoxButton.OK, MessageBoxImage.Information);
         }

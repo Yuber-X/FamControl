@@ -45,7 +45,8 @@ public class FlujoAlquilerTests : IAsyncLifetime
             new SesionRepository(fabrica), new UsuarioRepository(fabrica));
 
         _alquileres = new AlquilerService(new AlquilerRepository(fabrica), _vehiculos,
-            new ClienteRepository(fabrica), new ContadorRepository(), fabrica, auditoria);
+            new ClienteRepository(fabrica), new ContadorRepository(), fabrica, auditoria,
+            new NcfRepository(fabrica));
 
         await using var conexion = new MySqlConnection(Cadena);
         await conexion.OpenAsync();

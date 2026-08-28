@@ -179,8 +179,8 @@
           <TextBox Style="{DynamicResource Input.Texto}"
                    IsEnabled="{Binding NcfDeSecuencia, Converter={StaticResource InversorBool}}"
                    Text="{Binding NcfTexto, UpdateSourceTrigger=PropertyChanged}" />
-          <CheckBox Content="Tomar el siguiente de la secuencia configurada (Configuración → Comprobante fiscal)"
-                    FontSize="12" Margin="0,6,0,0"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,10,0,0"
+                    Content="Tomar el siguiente de la secuencia configurada (Configuración → Comprobante fiscal)"
                     IsChecked="{Binding NcfDeSecuencia}" />
 
           <!-- Préstamo antiguo autodetectado (pedido 2026-07-25) -->

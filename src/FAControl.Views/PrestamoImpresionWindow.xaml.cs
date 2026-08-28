@@ -26,10 +26,13 @@ public partial class PrestamoImpresionWindow : Window
     {
         try
         {
-            // Visual independiente: el de pantalla ya tiene padre visual y
-            // no se puede pasar a PrintVisual.
-            var visualImpresion = PrestamoVisualFactory.Crear(_prestamo);
-            ImpresoraRecibos.Imprimir(visualImpresion, $"Préstamo {_prestamo.Codigo}");
+            // FlowDocument y no PrintVisual: la tabla de amortización de un
+            // préstamo largo no cabe en una hoja y PrintVisual no pagina, así
+            // que recortaba la cola de la tabla sin avisar (mismo defecto que
+            // fue el BLOCKER del pagaré el 2026-07-17). En pantalla se sigue
+            // mostrando el visual, que ahí sí resuelve el alto con scroll.
+            ImpresoraRecibos.ImprimirDocumento(
+                PrestamoDocumentFactory.Crear(_prestamo), $"Préstamo {_prestamo.Codigo}");
         }
         catch (Exception ex)
         {

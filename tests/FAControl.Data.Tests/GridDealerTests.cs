@@ -53,7 +53,7 @@ public class GridDealerTests : IAsyncLifetime
         _ventas = new VentaVehiculoService(new VentaVehiculoRepository(_fabrica), vehiculoRepo,
             _clientes, contador, _fabrica, auditoria, new VentaPlazoRepository(_fabrica));
         _alquileres = new AlquilerService(new AlquilerRepository(_fabrica), vehiculoRepo,
-            _clientes, contador, _fabrica, auditoria);
+            _clientes, contador, _fabrica, auditoria, new NcfRepository(_fabrica));
 
         await using var conexion = new MySqlConnection(Cadena);
         await conexion.OpenAsync();

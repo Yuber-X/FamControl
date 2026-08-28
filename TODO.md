@@ -1,6 +1,66 @@
-# TODO.md — FAControl
+﻿# TODO.md — FAControl
 
 > Actualizado: 2026-08-20 (ronda de la prueba de Veronica — version 2.0.2)
+
+## Ronda del comprobante fiscal y las impresiones (2026-08-27)
+
+Pedido del cliente en `Freelancer - Claude Active\FamControl\About the FamControl.txt`
+y en los screenshots del 26 y 27 de agosto.
+
+- [x] Comprobante fiscal por COBRO, no por prestamo (041). Era el reporte de
+      Veronica: las 24 facturas de un prestamo salian con el mismo NCF porque
+      `PagoService` copiaba `prestamo.Ncf` al recibo de cada cobro
+- [x] NCF manual + switch en "Registrar pago" (PrestControl)
+- [x] NCF manual + switch en cobro de alquiler y en abono a plazo (DealControl, 042)
+- [x] `Switch.Moderno` en `Controles.xaml` — el "checkbox moderno" pedido
+- [x] Columna NCF en las grillas de cobros del dealer (no imprimen recibo suelto)
+- [x] `GuardarPdf` deriva el tamano del visual: la factura de venta y la ficha
+      de vehiculo se guardaban en 80mm con contenido de hoja carta adentro
+- [x] Titulo propio en cada PDF (todos decian "Recibo de pago")
+- [x] La hoja del prestamo pasa a FlowDocument: con `PrintVisual` se recortaba
+      la tabla de amortizacion, mismo defecto que el BLOCKER del pagare
+- [x] 429 tests en verde (306 servicios + 123 base). Se reescribio
+      `El_comprobante_sale_impreso_en_el_recibo_del_cobro`, que afirmaba el
+      comportamiento VIEJO, y se agregaron 3 casos del reporte del cliente
+
+- [x] Interes recalculado sobre capital rebajado en el prestamo abierto (043).
+      Acotado a SoloInteres, solo con abono, y solo sobre cuotas NO vencidas
+- [x] `cuota.capital_pagado`: el reparto interes/capital se GUARDA en vez de
+      deducirse. La regla vieja "primero interes" se comia una cuota de interes
+      de cada abono (820,000 en vez de 800,000), y el error se acumulaba
+- [x] Recibo: "Pagado" si la cuota quedo saldada, "Abonado (parcial)" si no
+- [x] Regresion propia corregida: `saldoAntes` se leia DESPUES del bucle que
+      ahora actualiza las cuotas en memoria, y el recibo restaba el cobro dos
+      veces. La cazo `FlujoPrestamoPagoTests`
+- [x] 439 tests en verde (311 servicios + 128 base)
+
+### Pendiente de probar a mano
+- [ ] Prestamo abierto: abonar a capital y verificar que la cuota del mes que
+      viene baja, y que las vencidas NO se mueven
+- [ ] Dos abonos seguidos al mismo prestamo abierto: el segundo tiene que
+      calcularse sobre el capital ya rebajado
+- [ ] Cobrar una cuota completa y confirmar que el recibo dice "Pagado"
+- [ ] Cobrar parcial y confirmar que dice "Abonado (parcial)"
+- [ ] Cobrar dos cuotas del mismo prestamo con el switch prendido y verificar
+      que salen DOS comprobantes distintos en los recibos
+- [ ] Cobrar sin comprobante: el recibo no debe mostrar ninguno (antes mostraba
+      el del prestamo)
+- [ ] Pegar un e-NCF a mano y confirmar que la secuencia local NO se mueve
+- [ ] Guardar una factura de venta y una ficha de vehiculo como PDF: tienen que
+      salir en hoja carta, no en tira de 8cm
+- [ ] Imprimir un prestamo de 24+ cuotas y contar que la tabla llegue completa
+- [ ] Cobrar un alquiler y un plazo de venta con NCF, y ver la columna en la grilla
+
+### Pendiente de hacer
+- [ ] **Pagare notarial** (plantilla recibida el 2026-08-26). El cliente confirmo
+      el 2026-08-27: "Vamos hacer ese solo" — el hipotecario y la oposicion de
+      matricula quedan fuera por ahora. Necesita:
+      - conversor numero -> letras en espanol (no existe en el proyecto)
+      - nacionalidad / estado civil / ocupacion del cliente (no estan en el modelo)
+      - notario, representante y 2 testigos configurables
+      - las dos formas que pidio el cliente: automatico y editable
+- [ ] Barrido general de errores en los 3 modos
+- [ ] Version 2.1.0: actualizador + instalador recompilados
 
 ## Ronda de la prueba de Veronica (2026-08-20) — 2.0.2
 

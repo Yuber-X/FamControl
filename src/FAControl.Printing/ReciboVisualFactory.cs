@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -58,7 +58,13 @@ public static class ReciboVisualFactory
                 panel.Children.Add(Fila("  Interés:", Moneda(linea.InteresAplicado)));
             if (linea.CapitalAplicado > 0m)
                 panel.Children.Add(Fila("  Capital:", Moneda(linea.CapitalAplicado)));
-            panel.Children.Add(Fila("  Abonado:", Moneda(linea.MontoAplicado)));
+            // "Abonado" es un pago PARCIAL en el habla dominicana. Usarlo para
+            // una cuota pagada completa hizo que el cliente lo reportara como
+            // error (2026-08-27): "dice abonado y pone el total de interes y
+            // capital pagado en una cuota normal". La palabra sigue al hecho.
+            panel.Children.Add(Fila(
+                linea.QuedaPagada ? "  Pagado:" : "  Abonado (parcial):",
+                Moneda(linea.MontoAplicado)));
         }
         panel.Children.Add(Separador());
 

@@ -282,6 +282,7 @@
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Monto a cobrar"
@@ -305,6 +306,24 @@
             <Button Grid.Row="1" Grid.Column="6" Content="Registrar cobro"
                     Style="{DynamicResource Boton.Primario}" Height="36"
                     Command="{Binding CobrarCommand}" />
+
+            <!-- Comprobante fiscal del cobro (pedido 2026-08-24): igual que en
+                 PrestControl. Sale del talonario de ESTA estancia. -->
+            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="7"
+                        Orientation="Horizontal" Margin="0,14,0,0">
+              <StackPanel>
+                <TextBlock Text="Comprobante fiscal — NCF (opcional)"
+                           Style="{DynamicResource Input.Label}" />
+                <TextBox Width="200" Height="36" Style="{DynamicResource Input.Texto}"
+                         ToolTip="Pegá el e-NCF del Facturador Gratuito DGII, o prendé el switch para tomar el siguiente de la secuencia"
+                         IsEnabled="{Binding NcfDeSecuencia, Converter={StaticResource InversorBool}}"
+                         Text="{Binding NcfTexto, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <CheckBox Style="{DynamicResource Switch.Moderno}"
+                        Margin="16,0,0,0" VerticalAlignment="Bottom" Padding="0,0,0,8"
+                        Content="Tomar el siguiente de la secuencia configurada"
+                        IsChecked="{Binding NcfDeSecuencia}" />
+            </StackPanel>
           </Grid>
 
           <!-- Cuando ya se cobro todo, el formulario se va pero se DICE por que.
@@ -342,6 +361,14 @@
               </DataGridTextColumn>
               <DataGridTextColumn Header="Forma" Binding="{Binding MetodoTexto}" Width="Auto" MinWidth="110"
                                   HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
+              <DataGridTextColumn Header="NCF" Binding="{Binding NcfTexto}" Width="Auto" MinWidth="120"
+                                  HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}">
+                <DataGridTextColumn.ElementStyle>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="FontFamily" Value="{DynamicResource Fuente.Mono}" />
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
               <DataGridTextColumn Header="Cobró" Binding="{Binding CobradoPorTexto}" Width="Auto" MinWidth="130"
                                   HeaderStyle="{StaticResource Tabla.Encabezado.Izquierda}" />
               <DataGridTextColumn Header="Nota" Binding="{Binding NotasTexto}" Width="*" MinWidth="140"
