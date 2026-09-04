@@ -39,7 +39,7 @@ public class FlujoPrestamoPagoTests : IAsyncLifetime
 
         _prestamos = new PrestamoService(_factory, prestamoRepo, contadorRepo,
             new AmortizacionService(), auditoria, new VehiculoRepository(_factory),
-            new NcfRepository(_factory), pagoRepo);
+            new NcfRepository(_factory), pagoRepo, new PrestamoActaRepository(_factory));
         _pagos = new PagoService(_factory, prestamoRepo, pagoRepo, clienteRepo,
             contadorRepo, auditoria, new FAControl.Common.AjustesLocales(),
             new NcfRepository(_factory));

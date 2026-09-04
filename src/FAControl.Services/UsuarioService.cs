@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 using Serilog;
@@ -32,7 +32,7 @@ public class UsuarioService
 
     /// <summary>
     /// Puerta única: toda operación de esta clase exige ser Admin.
-    /// La UI ya oculta la pantalla, pero la regla se aplica ACÁ — la UI no
+    /// La UI ya oculta la pantalla, pero la regla se aplica AQUÍ — la UI no
     /// es una frontera de seguridad.
     /// </summary>
     private static void ExigirAdmin()
@@ -47,7 +47,7 @@ public class UsuarioService
     /// tocar una cuenta con rol Programador — ni editarla, ni desactivarla, ni
     /// restablecerle la contraseña, ni verla. Solo otro Programador.
     /// La cuenta tampoco aparece en la lista, así que esto es la segunda puerta:
-    /// aunque alguien llegue con el id en la mano, acá se corta.
+    /// aunque alguien llegue con el id en la mano, aquí se corta.
     /// </summary>
     private async Task ExigirPuedeTocarAsync(long usuarioId, CancellationToken ct)
     {
@@ -178,17 +178,17 @@ public class UsuarioService
 
         // Un Admin no puede autodesactivarse ni quitarse la administración.
         if (id == SesionActual.Id && !activo)
-            throw new InvalidOperationException("No podés desactivar tu propia cuenta.");
+            throw new InvalidOperationException("No puedes desactivar tu propia cuenta.");
         if (id == SesionActual.Id && eraAdmin && !roles.EsAdmin)
-            throw new InvalidOperationException("No podés quitarte a vos mismo el rol de Admin.");
+            throw new InvalidOperationException("No puedes quitarte a ti mismo el rol de Admin.");
 
         // El negocio nunca puede quedarse sin un Admin activo.
         var perderiaAdmin = eraAdmin && antes.Activo && (!roles.EsAdmin || !activo);
         if (perderiaAdmin && await _usuarios.ContarAdminsActivosAsync(ct) <= 1)
             throw new InvalidOperationException(
-                "Es el único Admin activo. Asigná otro Admin antes de cambiar este.");
+                "Es el único Admin activo. Asigna otro Admin antes de cambiar este.");
 
-        // Datos básicos (el rol_id lo fija GuardarRolesPorModo); activo va acá.
+        // Datos básicos (el rol_id lo fija GuardarRolesPorModo); activo va aquí.
         await _usuarios.ActualizarAsync(id, nombre.Trim(),
             string.IsNullOrWhiteSpace(apellido) ? null : apellido.Trim(), antes.RolId, activo, ct);
         var rolAdminId = await _usuarios.ObtenerRolAdminIdAsync(ct);
@@ -203,7 +203,7 @@ public class UsuarioService
     {
         if (!r.EsAdmin && !r.EsProgramador
             && r.RolPrestId is null && r.RolDealerId is null && r.RolAutoId is null)
-            throw new ArgumentException("Asigná al menos un rol (en algún modo) o marcá administrador.");
+            throw new ArgumentException("Asigna al menos un rol (en algún modo) o marca administrador.");
     }
 
     private static string DescribirRoles(RolesUsuario r) => r.EsProgramador

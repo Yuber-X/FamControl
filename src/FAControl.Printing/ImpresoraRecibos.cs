@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -130,7 +130,7 @@ public static class ImpresoraRecibos
 
         // Las factories miden y arreglan antes de devolver, pero un visual que
         // llegue sin layout daría 0×0: RenderTargetBitmap tira y la división
-        // del alto se iría a infinito. Se mide acá antes de confiar en el tamaño.
+        // del alto se iría a infinito. Se mide aquí antes de confiar en el tamaño.
         if (visual.ActualWidth <= 0 || visual.ActualHeight <= 0)
         {
             visual.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));

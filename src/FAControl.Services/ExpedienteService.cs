@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
@@ -8,7 +8,7 @@ namespace FAControl.Services;
 
 /// <summary>
 /// Expediente digital del contrato (018, pedido del cliente 2026-07-27):
-/// guardar acá todas las facturas, documentos e imágenes que el cliente entregó
+/// guardar aquí todas las facturas, documentos e imágenes que el cliente entregó
 /// para la compra, poder abrirlos con su app de Windows y bajarlos todos en un
 /// ZIP para migrar cuando haga falta.
 ///
@@ -141,7 +141,7 @@ public class ExpedienteService
 
     /// <summary>
     /// Ruta lista para abrir con la app de Windows que corresponda. Vuelve a
-    /// validar la extensión: aunque la base diga otra cosa, acá no se abre nada
+    /// validar la extensión: aunque la base diga otra cosa, aquí no se abre nada
     /// que no esté en la lista blanca.
     /// </summary>
     public string RutaParaAbrir(DocumentoVenta documento)
@@ -241,7 +241,7 @@ public class ExpedienteService
         {
             File.Delete(rutaZip);
             throw new InvalidOperationException(
-                "Ninguno de los archivos del expediente está en el disco. Restaurá un respaldo.");
+                "Ninguno de los archivos del expediente está en el disco. Restaura un respaldo.");
         }
 
         Log.Information("Expediente {Dueno}: {Cantidad} documentos exportados a {Zip}",
@@ -274,7 +274,7 @@ public class ExpedienteService
     private static void ExigirVer()
     {
         if (!SesionActual.TienePermiso(Permisos.Ventas) && !SesionActual.EsAdmin)
-            throw new UnauthorizedAccessException("No tenés permiso para ver el expediente del contrato.");
+            throw new UnauthorizedAccessException("No tienes permiso para ver el expediente del contrato.");
     }
 
     private static void ExigirAdmin(string accion)

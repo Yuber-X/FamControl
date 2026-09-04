@@ -38,5 +38,7 @@ public static class DbNames
     public const string VentaPlazo = "venta_plazo";
     public const string VentaPlazoPago = "venta_plazo_pago";
     /// <summary>Expediente digital: documentos de una venta o de un prestamo (018/026).</summary>
+    /// <summary>Copia congelada de las partes del pagare notarial (045).</summary>
+    public const string PrestamoActa = "prestamo_acta";
     public const string Documento = "documento";
 }

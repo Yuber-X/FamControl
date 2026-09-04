@@ -19,11 +19,13 @@ public class PrestamoService
     private readonly AuditoriaService _auditoria;
     private readonly VehiculoRepository _vehiculos;
     private readonly NcfRepository _ncf;
+    private readonly PrestamoActaRepository _actas;
     private readonly PagoRepository _pagos;
 
     public PrestamoService(ConexionFactory factory, PrestamoRepository prestamos,
         ContadorRepository contador, AmortizacionService amortizacion, AuditoriaService auditoria,
-        VehiculoRepository vehiculos, NcfRepository ncf, PagoRepository pagos)
+        VehiculoRepository vehiculos, NcfRepository ncf, PagoRepository pagos,
+        PrestamoActaRepository actas)
     {
         _factory = factory;
         _prestamos = prestamos;
@@ -32,6 +34,7 @@ public class PrestamoService
         _auditoria = auditoria;
         _vehiculos = vehiculos;
         _ncf = ncf;
+        _actas = actas;
         _pagos = pagos;
     }
 
@@ -46,14 +49,14 @@ public class PrestamoService
     /// <paramref name="autorizacion"/> emitida por AutorizacionService tras
     /// validar la contraseña del admin. Sin ella, esto TIRA y no se crea nada.
     ///
-    /// La regla se aplica ACÁ y no en el ViewModel: la UI puede olvidarse, el
+    /// La regla se aplica AQUÍ y no en el ViewModel: la UI puede olvidarse, el
     /// servicio no.
     /// </summary>
     public async Task<(long Id, string Codigo)> CrearAsync(NuevoPrestamo solicitud,
         AutorizacionPrestamo? autorizacion = null, CancellationToken ct = default)
     {
         if (!SesionActual.TienePermiso(Permisos.PrestamosCrear))
-            throw new UnauthorizedAccessException("No tenés permiso para crear préstamos.");
+            throw new UnauthorizedAccessException("No tienes permiso para crear préstamos.");
 
         var aprobador = AutorizacionService.UsuarioActualPuedeAutorizar
             ? AutorizacionService.DelUsuarioActual()
@@ -120,7 +123,23 @@ public class PrestamoService
                 Garantia = string.IsNullOrWhiteSpace(solicitud.Garantia) && vehiculo is not null
                     ? $"Vehículo {vehiculo.Codigo} — {vehiculo.Descripcion}"
                     : solicitud.Garantia,
-                Notas = solicitud.Notas
+                Notas = solicitud.Notas,
+
+                // Datos del acta notarial (044). Se congelan con el préstamo:
+                // el acta que se firmó tiene que seguir diciendo lo mismo
+                // aunque el deudor cambie de estado civil el año que viene.
+                ActoNo = Limpiar(solicitud.Notarial?.ActoNo),
+                FolioNo = Limpiar(solicitud.Notarial?.FolioNo),
+                FechaActo = solicitud.Notarial?.FechaActo,
+                MunicipioActo = Limpiar(solicitud.Notarial?.MunicipioActo),
+                DeudorSexo = solicitud.Notarial?.DeudorSexo ?? SexoPersona.NoIndicado,
+                DeudorNacionalidad = Limpiar(solicitud.Notarial?.DeudorNacionalidad),
+                DeudorEstadoCivil = Limpiar(solicitud.Notarial?.DeudorEstadoCivil),
+                DeudorOcupacion = Limpiar(solicitud.Notarial?.DeudorOcupacion),
+                CuotasExigibilidad = solicitud.Notarial?.CuotasExigibilidad,
+                DiasGracia = solicitud.Notarial?.DiasGracia,
+                MoraPorcentaje = solicitud.Notarial?.MoraPorcentaje,
+                RegistroTitulos = Limpiar(solicitud.Notarial?.RegistroTitulos)
             };
 
             var id = await _prestamos.InsertarAsync(prestamo, conexion, transaccion, ct);
@@ -180,9 +199,22 @@ public class PrestamoService
                 $"tasa {solicitud.TasaInteresMensual}% mensual — {quienAutorizo}{detalleVehiculo}{detalleNcf}{detalleHistorico}",
                 conexion, transaccion, ct);
 
+            // La copia congelada del acta va DENTRO de la transacción: o entra
+            // con el préstamo o no entra. Un préstamo con acta a medias sería
+            // peor que uno sin acta, porque el documento saldría mezclando la
+            // copia con la configuración de hoy.
+            if (solicitud.Notarial?.Partes is { } partes)
+                await _actas.GuardarAsync(id, partes, conexion, transaccion, ct);
+
             await transaccion.CommitAsync(ct);
             Log.Information("Préstamo {Codigo} creado (id {Id}) para cliente {ClienteId}, autorizado por {Autorizador}",
                 codigo, id, solicitud.ClienteId, aprobador.Username);
+
+            // El comprobante digitado a mano pasa a ser el predeterminado
+            // (2026-09-03). Va DESPUES del commit y no puede tumbar la operacion.
+            if (!solicitud.AsignarNcfAuto)
+                await NcfPredeterminado.AdoptarAsync(_ncf, SesionActual.Modo, ncf, ct);
+
             return (id, codigo);
         }
         catch
@@ -190,6 +222,49 @@ public class PrestamoService
             await transaccion.RollbackAsync(CancellationToken.None);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Un texto opcional del formulario: vacío o solo espacios se guarda como
+    /// NULL, para que la ficha no muestre campos en blanco que parecen datos.
+    /// </summary>
+    private static string? Limpiar(string? texto) =>
+        string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
+
+    /// <summary>
+    /// Si algo del acta quedó distinto. Se compara antes de pisar los valores,
+    /// para que la auditoría diga la verdad: sin esto, corregir solo la garantía
+    /// dejaría anotado que también se tocó el acta.
+    /// </summary>
+    private static bool CambioElActa(Prestamo actual, ContratoNotarialNuevo nuevo) =>
+        actual.ActoNo != Limpiar(nuevo.ActoNo) ||
+        actual.FolioNo != Limpiar(nuevo.FolioNo) ||
+        actual.FechaActo != nuevo.FechaActo ||
+        actual.MunicipioActo != Limpiar(nuevo.MunicipioActo) ||
+        actual.DeudorSexo != nuevo.DeudorSexo ||
+        actual.DeudorNacionalidad != Limpiar(nuevo.DeudorNacionalidad) ||
+        actual.DeudorEstadoCivil != Limpiar(nuevo.DeudorEstadoCivil) ||
+        actual.DeudorOcupacion != Limpiar(nuevo.DeudorOcupacion) ||
+        actual.CuotasExigibilidad != nuevo.CuotasExigibilidad ||
+        actual.DiasGracia != nuevo.DiasGracia ||
+        actual.MoraPorcentaje != nuevo.MoraPorcentaje ||
+        actual.RegistroTitulos != Limpiar(nuevo.RegistroTitulos);
+
+    /// <summary>
+    /// Si las partes del acta son las mismas. No alcanza con comparar los dos
+    /// DatosNotariales: el record trae una LISTA de testigos, y la igualdad de
+    /// records compara listas por referencia, no por contenido.
+    /// </summary>
+    private static bool MismasPartes(DatosNotariales? viejas, DatosNotariales? nuevas)
+    {
+        if (viejas is null || nuevas is null)
+            return viejas is null && nuevas is null;
+        return viejas.Notario == nuevas.Notario &&
+               viejas.NotarioMatricula == nuevas.NotarioMatricula &&
+               viejas.Representante == nuevas.Representante &&
+               viejas.EmpresaDireccion == nuevas.EmpresaDireccion &&
+               viejas.Municipio == nuevas.Municipio &&
+               viejas.Testigos.SequenceEqual(nuevas.Testigos);
     }
 
     /// <summary>
@@ -225,15 +300,15 @@ public class PrestamoService
     public async Task EditarAsync(EdicionPrestamo cambios, CancellationToken ct = default)
     {
         if (!SesionActual.EsAdmin && !SesionActual.TienePermiso(Permisos.PrestamosEditar))
-            throw new UnauthorizedAccessException("No tenés permiso para corregir préstamos.");
+            throw new UnauthorizedAccessException("No tienes permiso para corregir préstamos.");
         if (string.IsNullOrWhiteSpace(cambios.Motivo))
-            throw new ArgumentException("Indicá por qué se corrige el préstamo: queda en el historial.",
+            throw new ArgumentException("Indica por qué se corrige el préstamo: queda en el historial.",
                 nameof(cambios));
 
         var prestamo = await _prestamos.ObtenerPorIdAsync(cambios.PrestamoId, ct)
             ?? throw new InvalidOperationException($"No existe el préstamo con id {cambios.PrestamoId}.");
 
-        // Se relee acá y no se confía en lo que trajo la pantalla: entre que se
+        // Se relee aquí y no se confía en lo que trajo la pantalla: entre que se
         // abrió el formulario y se guardó, otro usuario pudo registrar un cobro.
         var permitido = await ConsultarEdicionPermitidaAsync(cambios.PrestamoId, ct);
 
@@ -281,6 +356,31 @@ public class PrestamoService
         prestamo.Garantia = cambios.Garantia;
         prestamo.Notas = cambios.Notas;
 
+        // Los datos del acta se corrigen siempre que la pantalla los haya
+        // traído. Van aparte del bloque `permitido.Todo` a propósito: son datos
+        // de un PAPEL, no del dinero, así que se pueden arreglar aunque el
+        // préstamo ya tenga cobros. Ese es justamente el caso del pedido: se
+        // llenó mal el notario y hay que poder corregirlo.
+        if (cambios.Notarial is { } acta)
+        {
+            if (CambioElActa(prestamo, acta) ||
+                !MismasPartes(await _actas.ObtenerAsync(cambios.PrestamoId, ct), acta.Partes))
+                detalle.Add("datos del pagaré notarial");
+
+            prestamo.ActoNo = Limpiar(acta.ActoNo);
+            prestamo.FolioNo = Limpiar(acta.FolioNo);
+            prestamo.FechaActo = acta.FechaActo;
+            prestamo.MunicipioActo = Limpiar(acta.MunicipioActo);
+            prestamo.DeudorSexo = acta.DeudorSexo;
+            prestamo.DeudorNacionalidad = Limpiar(acta.DeudorNacionalidad);
+            prestamo.DeudorEstadoCivil = Limpiar(acta.DeudorEstadoCivil);
+            prestamo.DeudorOcupacion = Limpiar(acta.DeudorOcupacion);
+            prestamo.CuotasExigibilidad = acta.CuotasExigibilidad;
+            prestamo.DiasGracia = acta.DiasGracia;
+            prestamo.MoraPorcentaje = acta.MoraPorcentaje;
+            prestamo.RegistroTitulos = Limpiar(acta.RegistroTitulos);
+        }
+
         if (detalle.Count == 0)
             return;   // Nada cambió: no se ensucia la auditoría con un registro vacío
 
@@ -289,6 +389,12 @@ public class PrestamoService
         try
         {
             await _prestamos.ActualizarDatosAsync(prestamo, conexion, transaccion, ct);
+
+            // La copia congelada se reemplaza en la MISMA transacción: si el
+            // préstamo se guarda y el acta no, el documento saldría mezclando
+            // los datos nuevos con las partes viejas.
+            if (cambios.Notarial?.Partes is { } partes)
+                await _actas.GuardarAsync(cambios.PrestamoId, partes, conexion, transaccion, ct);
 
             if (tabla is not null)
             {

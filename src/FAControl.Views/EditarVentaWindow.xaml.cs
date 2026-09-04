@@ -31,6 +31,7 @@ public partial class EditarVentaWindow : Window
     public EditarVentaWindow(VentaParaEditar datos)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         _datos = datos;
 
@@ -86,7 +87,7 @@ public partial class EditarVentaWindow : Window
 
         if (!TryLeer(out var precio, out var inicial, out var plazos))
         {
-            TextoCuenta.Text = "Completá el precio, la inicial y los plazos para ver cómo queda.";
+            TextoCuenta.Text = "Completa el precio, la inicial y los plazos para ver cómo queda.";
             return;
         }
 
@@ -117,19 +118,19 @@ public partial class EditarVentaWindow : Window
     {
         if (string.IsNullOrWhiteSpace(CajaMotivo.Text))
         {
-            TextoError.Text = "Escribí por qué se corrige: queda en el historial.";
+            TextoError.Text = "Escribe por qué se corrige: queda en el historial.";
             CajaMotivo.Focus();
             return;
         }
         if (ComboMetodo.SelectedItem is not Opcion<MetodoPago> metodo)
         {
-            TextoError.Text = "Elegí el método de pago.";
+            TextoError.Text = "Elige el método de pago.";
             return;
         }
 
         if (!TryLeer(out var precio, out var inicial, out var plazos))
         {
-            TextoError.Text = "Revisá el precio, la inicial y los plazos: el precio y los plazos " +
+            TextoError.Text = "Revisa el precio, la inicial y los plazos: el precio y los plazos " +
                               "tienen que ser mayores que cero y la inicial no puede ser negativa.";
             return;
         }

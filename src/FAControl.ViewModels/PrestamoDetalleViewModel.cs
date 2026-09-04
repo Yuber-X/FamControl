@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -17,6 +17,7 @@ public partial class PrestamoDetalleViewModel : ObservableObject
     private readonly AjustesLocales _ajustes;
     private readonly RecordatorioService _recordatorios;
     private readonly NcfService _ncf;
+    private readonly ContratoService _contratos;
     private long _prestamoId;
     private long _clienteId;
 
@@ -33,10 +34,17 @@ public partial class PrestamoDetalleViewModel : ObservableObject
     /// <summary>La App abre la vista previa de la intimación de pago.</summary>
     public event Action<IntimacionImpresa>? IntimacionSolicitada;
 
+    /// <summary>
+    /// La vista abre la ventana con los TRES contratos del préstamo
+    /// (2026-09-03). Lo que se imprima queda archivado en el expediente.
+    /// </summary>
+    public event Action<PagareNotarialImpreso, DuenoExpediente>? ContratosSolicitados;
+
     public PrestamoDetalleViewModel(PrestamoService prestamos, ClienteService clientes,
         IDialogService dialogos, AjustesLocales ajustes, RecordatorioService recordatorios,
-        NcfService ncf, ExpedienteViewModel expediente)
+        NcfService ncf, ExpedienteViewModel expediente, ContratoService contratos)
     {
+        _contratos = contratos;
         _prestamos = prestamos;
         _clientes = clientes;
         _dialogos = dialogos;
@@ -70,6 +78,47 @@ public partial class PrestamoDetalleViewModel : ObservableObject
     [ObservableProperty] private bool _tieneNcf;
     [ObservableProperty] private bool _tieneNotas;
     [ObservableProperty] private string _ncfManual = string.Empty;
+    /// <summary>
+    /// Proximo comprobante que entregaria la secuencia, para mostrarlo como
+    /// marcador en la caja de "Asignar" (pedido del cliente 2026-09-03).
+    /// Vacio cuando no hay secuencia utilizable: sin marcador.
+    /// </summary>
+    [ObservableProperty] private string _ncfMarcador = string.Empty;
+
+    // ================= Pagaré notarial (044) =================
+    // Lo que se cargó para el acta, para verlo sin tener que abrir el
+    // documento. Cada línea aparece solo si tiene contenido: una ficha llena de
+    // guiones no informa nada y ocupa media pantalla.
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TieneDatosNotariales))]
+    private string _actoTexto = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TieneDatosNotariales))]
+    private string _municipioActoTexto = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TieneDatosNotariales))]
+    private string _deudorActaTexto = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TieneDatosNotariales))]
+    private string _condicionesActaTexto = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TieneDatosNotariales))]
+    private string _registroTitulosTexto = string.Empty;
+
+    /// <summary>
+    /// Hay algo del acta cargado. Con todo vacío la tarjeta entera se esconde:
+    /// un préstamo que no va a pasar por notario no tiene por qué mostrar una
+    /// sección en blanco.
+    /// </summary>
+    public bool TieneDatosNotariales =>
+        ActoTexto.Length > 0 || MunicipioActoTexto.Length > 0 || DeudorActaTexto.Length > 0 ||
+        CondicionesActaTexto.Length > 0 || RegistroTitulosTexto.Length > 0;
+
 
     /// <summary>
     /// Muestra el botón "Editar" (029). El Admin lo tiene siempre; a los demás
@@ -108,6 +157,8 @@ public partial class PrestamoDetalleViewModel : ObservableObject
             TieneNcf = !string.IsNullOrWhiteSpace(prestamo.Ncf);
             NcfTexto = TieneNcf ? prestamo.Ncf! : "—";
             NcfManual = string.Empty;
+            NcfMarcador = await _ncf.ProximoNcfAsync() ?? string.Empty;
+            LlenarDatosNotariales(prestamo);
 
             var hoy = FechaNegocio.Hoy;
             Cuotas.Clear();
@@ -123,6 +174,66 @@ public partial class PrestamoDetalleViewModel : ObservableObject
         {
             Log.Error(ex, "Error cargando el detalle del préstamo {Id}", prestamoId);
             _dialogos.MostrarError("Detalle de préstamo", $"No se pudo cargar el préstamo.\n\n{ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Arma las líneas del acta para mostrarlas en la ficha. Se juntan en pocas
+    /// frases en vez de una etiqueta por campo: son doce datos y en columnas
+    /// ocuparían más alto que el resto de la pantalla junta.
+    /// </summary>
+    private void LlenarDatosNotariales(Prestamo prestamo)
+    {
+        var acto = new List<string>();
+        if (!string.IsNullOrWhiteSpace(prestamo.ActoNo))
+            acto.Add($"Acto No. {prestamo.ActoNo}");
+        if (!string.IsNullOrWhiteSpace(prestamo.FolioNo))
+            acto.Add($"Folio No. {prestamo.FolioNo}");
+        if (prestamo.FechaActo is { } fecha)
+            acto.Add(fecha.ToString(Textos.FormatoFecha, Textos.CulturaRd));
+        ActoTexto = string.Join("  ·  ", acto);
+
+        MunicipioActoTexto = prestamo.MunicipioActo ?? string.Empty;
+
+        var deudor = new List<string>();
+        if (prestamo.DeudorSexo != SexoPersona.NoIndicado)
+            deudor.Add(prestamo.DeudorSexo == SexoPersona.Femenino ? "Femenino" : "Masculino");
+        if (!string.IsNullOrWhiteSpace(prestamo.DeudorNacionalidad))
+            deudor.Add(prestamo.DeudorNacionalidad);
+        if (!string.IsNullOrWhiteSpace(prestamo.DeudorEstadoCivil))
+            deudor.Add(prestamo.DeudorEstadoCivil);
+        if (!string.IsNullOrWhiteSpace(prestamo.DeudorOcupacion))
+            deudor.Add(prestamo.DeudorOcupacion);
+        DeudorActaTexto = string.Join(", ", deudor);
+
+        var condiciones = new List<string>();
+        if (prestamo.CuotasExigibilidad is { } cuotas)
+            condiciones.Add($"{cuotas} cuota(s) en atraso vencen el plazo");
+        if (prestamo.DiasGracia is { } dias)
+            condiciones.Add($"{dias} día(s) de gracia");
+        if (prestamo.MoraPorcentaje is { } mora)
+            condiciones.Add($"mora {mora.ToString("0.##", Textos.CulturaRd)}%");
+        CondicionesActaTexto = string.Join("  ·  ", condiciones);
+
+        RegistroTitulosTexto = prestamo.RegistroTitulos ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Abre los tres contratos de este préstamo para verlos o reimprimirlos
+    /// (2026-09-03). Lo que se imprima queda archivado en el expediente.
+    /// </summary>
+    [RelayCommand]
+    private async Task VerContratosAsync()
+    {
+        try
+        {
+            var contrato = await _contratos.ArmarNotarialAsync(_prestamoId);
+            ContratosSolicitados?.Invoke(contrato, Dueno);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error armando los contratos del préstamo {Id}", _prestamoId);
+            _dialogos.MostrarError("Contratos", $"No se pudieron abrir los contratos.\n\n{ex.Message}");
         }
     }
 
@@ -159,11 +270,17 @@ public partial class PrestamoDetalleViewModel : ObservableObject
 
             var permitido = await _prestamos.ConsultarEdicionPermitidaAsync(_prestamoId);
 
-            // La vista previa se calcula acá y baja como delegado: la View no
+            // La vista previa se calcula aquí y baja como delegado: la View no
             // referencia Services. Así el número que se ve mientras se tipea
             // sale del mismo cálculo que después se guarda.
+            // El acta que se le muestra a la ventana es la CONGELADA de este
+            // préstamo. Si no tiene copia (es anterior a 045) se le pasan las
+            // partes de Configuración, que es de donde saldría el documento hoy:
+            // así el usuario corrige sobre lo que realmente se va a imprimir.
+            var acta = (await _contratos.ArmarNotarialAsync(_prestamoId)).Acto;
+
             var cambios = EdicionSolicitada(new PrestamoParaEditar(
-                _prestamoId, Codigo, prestamo, permitido, Previsualizar));
+                _prestamoId, Codigo, prestamo, permitido, Previsualizar, acta));
             if (cambios is null)
                 return;   // se arrepintió
 
@@ -227,6 +344,7 @@ public partial class PrestamoDetalleViewModel : ObservableObject
             TieneNcf = true;
             NcfTexto = ncf;
             NcfManual = string.Empty;
+            NcfMarcador = await _ncf.ProximoNcfAsync() ?? string.Empty;
             _dialogos.Informar("Comprobante fiscal", $"Comprobante {ncf} asignado al préstamo {Codigo}.");
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or ArgumentException)

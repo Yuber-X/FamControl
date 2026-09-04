@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 using Serilog;
@@ -150,7 +150,7 @@ public class VentaVehiculoService
     private static void ExigirLectura()
     {
         if (!SesionActual.TienePermiso(Permisos.Ventas))
-            throw new UnauthorizedAccessException("No tenés permiso para ver las ventas de vehículos.");
+            throw new UnauthorizedAccessException("No tienes permiso para ver las ventas de vehículos.");
     }
 
     /// <summary>Cómo quedó una venta cancelada (028). Null si sigue activa.</summary>
@@ -161,6 +161,6 @@ public class VentaVehiculoService
     private static void ExigirEscritura()
     {
         if (!SesionActual.TienePermiso(Permisos.Ventas))
-            throw new UnauthorizedAccessException("No tenés permiso para registrar ventas de vehículos.");
+            throw new UnauthorizedAccessException("No tienes permiso para registrar ventas de vehículos.");
     }
 }

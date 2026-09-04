@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 
@@ -72,13 +72,13 @@ public class AuthService
         // de base de datos incomprensible; mejor decírselo en castellano.
         if (await _usuarios.ObtenerPorUsernameCualquierEstadoAsync(username.Trim(), ct) is not null)
             throw new ArgumentException(
-                $"El nombre de usuario \"{username.Trim()}\" ya está tomado. Elegí otro.");
+                $"El nombre de usuario \"{username.Trim()}\" ya está tomado. Elige otro.");
 
         // El primer usuario SIEMPRE es Admin: si no, nadie podría administrar nada.
         var roles = await _usuarios.ObtenerRolesAsync(ct);
         var admin = roles.FirstOrDefault(r => r.Nombre == Roles.Admin)
             ?? throw new InvalidOperationException(
-                "El catálogo de roles está vacío. Ejecutá scripts/db/005_multicuentas.sql.");
+                "El catálogo de roles está vacío. Ejecuta scripts/db/005_multicuentas.sql.");
 
         var hash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: CostBcrypt);
         return await _usuarios.CrearAsync(username.Trim(), hash, nombre.Trim(), null, admin.Id, ct);
@@ -89,7 +89,7 @@ public class AuthService
     /// registra la sesión en BD, actualiza last_login_at, inicializa
     /// SesionActual (con el modo) y audita el login.
     ///
-    /// La puerta de acceso por modo (cliente 2026-07-18) se aplica ACÁ: aunque
+    /// La puerta de acceso por modo (cliente 2026-07-18) se aplica AQUÍ: aunque
     /// la contraseña sea correcta, si el usuario no tiene acceso_&lt;modo&gt; no se
     /// abre sesión (no cuenta como intento fallido: la clave sí era válida).
     /// </summary>
@@ -109,7 +109,7 @@ public class AuthService
         _intentosFallidos = 0;
         _bloqueadoHastaUtc = null;
 
-        // Permisos EFECTIVOS (rol + overrides): se leen acá para decidir el
+        // Permisos EFECTIVOS (rol + overrides): se leen aquí para decidir el
         // acceso al modo y luego viven en SesionActual toda la sesión.
         var permisos = await _usuarios.ObtenerPermisosAsync(usuario.Id, ct);
 

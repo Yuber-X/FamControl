@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using FAControl.Models;
@@ -30,6 +30,7 @@ public partial class RenovarAlquilerWindow : Window
     public RenovarAlquilerWindow(RenovacionAlquilerPedido datos)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         _datos = datos;
 
@@ -63,7 +64,7 @@ public partial class RenovarAlquilerWindow : Window
 
         if (!TryLeer(out var fin, out var tarifa))
         {
-            TextoCuenta.Text = "Elegí la fecha nueva y la tarifa para ver cómo queda.";
+            TextoCuenta.Text = "Elige la fecha nueva y la tarifa para ver cómo queda.";
             return;
         }
         if (fin <= _datos.FechaFinActual)
@@ -80,7 +81,7 @@ public partial class RenovarAlquilerWindow : Window
                 $"Tarifa nueva. Los días que van hasta el " +
                 $"{_datos.FechaFinActual.ToString(Textos.FormatoFecha, Textos.CulturaRd)} " +
                 $"siguen a {_datos.TarifaVigente.ToString("N2", Textos.CulturaRd)} DOP: " +
-                "el precio nuevo rige de acá en adelante.";
+                "el precio nuevo rige de aquí en adelante.";
         }
 
         var (dias, monto) = _datos.Calcular(_datos.FechaFinActual, fin, tarifa);
@@ -106,7 +107,7 @@ public partial class RenovarAlquilerWindow : Window
     {
         if (!TryLeer(out var fin, out var tarifa))
         {
-            TextoError.Text = "Revisá la fecha y la tarifa: la tarifa tiene que ser mayor que cero.";
+            TextoError.Text = "Revisa la fecha y la tarifa: la tarifa tiene que ser mayor que cero.";
             return;
         }
         if (fin <= _datos.FechaFinActual)

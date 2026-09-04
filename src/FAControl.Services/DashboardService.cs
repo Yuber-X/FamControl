@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 
@@ -30,7 +30,7 @@ public class DashboardService
             inicioMesSiguienteLocal.AddHours(OffsetRdHoras),
             inicioMesAnteriorLocal.AddHours(OffsetRdHoras),
             // El panel vive en PrestControl: aísla a préstamos personales
-            // (los créditos vehiculares de AutoControl no cuentan acá).
+            // (los créditos vehiculares de AutoControl no cuentan aquí).
             SesionActual.SoloVehicularesDelModo,
             ct);
     }

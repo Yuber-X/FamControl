@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -105,6 +105,78 @@ public class AjustesLocales
     public string RncNegocio { get; set; } = string.Empty;
     /// <summary>Plazo (días) que se concede en la intimación de pago antes de la vía legal.</summary>
     public int PlazoIntimacionDias { get; set; } = 15;
+
+    // ---------- Pagaré notarial (plantilla del cliente 2026-08-26) ----------
+    // Lo que se repite en TODAS las actas: el asiento social, quién firma por
+    // la empresa, el notario y los dos testigos. Va en la configuración y no en
+    // cada préstamo porque cambia una vez cada varios años, no por contrato.
+    // Si algún día cambia el notario, se edita aquí y las actas nuevas salen con
+    // el nuevo; las viejas ya están impresas y firmadas.
+
+    /// <summary>Asiento social de la empresa, como lo escribe el acta.</summary>
+    public string DireccionNegocio { get; set; } = string.Empty;
+
+    /// <summary>Ciudad, municipio y provincia donde se instrumentan las actas.</summary>
+    public string MunicipioActo { get; set; } = string.Empty;
+
+    // --- El notario ---
+    public string NotarioNombre { get; set; } = string.Empty;
+    /// <summary>Matrícula del Colegio Dominicano de Notarios.</summary>
+    public string NotarioMatricula { get; set; } = string.Empty;
+    public string NotarioCedula { get; set; } = string.Empty;
+    public string NotarioEstadoCivil { get; set; } = string.Empty;
+    /// <summary>Domicilio profesional abierto.</summary>
+    public string NotarioDomicilio { get; set; } = string.Empty;
+    public string NotarioNacionalidad { get; set; } = "dominicano";
+
+    // --- Quién firma por la acreedora ---
+    // El nombre puede salir de Prestamista, pero el acta necesita además
+    // nacionalidad, estado civil, ocupación, cédula y domicilio.
+    public string RepresentanteNombre { get; set; } = string.Empty;
+    public string RepresentanteCedula { get; set; } = string.Empty;
+    public string RepresentanteEstadoCivil { get; set; } = string.Empty;
+    public string RepresentanteOcupacion { get; set; } = string.Empty;
+    public string RepresentanteDomicilio { get; set; } = string.Empty;
+    public string RepresentanteNacionalidad { get; set; } = "dominicano";
+    /// <summary>0 = no indicado. El acta declina en género todo lo que le sigue.</summary>
+    public int RepresentanteSexo { get; set; }
+
+    // --- Los dos testigos ---
+    public string Testigo1Nombre { get; set; } = string.Empty;
+    public string Testigo1Cedula { get; set; } = string.Empty;
+    public string Testigo1EstadoCivil { get; set; } = string.Empty;
+    public string Testigo1Ocupacion { get; set; } = string.Empty;
+    public string Testigo1Domicilio { get; set; } = string.Empty;
+    public int Testigo1Sexo { get; set; }
+
+    public string Testigo2Nombre { get; set; } = string.Empty;
+    public string Testigo2Cedula { get; set; } = string.Empty;
+    public string Testigo2EstadoCivil { get; set; } = string.Empty;
+    public string Testigo2Ocupacion { get; set; } = string.Empty;
+    public string Testigo2Domicilio { get; set; } = string.Empty;
+    public int Testigo2Sexo { get; set; }
+
+    // --- Condiciones por defecto del acta ---
+    // Son las de la plantilla del cliente. Cada préstamo puede pisarlas desde
+    // Nuevo Préstamo; lo que se deje vacío ahí cae a estos valores.
+
+    /// <summary>Cuotas en atraso que hacen exigible el total ("de dos (02) cuotas").</summary>
+    public int CuotasParaExigibilidad { get; set; } = 2;
+    /// <summary>Días de gracia antes de que corra la mora.</summary>
+    public int DiasDeGracia { get; set; } = 5;
+    /// <summary>Mora en % sobre el monto adeudado.</summary>
+    public decimal MoraPorcentaje { get; set; } = 20m;
+    /// <summary>Registro de Títulos que se autoriza a ejecutar el traspaso.</summary>
+    public string RegistroTitulos { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Qué contratos vienen marcados en Nuevo Préstamo (pedido 2026-09-03: los
+    /// tildados se imprimen, los destildados no). Nombres de TipoContrato.
+    ///
+    /// Es preferencia POR PC y no del negocio a propósito: quién imprime qué
+    /// depende de la impresora que tenga esa terminal al lado.
+    /// </summary>
+    public List<string> ContratosAImprimir { get; set; } = ["Pagare"];
 
     /// <summary>
     /// % de comisión del vendedor sobre el monto vendido (DealControl, 2026-07-25).

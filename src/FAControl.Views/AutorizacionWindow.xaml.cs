@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Input;
 
 namespace FAControl.Views;
@@ -20,6 +20,7 @@ public partial class AutorizacionWindow : Window
     public AutorizacionWindow(string motivo, Func<string, string, Task<string?>> validar)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         _validar = validar;
         TextoMotivo.Text = motivo;

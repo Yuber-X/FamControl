@@ -171,11 +171,11 @@ public partial class VentaNuevaViewModel : ObservableObject
             MensajeError = string.Empty;
 
             if (VehiculoSeleccionado is null)
-                throw new ArgumentException("Elegí el vehículo a vender.");
+                throw new ArgumentException("Elige el vehículo a vender.");
             if (ClienteSeleccionado is null)
-                throw new ArgumentException("Elegí el cliente comprador.");
+                throw new ArgumentException("Elige el cliente comprador.");
             if (!decimal.TryParse(PrecioTexto, NumberStyles.Number, CulturaRd, out var precio) || precio <= 0m)
-                throw new ArgumentException("Ingresá un precio válido mayor que cero.");
+                throw new ArgumentException("Ingresa un precio válido mayor que cero.");
 
             // Financiamiento del dealer (016): se arma el plan según el tipo
             PlanPlazos? plan = null;
@@ -189,18 +189,18 @@ public partial class VentaNuevaViewModel : ObservableObject
                     if (inicial < 0m)
                         throw new ArgumentException("La inicial no puede ser negativa.");
                     if (!int.TryParse(CantidadPlazosTexto, NumberStyles.Integer, CulturaRd, out var cantidad) || cantidad < 1)
-                        throw new ArgumentException("Ingresá la cantidad de plazos (ej. 12).");
+                        throw new ArgumentException("Ingresa la cantidad de plazos (ej. 12).");
                     if (!int.TryParse(CadaDiasTexto, NumberStyles.Integer, CulturaRd, out var cadaDias) || cadaDias < 1)
-                        throw new ArgumentException("Ingresá cada cuántos días vence un plazo (30 = mensual).");
+                        throw new ArgumentException("Ingresa cada cuántos días vence un plazo (30 = mensual).");
                     plan = new PlanPlazos(inicial, cantidad,
                         DateOnly.FromDateTime(FechaPrimerPlazo), cadaDias);
                     break;
 
                 case TipoVenta.Separacion:
                     if (!decimal.TryParse(AdelantoSeparacionTexto, NumberStyles.Number, CulturaRd, out adelanto) || adelanto <= 0m)
-                        throw new ArgumentException("Ingresá el adelanto que dejó el cliente por la separación.");
+                        throw new ArgumentException("Ingresa el adelanto que dejó el cliente por la separación.");
                     if (!int.TryParse(DiasSeparacionTexto, NumberStyles.Integer, CulturaRd, out diasSeparacion) || diasSeparacion < 1)
-                        throw new ArgumentException("Ingresá los días de derecho de la separación (el dealer usa 15).");
+                        throw new ArgumentException("Ingresa los días de derecho de la separación (el dealer usa 15).");
                     break;
             }
 

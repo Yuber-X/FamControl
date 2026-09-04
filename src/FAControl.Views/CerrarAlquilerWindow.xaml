@@ -1,11 +1,16 @@
-<Window x:Class="FAControl.Views.CerrarAlquilerWindow"
+﻿<Window x:Class="FAControl.Views.CerrarAlquilerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Cerrar el alquiler"
         Width="520" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
         Background="{DynamicResource Brush.FondoApp}">
+  <!-- ScrollViewer + CanResize (2026-09-04): con el alto atado al contenido y
+       sin poder redimensionar, en una pantalla de laptop el formulario crecia
+       por debajo del borde y los botones quedaban fuera de alcance. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+
 
   <Border Margin="24" Style="{DynamicResource Card}">
     <StackPanel>
@@ -80,4 +85,5 @@
       </Grid>
     </StackPanel>
   </Border>
+  </ScrollViewer>
 </Window>

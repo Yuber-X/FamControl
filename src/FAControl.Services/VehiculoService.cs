@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 using Serilog;
@@ -60,7 +60,7 @@ public class VehiculoService
     {
         ExigirEscritura();
         if (string.IsNullOrWhiteSpace(detalle))
-            throw new ArgumentException("Describí la reparación (qué se hizo).");
+            throw new ArgumentException("Describe la reparación (qué se hizo).");
         if (costo < 0m)
             throw new ArgumentException("El costo no puede ser negativo.");
 
@@ -130,7 +130,7 @@ public class VehiculoService
                 Anio = normalizados.Anio,
                 Color = normalizados.Color,
                 Placa = normalizados.Placa,
-                // La matrícula se OLVIDABA acá (bug reportado 2026-07-31: "al
+                // La matrícula se OLVIDABA aquí (bug reportado 2026-07-31: "al
                 // crear no muestra lo digitado en matrícula, pero al editar sí").
                 // El formulario la pedía, el repositorio la guardaba y la
                 // consulta la traía; el único punto donde se perdía era este,
@@ -292,13 +292,13 @@ public class VehiculoService
     private static void ExigirLectura()
     {
         if (!SesionActual.TienePermiso(Permisos.Inventario))
-            throw new UnauthorizedAccessException("No tenés permiso para ver el inventario de vehículos.");
+            throw new UnauthorizedAccessException("No tienes permiso para ver el inventario de vehículos.");
     }
 
     private static void ExigirEscritura()
     {
         if (!SesionActual.TienePermiso(Permisos.InventarioEditar))
-            throw new UnauthorizedAccessException("No tenés permiso para modificar el inventario de vehículos.");
+            throw new UnauthorizedAccessException("No tienes permiso para modificar el inventario de vehículos.");
     }
 
     private static string? Limpiar(string? valor) =>

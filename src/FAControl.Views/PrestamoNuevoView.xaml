@@ -1,6 +1,8 @@
 ﻿<UserControl x:Class="FAControl.Views.PrestamoNuevoView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:FAControl.Views"
+             xmlns:m="clr-namespace:FAControl.Models;assembly=FAControl.Models">
 
   <Grid>
     <Grid.ColumnDefinitions>
@@ -72,7 +74,7 @@
           </Grid>
 
           <!-- Modo "para bobos": el sistema calcula la tasa desde el total -->
-          <CheckBox Content="Calcular la tasa por mí (ingreso el total a devolver)"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Calcular la tasa por mí (ingreso el total a devolver)"
                     FontSize="12" Margin="0,14,0,0"
                     IsChecked="{Binding ModoMontoFinal}" />
 
@@ -177,10 +179,13 @@
           <TextBlock Text="Comprobante fiscal — NCF (opcional)" Style="{DynamicResource Input.Label}"
                      Margin="0,14,0,6" />
           <TextBox Style="{DynamicResource Input.Texto}"
+                   ToolTip="Pega el e-NCF del Facturador Gratuito DGII, o enciende el switch para tomar el siguiente de la secuencia"
                    IsEnabled="{Binding NcfDeSecuencia, Converter={StaticResource InversorBool}}"
+                   v:Marcador.Texto="{Binding NcfMarcador}"
                    Text="{Binding NcfTexto, UpdateSourceTrigger=PropertyChanged}" />
           <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,10,0,0"
-                    Content="Tomar el siguiente de la secuencia configurada (Configuración → Comprobante fiscal)"
+                    Content="{Binding NcfSwitchTexto}"
+                    IsEnabled="{Binding HayNcfConfigurado}"
                     IsChecked="{Binding NcfDeSecuencia}" />
 
           <!-- Préstamo antiguo autodetectado (pedido 2026-07-25) -->
@@ -189,7 +194,7 @@
             <StackPanel>
               <TextBlock Text="{Binding PrestamoAntiguoTexto}" FontSize="12.5" FontWeight="SemiBold"
                          TextWrapping="Wrap" Foreground="{DynamicResource Brush.Aviso.Texto}" />
-              <CheckBox Content="El cliente está al día (marcar TODAS las cuotas vencidas como pagadas)"
+              <CheckBox Style="{DynamicResource Switch.Moderno}" Content="El cliente está al día (marcar TODAS las cuotas vencidas como pagadas)"
                         FontSize="12" Margin="0,8,0,0"
                         IsChecked="{Binding ClienteAlDia}" />
               <StackPanel Orientation="Horizontal" Margin="0,6,0,0"
@@ -209,32 +214,446 @@
                      Style="{DynamicResource Texto.Caption}"
                      TextWrapping="Wrap" Margin="0,10,0,0" />
 
-          <Grid Margin="0,16,0,0">
+          <!-- ============ PAGARÉ NOTARIAL (044) ============
+               Todos los datos del acta, en un solo lugar (pedido del cliente
+               2026-09-04). Los que casi nunca cambian —notario, quien firma por
+               la empresa, testigos, asiento social y condiciones— vienen
+               precargados desde Configuración → Pagaré notarial.
+
+               TODO es opcional: lo que quede vacío sale como una raya en el
+               documento, para llenarlo a mano. Es como se trabaja con un
+               notario, y bloquear la impresión por un campo vacío sería peor.
+
+               La rejilla de 3 columnas se genera por script para que las ~30
+               celdas queden con el mismo alto y el mismo margen. -->
+          <Expander Margin="0,18,0,0" IsExpanded="False">
+            <Expander.Header>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Datos del pagaré notarial" Style="{DynamicResource Texto.Titulo3}" />
+                <TextBlock Text="(opcional)" Margin="8,0,0,0" VerticalAlignment="Center"
+                           Style="{DynamicResource Texto.Caption}" />
+              </StackPanel>
+            </Expander.Header>
+
+            <StackPanel Margin="0,10,0,0">
+              <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,6"
+                         Text="Lo que quede vacío sale como una raya en el acta, para llenarlo a mano. El notario, quien firma por la empresa y los testigos vienen de Configuración; si los cambiás aquí, el cambio vale solo para este préstamo." />
+
+              <!-- El interruptor convierte el cambio puntual en el nuevo valor
+                   del negocio. Apagado por defecto: lo normal es corregir un
+                   dato para ESTE contrato, no para todos los que vengan. -->
+              <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,4,0,2"
+                        Content="Guardar estos datos en Configuración (reemplazan a los actuales)"
+                        ToolTip="Al crear el préstamo, el notario, el representante, los testigos y las condiciones de arriba pasan a ser los del negocio"
+                        IsChecked="{Binding GuardarNotarialEnConfiguracion}" />
+
+        <TextBlock Text="EL ACTO" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,8">
+            <TextBlock Text="Acto No." Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding ActoNo, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,10,8">
+            <TextBlock Text="Folio No." Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding FolioNo, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+            <TextBlock Text="Fecha del acto" Style="{DynamicResource Input.Label}" />
+            <DatePicker Height="32" SelectedDate="{Binding FechaActo}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+            <TextBlock Text="Municipio del acto" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                             ToolTip="Ciudad, municipio y provincia donde se firma"
+                           Text="{Binding MunicipioActo, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Grid>
+
+        <TextBlock Text="EL DEUDOR, COMO LO DESCRIBE EL ACTA" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,8">
+            <TextBlock Text="Sexo" Style="{DynamicResource Input.Label}" />
+            <ComboBox Height="32" ItemsSource="{Binding Sexos}" DisplayMemberPath="Texto"
+                            SelectedItem="{Binding DeudorSexo}"
+                             ToolTip="El acta se escribe en masculino o femenino según esto: dominicano/a, EL DEUDOR / LA DEUDORA" />
+          </StackPanel>
+          <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,10,8">
+            <TextBlock Text="Nacionalidad" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                             v:Marcador.Texto="dominicano"
+                           Text="{Binding DeudorNacionalidad, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+            <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                             v:Marcador.Texto="soltero, casado…"
+                           Text="{Binding DeudorEstadoCivil, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+            <TextBlock Text="Ocupación" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                             v:Marcador.Texto="comerciante, empleado…"
+                           Text="{Binding DeudorOcupacion, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Grid>
+
+        <TextBlock Text="EL NOTARIO" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,10,8">
+            <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding NotarioNombre, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+            <TextBlock Text="Matrícula" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                             ToolTip="Matrícula del Colegio Dominicano de Notarios"
+                           Text="{Binding NotarioMatricula, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,8">
+            <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding NotarioCedula, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,10,8">
+            <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                             v:Marcador.Texto="soltero, casado…"
+                           Text="{Binding NotarioEstadoCivil, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+            <TextBlock Text="Domicilio profesional" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding NotarioDomicilio, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Grid>
+
+        <TextBlock Text="QUIEN FIRMA POR LA EMPRESA" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,10,8">
+            <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding RepresentanteNombre, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+            <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding RepresentanteCedula, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,8">
+            <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                             v:Marcador.Texto="soltero, casado…"
+                           Text="{Binding RepresentanteEstadoCivil, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,10,8">
+            <TextBlock Text="Ocupación" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding RepresentanteOcupacion, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <CheckBox Grid.Row="1" Grid.Column="2" Style="{DynamicResource Switch.Moderno}"
+                    Margin="0,18,10,8" FontSize="12"
+                    Content="Es mujer" IsChecked="{Binding RepresentanteEsFemenino}" />
+          <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+            <TextBlock Text="Domicilio" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding RepresentanteDomicilio, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Grid>
+
+        <TextBlock Text="TESTIGO 1" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,10,8">
+            <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding Testigo1Nombre, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+            <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding Testigo1Cedula, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,8">
+            <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                             v:Marcador.Texto="soltero, casado…"
+                           Text="{Binding Testigo1EstadoCivil, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,10,8">
+            <TextBlock Text="Ocupación" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding Testigo1Ocupacion, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <CheckBox Grid.Row="1" Grid.Column="2" Style="{DynamicResource Switch.Moderno}"
+                    Margin="0,18,10,8" FontSize="12"
+                    Content="Es mujer" IsChecked="{Binding Testigo1EsFemenino}" />
+          <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+            <TextBlock Text="Domicilio" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding Testigo1Domicilio, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Grid>
+
+        <TextBlock Text="TESTIGO 2" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,10,8">
+            <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding Testigo2Nombre, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+            <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding Testigo2Cedula, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,8">
+            <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                             v:Marcador.Texto="soltero, casado…"
+                           Text="{Binding Testigo2EstadoCivil, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,10,8">
+            <TextBlock Text="Ocupación" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding Testigo2Ocupacion, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <CheckBox Grid.Row="1" Grid.Column="2" Style="{DynamicResource Switch.Moderno}"
+                    Margin="0,18,10,8" FontSize="12"
+                    Content="Es mujer" IsChecked="{Binding Testigo2EsFemenino}" />
+          <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+            <TextBlock Text="Domicilio" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding Testigo2Domicilio, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Grid>
+
+        <TextBlock Text="LA EMPRESA" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+            <TextBlock Text="Asiento social (dirección)" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                             ToolTip="Dirección completa, como la escribe el acta"
+                           Text="{Binding NegocioDireccion, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Grid>
+
+        <TextBlock Text="CONDICIONES DEL CONTRATO" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,8">
+            <TextBlock Text="Cuotas en atraso que vencen el plazo" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding CuotasExigibilidadTexto, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,10,8">
+            <TextBlock Text="Días de gracia" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding DiasGraciaTexto, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+            <TextBlock Text="Mora (%)" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                           Text="{Binding MoraPorcentajeTexto, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+            <TextBlock Text="Registro de Títulos" Style="{DynamicResource Input.Label}" />
+            <TextBox Height="32" Style="{DynamicResource Input.Texto}"
+                             ToolTip="El que se autoriza a ejecutar el traspaso de la garantía"
+                           Text="{Binding RegistroTitulos, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Grid>
+            </StackPanel>
+          </Expander>
+
+          <!-- ============ QUÉ CONTRATOS SE IMPRIMEN (2026-09-03) ============
+               Los tildados salen por la impresora al apretar "Guardar e
+               imprimir"; los destildados no. La elección se recuerda por PC. -->
+          <Border Style="{DynamicResource Card}" Margin="0,16,0,0" Padding="14,12">
+            <StackPanel>
+              <TextBlock Text="Contratos a imprimir" Style="{DynamicResource Texto.MicroLabel}"
+                         Margin="0,0,0,8" />
+              <WrapPanel>
+                <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,0,20,6"
+                          Content="Pagaré" IsChecked="{Binding ImprimirPagare}"
+                          ToolTip="El de siempre: encabezado del negocio, la deuda y la tabla de cuotas" />
+                <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,0,20,6"
+                          Content="Pagaré notarial" IsChecked="{Binding ImprimirNotarial}"
+                          ToolTip="El acta para firmar ante notario, con testigos y garantía" />
+                <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,0,0,6"
+                          Content="Notarial + cuotas" IsChecked="{Binding ImprimirCombinado}"
+                          ToolTip="El acta notarial y, atrás, la tabla de cuotas completa" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- ============ ACCIONES ============
+               "Crear préstamo" guarda y nada más. "Crear e imprimir" guarda y
+               manda a la impresora los contratos tildados. WrapPanel para que
+               los tres botones bajen de renglón en una ventana angosta en vez
+               de recortarse. -->
+          <!-- Acciones: las dos de guardar comparten el ancho en la primera
+               fila y "Ver contratos" toma el ancho completo en la segunda.
+               Grid y no WrapPanel: el WrapPanel deja a los botones con su ancho
+               natural y sobraba espacio a la derecha del formulario. -->
+          <Grid Margin="0,18,0,0">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="2*" />
-              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="10" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <Button Grid.Column="0" Content="Crear préstamo" Style="{DynamicResource Boton.Primario}"
+
+            <Button Grid.Row="0" Grid.Column="0"
+                    Content="Crear préstamo" Style="{DynamicResource Boton.Primario}"
+                    ToolTip="Guarda el préstamo y nada más"
                     Command="{Binding GuardarCommand}" />
-            <!-- Ver el pagaré antes de crear, para revisarlo con el cliente -->
-            <Button Grid.Column="2" Content="Ver pagaré" Style="{DynamicResource Boton.Secundario}"
+            <Button Grid.Row="0" Grid.Column="2"
+                    Content="Crear e imprimir" Style="{DynamicResource Boton.Primario}"
+                    ToolTip="Crea el préstamo e imprime los contratos tildados. Las copias quedan en el expediente."
+                    Command="{Binding GuardarEImprimirCommand}" />
+
+            <Button Grid.Row="1" Grid.ColumnSpan="3" Margin="0,10,0,0"
+                    Content="Ver contratos" Style="{DynamicResource Boton.Secundario}"
+                    ToolTip="Revisar los documentos con el cliente antes de crear el préstamo"
                     Command="{Binding VerPagareCommand}" />
           </Grid>
         </StackPanel>
       </ScrollViewer>
     </Border>
 
-    <!-- ============ PREVIEW EN VIVO ============ -->
+    <!-- ============ PREVIEW EN VIVO ============
+         Por defecto muestra la tabla de amortización, que es lo que más se
+         mira. Los tres botones de arriba cambian el panel por la vista previa
+         del contrato correspondiente (2026-09-03); apretar el mismo botón otra
+         vez vuelve a la tabla. -->
     <Grid Grid.Column="1">
       <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
       </Grid.RowDefinitions>
 
+      <!-- Los tres reparten el ancho en partes iguales: el panel lateral es
+           angosto y con ancho natural los textos quedaban apretados contra el
+           borde. El estilo Toggle.Segmento centra y agranda el texto. -->
+      <Grid Grid.Row="0" Margin="0,0,0,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <ToggleButton Grid.Column="0" Style="{DynamicResource Toggle.Segmento}"
+                      Content="Pagaré" Margin="0,0,8,0"
+                      Command="{Binding VerEnLateralCommand}"
+                      CommandParameter="{x:Static m:TipoContrato.Pagare}"
+                      IsChecked="{Binding VistaPreviaTipo, Mode=OneWay,
+                                  Converter={StaticResource Igualdad},
+                                  ConverterParameter={x:Static m:TipoContrato.Pagare}}" />
+        <ToggleButton Grid.Column="1" Style="{DynamicResource Toggle.Segmento}"
+                      Content="Pagaré notarial" Margin="0,0,8,0"
+                      Command="{Binding VerEnLateralCommand}"
+                      CommandParameter="{x:Static m:TipoContrato.Notarial}"
+                      IsChecked="{Binding VistaPreviaTipo, Mode=OneWay,
+                                  Converter={StaticResource Igualdad},
+                                  ConverterParameter={x:Static m:TipoContrato.Notarial}}" />
+        <ToggleButton Grid.Column="2" Style="{DynamicResource Toggle.Segmento}"
+                      Content="Notarial + cuotas" Margin="0"
+                      Command="{Binding VerEnLateralCommand}"
+                      CommandParameter="{x:Static m:TipoContrato.Combinado}"
+                      IsChecked="{Binding VistaPreviaTipo, Mode=OneWay,
+                                  Converter={StaticResource Igualdad},
+                                  ConverterParameter={x:Static m:TipoContrato.Combinado}}" />
+      </Grid>
+
+      <!-- Vista previa del contrato elegido -->
+      <Border Grid.Row="2" Style="{DynamicResource Card}" Padding="0"
+              Visibility="{Binding MuestraContratoLateral, Converter={StaticResource BoolAVisibilidad}}">
+        <FlowDocumentScrollViewer x:Name="VisorContrato" Background="Transparent"
+                                  VerticalScrollBarVisibility="Auto" Zoom="70" />
+      </Border>
+
       <!-- Resumen -->
-      <UniformGrid Grid.Row="0" Rows="1" Columns="4" Margin="0,0,0,12"
-                   Visibility="{Binding TienePreview, Converter={StaticResource BoolAVisibilidad}}">
+      <UniformGrid Grid.Row="1" Rows="1" Columns="4" Margin="0,0,0,12"
+                   Visibility="{Binding MuestraMetricas, Converter={StaticResource BoolAVisibilidad}}">
         <Border Style="{DynamicResource Card.Metrica}" Margin="0,0,12,0">
           <StackPanel>
             <TextBlock Text="CUOTA" Style="{DynamicResource Texto.MicroLabel}" />
@@ -274,9 +693,10 @@
       </UniformGrid>
 
       <!-- Tabla de amortización -->
-      <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0">
+      <Border Grid.Row="2" Style="{DynamicResource Card}" Padding="0"
+              Visibility="{Binding MuestraTablaLateral, Converter={StaticResource BoolAVisibilidad}}">
         <Grid>
-          <TextBlock Text="Completá el formulario para ver la tabla de amortización."
+          <TextBlock Text="Completa el formulario para ver la tabla de amortización."
                      HorizontalAlignment="Center" VerticalAlignment="Center">
             <TextBlock.Style>
               <Style TargetType="TextBlock" BasedOn="{StaticResource Texto.Caption}">

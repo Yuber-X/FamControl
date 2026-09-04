@@ -10,7 +10,7 @@ namespace FAControl.Services;
 ///
 /// CÓMO FINANCIA UN DEALER RD (expediente real del cliente): inicial/anticipo
 /// al firmar + N pagos pactados, SIN interés. No es un préstamo: el crédito con
-/// interés, amortización y pagaré es AutoControl. Acá el plan es un calendario
+/// interés, amortización y pagaré es AutoControl. Aquí el plan es un calendario
 /// de pagos propio del dealer, y la separación es una reserva con fecha límite
 /// (el cliente tiene 15 días de derecho).
 ///
@@ -64,7 +64,7 @@ public class VentaPlazoService
 
         var saldo = precio - plan.Inicial;
         if (saldo <= 0m)
-            throw new ArgumentException("Con esa inicial no queda saldo por financiar: registrá la venta al contado.");
+            throw new ArgumentException("Con esa inicial no queda saldo por financiar: registra la venta al contado.");
 
         var montoBase = Math.Round(saldo / plan.CantidadPlazos, 2, MidpointRounding.AwayFromZero);
         var plazos = new List<VentaPlazo>(plan.CantidadPlazos);
@@ -171,7 +171,7 @@ public class VentaPlazoService
             if (porAplicar > deudaTotal)
                 throw new InvalidOperationException(
                     $"El abono ({porAplicar:N2}) supera todo lo que falta de la venta ({deudaTotal:N2}). " +
-                    "Cobrá como máximo el saldo pendiente.");
+                    "Cobra como máximo el saldo pendiente.");
 
             // Comprobante fiscal del cobro (042). Se resuelve con los plazos ya
             // bloqueados: la reserva usa FOR UPDATE y tiene que vivir en la
@@ -240,6 +240,11 @@ public class VentaPlazoService
             Log.Information("Abono de {Monto:N2} DOP en la venta {VentaId}: {Recibos}",
                 aplicado, plazo.VentaId, string.Join(", ", recibos));
 
+            // El comprobante digitado a mano pasa a ser el predeterminado
+            // (2026-09-03). Va DESPUES del commit y no puede tumbar la operacion.
+            if (!asignarNcfAuto)
+                await NcfPredeterminado.AdoptarAsync(_ncf, SesionActual.Modo, ncfDelCobro, ct);
+
             return new AbonoVentaResultado(recibos, aplicado, saldados, deudaTotal - aplicado);
         }
         catch
@@ -271,7 +276,7 @@ public class VentaPlazoService
             throw new UnauthorizedAccessException(
                 "Solo un administrador puede cancelar una venta y registrar la devolución.");
         if (string.IsNullOrWhiteSpace(datos.Motivo))
-            throw new ArgumentException("Escribí el motivo de la cancelación: queda en el historial.");
+            throw new ArgumentException("Escribe el motivo de la cancelación: queda en el historial.");
         if (datos.RetencionPorcentaje is < 0m or > 100m)
             throw new ArgumentException("El porcentaje de retención va entre 0 y 100.");
 
@@ -282,7 +287,7 @@ public class VentaPlazoService
         // retendría un porcentaje de lo cobrado, es decir, rompería el
         // histórico y el inventario de un tirón.
         //
-        // La regla vive ACÁ y no solo en la pantalla: ocultar un botón no es
+        // La regla vive AQUÍ y no solo en la pantalla: ocultar un botón no es
         // una regla, es una sugerencia. Si de verdad hay que revertir una venta
         // cobrada, eso es una devolución y se registra como tal.
         if (estado.EstaSaldada && estado.CantidadPlazos > 0)
@@ -338,13 +343,13 @@ public class VentaPlazoService
     private static void ExigirLectura()
     {
         if (!SesionActual.TienePermiso(Permisos.Ventas))
-            throw new UnauthorizedAccessException("No tenés permiso para ver el financiamiento de las ventas.");
+            throw new UnauthorizedAccessException("No tienes permiso para ver el financiamiento de las ventas.");
     }
 
     private static void ExigirEscritura()
     {
         if (!SesionActual.TienePermiso(Permisos.Ventas))
-            throw new UnauthorizedAccessException("No tenés permiso para cobrar plazos de ventas.");
+            throw new UnauthorizedAccessException("No tienes permiso para cobrar plazos de ventas.");
     }
 
     /// <summary>

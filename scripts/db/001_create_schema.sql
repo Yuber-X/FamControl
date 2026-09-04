@@ -222,7 +222,26 @@ CREATE TABLE prestamo (
   -- NULL = automatico (un tercio del plazo). Se ignora en los otros metodos.
   cuota_inicio_capital INT UNSIGNED NULL,
   fecha_inicio        DATE          NOT NULL,     -- fecha del primer pago (hora local del negocio)
-  garantia            VARCHAR(255)  NULL,
+  -- TEXT y no VARCHAR(255) (044): la descripcion legal de un inmueble no entra
+  -- en 255 caracteres (la del modelo del cliente mide casi 400).
+  garantia            TEXT          NULL,
+  -- ---- Pagare notarial (044): la foto del contrato al firmarlo ----
+  -- Van aca y no en `cliente` a proposito: si el deudor se casa el ano que
+  -- viene, el acta ya firmada tiene que seguir diciendo "soltero".
+  acto_no             VARCHAR(30)   NULL,         -- lo asigna el notario, no el sistema
+  folio_no            VARCHAR(30)   NULL,
+  fecha_acto          DATE          NULL,
+  municipio_acto      VARCHAR(120)  NULL,
+  -- 0 = no indicado. NO es un dato demografico: el acta esta declinada en
+  -- genero (dominicano/a, domiciliado/a, EL DEUDOR / LA DEUDORA).
+  deudor_sexo         TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  deudor_nacionalidad VARCHAR(60)   NULL,
+  deudor_estado_civil VARCHAR(40)   NULL,
+  deudor_ocupacion    VARCHAR(80)   NULL,
+  cuotas_exigibilidad TINYINT UNSIGNED NULL,      -- cuotas en atraso que vencen el plazo
+  dias_gracia         TINYINT UNSIGNED NULL,
+  mora_porcentaje     DECIMAL(5,2)  NULL,
+  registro_titulos    VARCHAR(150)  NULL,
   estado              ENUM('activo','pagado','cancelado') NOT NULL DEFAULT 'activo',
   notas               TEXT          NULL,
   created_at          DATETIME      NOT NULL DEFAULT (UTC_TIMESTAMP()),
@@ -238,6 +257,67 @@ CREATE TABLE prestamo (
   CONSTRAINT fk_prestamo_vehiculo FOREIGN KEY (vehiculo_id)
     REFERENCES vehiculo (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
+
+-- -------------------------------------------------------------
+-- prestamo_acta: copia CONGELADA de las partes del pagare notarial (045).
+-- El notario, quien firma por la empresa y los testigos se guardan tal como
+-- salieron impresos: reimprimir un contrato viejo tiene que dar el MISMO papel
+-- que se firmo, aunque despues cambie el notario del negocio.
+-- Sin fila = el acta se arma con la configuracion vigente (prestamos anteriores
+-- a este cambio, de los que no hay copia).
+-- -------------------------------------------------------------
+CREATE TABLE prestamo_acta (
+  prestamo_id BIGINT UNSIGNED NOT NULL,
+
+  -- La empresa y el lugar
+  empresa_direccion   VARCHAR(255) NULL,
+  municipio           VARCHAR(120) NULL,
+
+  -- El notario. La matricula es del Colegio Dominicano de Notarios.
+  notario_nombre       VARCHAR(150) NULL,
+  notario_matricula    VARCHAR(30)  NULL,
+  notario_cedula       VARCHAR(20)  NULL,
+  notario_estado_civil VARCHAR(40)  NULL,
+  notario_ocupacion    VARCHAR(80)  NULL,
+  notario_domicilio    VARCHAR(255) NULL,
+  notario_nacionalidad VARCHAR(60)  NULL,
+  -- 0 = sin indicar, 1 = masculino, 2 = femenino. El acta declina en genero.
+  notario_sexo         TINYINT UNSIGNED NOT NULL DEFAULT 0,
+
+  -- Quien firma por la acreedora
+  repr_nombre       VARCHAR(150) NULL,
+  repr_cedula       VARCHAR(20)  NULL,
+  repr_estado_civil VARCHAR(40)  NULL,
+  repr_ocupacion    VARCHAR(80)  NULL,
+  repr_domicilio    VARCHAR(255) NULL,
+  repr_nacionalidad VARCHAR(60)  NULL,
+  repr_sexo         TINYINT UNSIGNED NOT NULL DEFAULT 0,
+
+  -- Testigo 1
+  t1_nombre       VARCHAR(150) NULL,
+  t1_cedula       VARCHAR(20)  NULL,
+  t1_estado_civil VARCHAR(40)  NULL,
+  t1_ocupacion    VARCHAR(80)  NULL,
+  t1_domicilio    VARCHAR(255) NULL,
+  t1_nacionalidad VARCHAR(60)  NULL,
+  t1_sexo         TINYINT UNSIGNED NOT NULL DEFAULT 0,
+
+  -- Testigo 2
+  t2_nombre       VARCHAR(150) NULL,
+  t2_cedula       VARCHAR(20)  NULL,
+  t2_estado_civil VARCHAR(40)  NULL,
+  t2_ocupacion    VARCHAR(80)  NULL,
+  t2_domicilio    VARCHAR(255) NULL,
+  t2_nacionalidad VARCHAR(60)  NULL,
+  t2_sexo         TINYINT UNSIGNED NOT NULL DEFAULT 0,
+
+  created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
+  updated_at DATETIME NULL,
+
+  PRIMARY KEY (prestamo_id),
+  CONSTRAINT fk_prestamo_acta_prestamo FOREIGN KEY (prestamo_id)
+    REFERENCES prestamo (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------
 -- cuota: cada cuota individual del préstamo

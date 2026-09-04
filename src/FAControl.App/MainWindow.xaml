@@ -1,4 +1,4 @@
-<Window x:Class="FAControl.App.MainWindow"
+﻿<Window x:Class="FAControl.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:FAControl.ViewModels;assembly=FAControl.ViewModels"
@@ -66,8 +66,15 @@
               </ControlTemplate>
             </DockPanel.Resources>
 
-            <!-- Cerrar sesión: vuelve al LAUNCHER -->
-            <Button DockPanel.Dock="Right" Content="⏻" FontSize="14" Width="28" Height="28"
+            <!-- Cerrar sesión: vuelve al LAUNCHER.
+                 El icono va como glifo de Segoe MDL2 Assets (E7E8, PowerButton)
+                 y NO como el caracter Unicode U+23FB. Ese caracter no existe en
+                 Segoe UI, que es la fuente que se usaba por no declarar ninguna,
+                 asi que Windows lo dibujaba como un cuadrito vacio en la PC del
+                 cliente (reportado 2026-09-04). Los otros dos botones de esta
+                 barra nunca fallaron justamente porque si declaran la fuente. -->
+            <Button DockPanel.Dock="Right" Content="&#xE7E8;" FontFamily="Segoe MDL2 Assets"
+                    FontSize="13" Width="28" Height="28"
                     Cursor="Hand" Foreground="{DynamicResource Brush.TextoTerciario}"
                     Template="{StaticResource BotonCircular}"
                     ToolTip="Cerrar sesión y volver al inicio" Click="BotonSalir_Click" />

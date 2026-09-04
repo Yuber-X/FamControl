@@ -1,4 +1,4 @@
-using MySqlConnector;
+﻿using MySqlConnector;
 using FAControl.CargarCartera;
 using FAControl.Common;
 using FAControl.Data;
@@ -59,7 +59,8 @@ try
     var clientes = new ClienteService(new ClienteRepository(fabrica), auditoria);
     var prestamos = new PrestamoService(fabrica, new PrestamoRepository(fabrica),
         new ContadorRepository(), new AmortizacionService(), auditoria,
-        new VehiculoRepository(fabrica), new NcfRepository(fabrica), new PagoRepository(fabrica));
+        new VehiculoRepository(fabrica), new NcfRepository(fabrica), new PagoRepository(fabrica),
+        new PrestamoActaRepository(fabrica));
 
     await AbrirSesionAdminAsync(fabrica, usuarios);
     await LimpiarDatosDeNegocioAsync(cadena);

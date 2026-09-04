@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -110,7 +110,7 @@ public partial class AlquilerNuevoViewModel : ObservableObject
         {
             _sincronizandoTarifa = false;
         }
-        // El preview no se toca acá: sale de la tarifa DIARIA, y si esta cambió
+        // El preview no se toca aquí: sale de la tarifa DIARIA, y si esta cambió
         // su propio OnTarifaTextoChanged ya lo recalculó.
     }
 
@@ -163,13 +163,13 @@ public partial class AlquilerNuevoViewModel : ObservableObject
             MensajeError = string.Empty;
 
             if (VehiculoSeleccionado is null)
-                throw new ArgumentException("Elegí el vehículo a alquilar.");
+                throw new ArgumentException("Elige el vehículo a alquilar.");
             if (ClienteSeleccionado is null)
-                throw new ArgumentException("Elegí el cliente.");
+                throw new ArgumentException("Elige el cliente.");
             // Se valida la DIARIA porque es la que se guarda; si el usuario
             // escribió la mensual, esta ya se completó sola.
             if (!decimal.TryParse(TarifaTexto, NumberStyles.Number, CulturaRd, out var tarifa) || tarifa <= 0m)
-                throw new ArgumentException("Ingresá la tarifa, por día o por mes.");
+                throw new ArgumentException("Ingresa la tarifa, por día o por mes.");
 
             var datos = new AlquilerDatos(
                 VehiculoSeleccionado.Id, ClienteSeleccionado.Id,

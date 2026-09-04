@@ -63,7 +63,7 @@ public partial class App : Application
             Log.Error(e.Exception, "Error no controlado en la interfaz");
             MessageBox.Show(
                 "Ocurrió un error inesperado.\n\n" + e.Exception.Message +
-                "\n\nLa aplicación sigue abierta. Si se repite, avisá al soporte: " +
+                "\n\nLa aplicación sigue abierta. Si se repite, avisa al soporte: " +
                 Soporte.Telefono,
                 "FAControl", MessageBoxButton.OK, MessageBoxImage.Warning);
             e.Handled = true;   // no se cierra la app
@@ -120,7 +120,7 @@ public partial class App : Application
             Tema.Aplicar(_servicios!.GetRequiredService<AjustesLocales>().TemaOscuroDe(modo.Value));
 
             // Se queda en el login de ESTE modo hasta que entre o cancele.
-            // "Cambiar usuario" vuelve acá sin pasar por el launcher.
+            // "Cambiar usuario" vuelve aquí sin pasar por el launcher.
             var volverAlLauncher = false;
             while (!volverAlLauncher)
             {
@@ -216,7 +216,7 @@ public partial class App : Application
         shell.Closed += (_, _) => cerrado.TrySetResult(shell.VolverAlLauncher);
         var volverAlLauncher = await cerrado.Task;
 
-        // Se desuscribe: el shell muere acá y dejarlo enganchado al VM singleton
+        // Se desuscribe: el shell muere aquí y dejarlo enganchado al VM singleton
         // haría que Configuración escale una ventana ya cerrada.
         configuracionVm.EscalaCambiada -= shell.AplicarEscala;
         configuracionVm.TemaCambiado -= Tema.Aplicar;
@@ -239,7 +239,7 @@ public partial class App : Application
             {
                 case EstadoBaseDatos.Lista:
                     // La base existe pero puede venir de una versión anterior:
-                    // acá se le agregan las columnas/valores que trae esta.
+                    // aquí se le agregan las columnas/valores que trae esta.
                     return await PonerBaseAlDiaAsync(titulo);
 
                 case EstadoBaseDatos.FaltaBaseDatos:
@@ -261,9 +261,9 @@ public partial class App : Application
                 case EstadoBaseDatos.CredencialesInvalidas:
                     MessageBox.Show(
                         "MySQL rechazó el usuario o la contraseña configurados.\n\n" +
-                        "Abrí el archivo FAControl.App.dll.config que está en la carpeta " +
+                        "Abre el archivo FAControl.App.dll.config que está en la carpeta " +
                         "de instalación (por defecto C:\\Program Files\\FAControl) con el " +
-                        "Bloc de notas EJECUTADO COMO ADMINISTRADOR, y poné después de " +
+                        "Bloc de notas EJECUTADO COMO ADMINISTRADOR, y pon después de " +
                         "\"Pwd=\" la contraseña de root que se eligió al instalar MySQL.\n\n" +
                         "Está explicado con capturas en el punto \"Avisarle la contraseña " +
                         "a FAControl\" de la guía de instalación.",
@@ -299,7 +299,7 @@ public partial class App : Application
     ///
     /// Si falla, la app NO abre: entrar con el esquema a medio migrar daría
     /// errores sueltos y confusos en cualquier pantalla, y encima con la base
-    /// del cliente de por medio. Es preferible un mensaje claro acá.
+    /// del cliente de por medio. Es preferible un mensaje claro aquí.
     /// </summary>
     private async Task<bool> PonerBaseAlDiaAsync(string titulo)
     {
@@ -349,7 +349,7 @@ public partial class App : Application
         var comprobantes = servicios.GetRequiredService<FAControl.ViewModels.Pos.ComprobantesViewModel>();
         var cuadre = servicios.GetRequiredService<FAControl.ViewModels.Pos.CuadreViewModel>();
 
-        // La venta YA está persistida cuando llega acá: nada de lo que pase con
+        // La venta YA está persistida cuando llega aquí: nada de lo que pase con
         // la impresión puede afectarla.
         vender.VentaRegistrada += factura => MostrarTicket(factura, esReimpresion: false);
         // Reimprimir usa EL MISMO ticket que la venta original: el papel sale idéntico
@@ -484,6 +484,7 @@ public partial class App : Application
         servicios.AddSingleton<AuditoriaRepository>();
         servicios.AddSingleton<ClienteRepository>();
         servicios.AddSingleton<PrestamoRepository>();
+        servicios.AddSingleton<PrestamoActaRepository>();
         servicios.AddSingleton<PagoRepository>();
         servicios.AddSingleton<ContadorRepository>();
         servicios.AddSingleton<DashboardRepository>();

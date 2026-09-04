@@ -2,6 +2,281 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [No publicado] — El acta que no cambia, y el barrido de idioma
+
+### Corregido
+
+- **El Launcher no abría maximizado.** Regresión introducida el mismo día:
+  `VentanaAjustable` le ponía un `MaxHeight` a cada ventana, y WPF respeta ese
+  máximo **también al maximizar**, así que el Launcher quedaba del tamaño del
+  tope en vez de a pantalla completa. Ahora el tope se quita mientras la ventana
+  está maximizada y vuelve al restaurarla. Afectaba igual al MainWindow.
+
+- **Un icono salía como cuadrito vacío en la PC del cliente.** El botón de
+  cerrar sesión usaba el carácter Unicode `⏻` (U+23FB) **sin declarar fuente**,
+  así que caía en Segoe UI, que no lo tiene. Los otros dos botones de esa barra
+  nunca fallaron justamente porque sí declaran `Segoe MDL2 Assets`. Ahora usa el
+  glifo `E7E8` de esa misma fuente.
+
+  Se barrió todo el XAML buscando el mismo defecto: en toda la aplicación hay
+  solo tres símbolos fuera del ASCII, y los otros dos (`✓` en un texto de
+  Configuración y `−` en el contador del POS) sí existen en Segoe UI.
+
+- **Ninguna ventana puede quedar más grande que la pantalla.** Veintidós
+  ventanas se abrían con alto fijo de 780–860px o atado al contenido y sin poder
+  redimensionar. En un monitor grande se ven bien; en una laptop de 768px —que
+  es lo que hay en el mostrador— crecían por debajo del borde, con los botones
+  de guardar fuera de vista y sin forma de achicarlas. `VentanaAjustable` las
+  recorta al área de trabajo real; siete formularios además pasaron a tener
+  scroll y a poder redimensionarse.
+
+### Agregado
+
+- **El pagaré notarial queda congelado con el préstamo** (migración `045`,
+  tabla `prestamo_acta`).
+
+  Hasta ahora las PARTES del acta —el notario, quien firma por la empresa y los
+  dos testigos— se leían de la configuración **en el momento de imprimir**. Si
+  el año que viene cambia el notario, reimprimir un contrato firmado hoy sacaba
+  un papel **distinto al que el deudor firmó**: mismo préstamo, otro notario,
+  otros testigos. Para un documento con fuerza ejecutoria eso no es un detalle.
+
+  Ahora se guarda la copia completa, con la ocupación, la nacionalidad y el
+  **sexo** de cada parte (el acta declina en género y eso tampoco se puede
+  perder). Entra en la misma transacción que el préstamo: o van los dos o no va
+  ninguno. Los préstamos anteriores a este cambio siguen usando la
+  configuración vigente — de esos no hay copia y no se puede inventar una.
+
+- **Todos los campos del acta en Nuevo Préstamo**, en ocho bloques con rejilla
+  de tres columnas. El notario, el representante, los testigos, el asiento
+  social y las condiciones vienen **precargados desde Configuración**; cambiarlos
+  ahí vale solo para ese préstamo.
+
+  Y un interruptor, apagado por defecto: **"Guardar estos datos en Configuración
+  (reemplazan a los actuales)"**. Lo normal es corregir un dato para un contrato
+  puntual; prenderlo es decir "de ahora en más, estos son los datos del negocio".
+
+- **El acta se corrige desde Préstamos → Detalle → Editar.** Va fuera del bloque
+  de montos a propósito: son datos de un papel, no del dinero, así que se pueden
+  arreglar **aunque el préstamo ya tenga cobros**. Lo que se guarda reemplaza la
+  copia congelada, que es la que se usa al reimprimir, y queda anotado en el
+  historial — pero solo si de verdad cambió algo, comparando parte por parte.
+
+- **Casilla moderna** (`Casilla.Moderna`): cuadro redondeado con palomita
+  vectorial, para las listas de opciones. Convive con `Switch.Moderno` y no lo
+  reemplaza: el interruptor prende o apaga un modo, la casilla marca opciones de
+  una lista. Veinte interruptores seguidos en la grilla de permisos serían
+  ilegibles y ocuparían el triple de ancho.
+
+### Cambiado
+
+- **No quedan checkboxes con el estilo de Windows.** Los 24 que quedaban pasaron
+  a interruptor moderno, salvo las tres listas de permisos por pantalla, que
+  usan la casilla nueva.
+
+- **El botón "Guardar e imprimir" pasa a "Crear e imprimir"**, también en los
+  comentarios del código.
+
+- **Botones de Nuevo Préstamo reorganizados**: "Crear préstamo" y "Crear e
+  imprimir" comparten el ancho en la primera fila, "Ver contratos" toma el ancho
+  completo abajo. Los tres del panel lateral reparten el ancho en partes iguales,
+  con el texto más grande, centrado y partiendo de línea en vez de recortarse.
+
+- **El idioma de la aplicación pasa de rioplatense a dominicano**: 256 cambios
+  de voseo a tuteo (`tenés`→`tienes`, `elegí`→`elige`, `ingresá`→`ingresa`,
+  `acá`→`aquí`…). Se hizo en dos pasadas: la segunda usó un patrón amplio
+  —cualquier palabra terminada en vocal acentuada— y apareció otra docena que la
+  lista fija no tenía. El sustantivo **pagaré** y los futuros normales
+  (`pagará`, `tomará`, `devolverá`) quedaron intactos.
+
+
+## [No publicado] — Los tres contratos del préstamo
+
+Verónica (2026-08-26): *"Este es el contrato notarial, los dueños lo necesitan
+subido en el sistema, de las dos formas automático y editable"*. Jean Carlo
+(2026-08-27), sobre si eran varios: *"Vamos hacer ese solo"*.
+
+Ahora un préstamo emite **tres documentos**: el pagaré de siempre, el acta
+notarial de la plantilla, y el acta con la tabla de cuotas atrás.
+
+### Agregado
+
+- **Pagaré notarial.** El acta de la plantilla del cliente, armada con los datos
+  del préstamo: monto, cuotas, tasa y fechas escritos en letras y en cifra como
+  los escribe un notario, las siete cláusulas, la garantía, los testigos y las
+  cinco firmas.
+
+  El texto sigue a la plantilla salvo por las fallas evidentes, que se
+  corrigieron: numeraba **dos cláusulas como "QUINTO"**, dejaba una frase
+  cortada a la mitad (*"EL DEUDOR autoriza al SEXTO:"*) y traía erratas de tipeo
+  (DOCIENTOS, taza, AMNBITO, DECIGNACION, ESPANCION, ALUZING, Hemanos, el Tes).
+  El fondo jurídico no se tocó: las cláusulas dicen lo mismo, en el mismo orden,
+  con la misma referencia al art. 545 del Código de Procedimiento Civil.
+
+- **Concordancia de género.** El acta está declinada de punta a punta
+  (dominicano/a, domiciliado/a, el señor / la señora, EL DEUDOR / LA DEUDORA).
+  Se agregó el sexo del deudor para resolverla; sin eso el documento salía mal
+  escrito la mitad de las veces, delante del notario del cliente.
+
+- **`NumeroALetras`**: números, montos, porcentajes y fechas escritos como los
+  escribe un notario dominicano. Escrito a mano en vez de traer una dependencia:
+  las reglas del español son pocas y estables, y una librería genérica igual
+  habría que envolverla para el formato notarial. 43 pruebas, con los casos
+  tomados literalmente de la plantilla.
+
+- **Los tres documentos, en las tres pantallas.**
+  - **Contratos** (el almacén): el botón *"Pagaré"* de cada fila pasó a llamarse
+    **"Contratos"** y abre una ventana con los tres, cada uno con su vista previa,
+    su PDF y su impresión.
+  - **Préstamos → Detalle**: botón **"Contratos"** con lo mismo, más una tarjeta
+    nueva que muestra lo que se cargó del acta (acto, folio, municipio, cómo se
+    describe al deudor, condiciones y Registro de Títulos). La tarjeta se
+    esconde entera si no hay nada cargado.
+  - **Nuevo Préstamo**: tres botones arriba de la vista previa lateral cambian
+    el panel por el documento correspondiente; apretar el mismo otra vez vuelve
+    a la tabla de amortización.
+
+- **Tildes para elegir qué se imprime.** En Nuevo Préstamo hay tres casillas: lo
+  tildado se imprime, lo destildado no. La elección se recuerda **por PC**, no
+  por negocio: quién imprime qué depende de la impresora que tenga esa terminal
+  al lado.
+
+- **Datos del acta en Nuevo Préstamo**, en una sección plegable y **todos
+  opcionales**: acto, folio, fecha, municipio, y cómo se describe al deudor
+  (sexo, nacionalidad, estado civil, ocupación), más las condiciones del contrato
+  (cuotas en atraso que vencen el plazo, días de gracia, mora, Registro de
+  Títulos). Lo que quede vacío sale como una raya para llenar a mano, que es
+  como se trabaja con un notario; bloquear la impresión por un campo vacío sería
+  peor que imprimir el acta incompleta.
+
+  Van en el préstamo y **no en el cliente** a propósito: son la foto del contrato
+  al firmarlo. Si el deudor se casa el año que viene, el acta ya firmada tiene
+  que seguir diciendo "soltero" — la misma regla por la que la factura congela el
+  precio de catálogo.
+
+- **Configuración → Pagaré notarial**: el asiento social, el municipio, el
+  notario (con su matrícula del Colegio), quién firma por la empresa y los dos
+  testigos. Se cargan una sola vez: cambian una vez cada varios años, no por
+  contrato. También las condiciones por defecto, que cada préstamo puede pisar.
+
+- **Aviso de lo que falta** al abrir el acta: dice qué campos quedaron en blanco
+  sin impedir imprimir, y recuerda que el notario y los testigos se cargan en
+  Configuración.
+
+### Corregido
+
+- **El pagaré nunca se archivaba.** `PagareWindow` sabía dejar una copia en el
+  expediente, pero las dos pantallas que la abrían —el almacén de contratos y
+  Nuevo Préstamo— nunca le pasaban el expediente, así que el archivado salía
+  temprano y no guardaba nada. Estaba así desde el 2026-07-30, cuando se anunció
+  que *"lo que se imprime queda guardado en el expediente del cliente"*.
+
+  Ahora el expediente viaja siempre y **los tres documentos quedan archivados al
+  imprimirlos**, en la ficha del préstamo correspondiente.
+
+- **La garantía se truncaba.** `prestamo.garantia` era `VARCHAR(255)` y la
+  descripción legal del inmueble del modelo del cliente (solar, superficie,
+  designación catastral, ubicación y la mejora con techo, piso y habitaciones)
+  mide casi 400 caracteres: MySQL la cortaba en silencio o rechazaba el INSERT
+  según el `sql_mode`. Pasa a `TEXT` (migración `044`).
+
+### Cambiado
+
+- **"Crear préstamo" ya no imprime.** Hasta el 2026-09-02 el botón abría además
+  la vista previa del pagaré. Ahora guarda y nada más; imprimir es una decisión
+  aparte, con su propio botón ("Guardar e imprimir") y sus tildes. El botón
+  "Ver pagaré" pasó a "Ver contratos" y muestra los tres.
+
+- Si al imprimir varios falla uno, **los demás igual salen**: los errores se
+  juntan y se avisan una sola vez al final, nombrando cuáles no se pudieron.
+
+### Migración
+
+`044_contrato_notarial.sql` — idempotente, se aplica sola al arrancar. Agrega
+las doce columnas del acta a `prestamo` y pasa `garantia` a `TEXT`.
+
+### Pendiente para el cliente
+
+El acta habla de una **mora del 20%**, pero FAControl no tiene ningún concepto de
+recargo por atraso: hoy el número se imprime en el contrato y nadie lo calcula.
+Si la van a cobrar de verdad, es una funcionalidad aparte.
+
+
+## [No publicado] — El comprobante fiscal se aprende solo
+
+Pedido del cliente 2026-09-03. La idea de fondo: dejaron de numerar desde el
+talonario local y numeran desde el Facturador Gratuito de la DGII, así que la
+app tenía que seguirlos a ellos en vez de obligarlos a corregir Configuración
+a mano después de cada cobro.
+
+### Agregado
+
+- **Marcador con el próximo comprobante** en todas las cajas de NCF: cobro de
+  cuota, préstamo nuevo, cobro de alquiler, abono a plazo y "Asignar" en el
+  detalle del préstamo. Se ve en gris el número exacto que va a salir
+  (`B0200000046`), no un texto genérico.
+
+  **Si la estancia no tiene secuencia configurada no se muestra marcador en
+  ninguna caja**, que era la parte explícita del pedido. Tampoco se muestra si
+  la secuencia está apagada, vencida o agotada: un marcador con un número que
+  la app no va a poder entregar es peor que ninguno.
+
+  La pieza es reusable y no sabe nada de NCF: propiedad adjunta
+  `Marcador.Texto`, pintada por el template de `Input.Texto`. Se hizo así, y no
+  con un TextBlock suelto en cada pantalla, porque el marcador tiene que
+  alinearse exacto con el texto real y eso solo lo garantiza el template.
+
+- **El switch dice el número.** Antes decía "Tomar el siguiente de la secuencia
+  configurada"; ahora dice **"Usar el comprobante B0200000046"**. Cuando no hay
+  secuencia se apaga, se deshabilita y explica dónde configurarla — antes se
+  podía prender y la operación fallaba recién al guardar, con un error de base
+  de datos en la cara del cajero.
+
+- **El NCF digitado a mano queda de predeterminado.** Si se escribe un
+  comprobante en un cobro, un préstamo, un alquiler o un abono a plazo y la
+  operación sale bien, esa serie pasa a ser la activa y la secuencia continúa a
+  partir de ese número. Vale por los cinco caminos y se aplica de nuevo cada vez
+  que se cambia, incluso volviendo a una serie anterior (retoma su propia
+  numeración, no la de la otra).
+
+  La adopción corre **después del commit y nunca propaga**: el cobro es un hecho
+  financiero, mover la numeración predeterminada es una comodidad. Si lo segundo
+  falla, lo primero sigue siendo válido y el usuario no ve ningún error.
+
+### Cambiado
+
+- **La casilla de Configuración → Comprobante fiscal ahora limpia todo al
+  encenderse**, no solo el ejemplo de fábrica. Antes, reactivar una secuencia
+  guardada la respetaba para no hacerle perder al usuario en qué número iba.
+  Lo que cambió es de dónde sale ese número: ahora se recupera solo desde el
+  primer comprobante que se digite, así que lo peligroso pasó a ser lo
+  contrario — reactivar la casilla y quedarse sin notarlo con los números de un
+  talonario viejo o de otra estancia.
+
+- **Un e-NCF externo ahora SÍ mueve la secuencia local.** Era exactamente lo
+  contrario hasta el 2026-09-02, y era deliberado: ese número lo emitió el
+  portal de la DGII, no la app. El test que afirmaba el contrato viejo
+  (`El_comprobante_pegado_a_mano_va_al_recibo_sin_tocar_la_secuencia`) se
+  reescribió en vez de borrarse, para que quede asentado que el cambio fue
+  pedido y no un descuido.
+
+### Nota sobre una desviación deliberada
+
+El pedido dice que el NCF digitado se adopta siempre. Se cumple **salvo un
+caso**: dentro de la MISMA serie, la secuencia no retrocede. Escribir un número
+más viejo que el actual volvería a entregar comprobantes ya consumidos, que la
+DGII prohíbe reusar y que `uq_prestamo_ncf` / `uq_pago_ncf` rechazarían más
+tarde con un error de base de datos. Si la serie **cambia** sí se adopta tal
+cual, porque un talonario nuevo trae su propia numeración y no pisa nada.
+Está probado en `NcfPredeterminadoTests.MismaSerie_MasAtras_NoRetrocede` y es
+fácil de revertir si el cliente prefiere lo literal.
+
+### Sin migración
+
+No hubo cambios de esquema: todo se apoya en `ncf_secuencia`, que existe desde
+`012_ncf.sql` y quedó por modo en `030_ncf_por_modo.sql`.
+
+
 ## [No publicado] — Comprobante fiscal por cobro y arreglos de impresión
 
 ### Corregido

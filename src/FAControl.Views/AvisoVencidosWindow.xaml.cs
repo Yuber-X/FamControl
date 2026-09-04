@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using FAControl.Models;
 
@@ -30,6 +30,7 @@ public partial class AvisoVencidosWindow : Window
     public AvisoVencidosWindow(IReadOnlyList<ClienteVencido> vencidos)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         _filas = vencidos.Select(v => new Fila { Datos = v }).ToList();
         Lista.ItemsSource = _filas;

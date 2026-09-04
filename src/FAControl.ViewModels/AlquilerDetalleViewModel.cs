@@ -31,8 +31,9 @@ public partial class AlquilerDetalleViewModel : ObservableObject
     private readonly VehiculoService _vehiculos;
     private readonly ClienteService _clientes;
     private readonly IDialogService _dialogos;
+    private readonly NcfService _ncf;
     private long _alquilerId;
-    /// <summary>Inicio del contrato: el diálogo de cierre cuenta los días reales desde acá.</summary>
+    /// <summary>Inicio del contrato: el diálogo de cierre cuenta los días reales desde aquí.</summary>
     private DateOnly _fechaInicio;
 
     public event Action? VolverSolicitado;
@@ -50,12 +51,14 @@ public partial class AlquilerDetalleViewModel : ObservableObject
     public Func<RenovacionAlquilerPedido, RenovacionAlquiler?>? RenovacionSolicitada { get; set; }
 
     public AlquilerDetalleViewModel(AlquilerService alquileres, VehiculoService vehiculos,
-        ClienteService clientes, IDialogService dialogos, ExpedienteViewModel expediente)
+        ClienteService clientes, IDialogService dialogos, ExpedienteViewModel expediente,
+        NcfService ncf)
     {
         _alquileres = alquileres;
         _vehiculos = vehiculos;
         _clientes = clientes;
         _dialogos = dialogos;
+        _ncf = ncf;
         Expediente = expediente;
         _metodoCobro = MetodosPago[0];
     }
@@ -171,7 +174,7 @@ public partial class AlquilerDetalleViewModel : ObservableObject
 
     /// <summary>
     /// Editar y cerrar solo tienen sentido con el contrato abierto. Se resuelve
-    /// acá y no con un MultiBinding en XAML: es una regla, no una decoración, y
+    /// aquí y no con un MultiBinding en XAML: es una regla, no una decoración, y
     /// además en WPF `Style` no se puede fijar dos veces (MC3024).
     /// </summary>
     public bool PuedeOperar => PuedeGestionar && EstaActivo;
@@ -183,6 +186,7 @@ public partial class AlquilerDetalleViewModel : ObservableObject
         try
         {
             _alquilerId = alquilerId;
+            NcfMarcador = await _ncf.ProximoNcfAsync() ?? string.Empty;
             var alquiler = await _alquileres.ObtenerPorIdAsync(alquilerId)
                 ?? throw new InvalidOperationException($"No existe el alquiler con id {alquilerId}.");
 
@@ -298,7 +302,7 @@ public partial class AlquilerDetalleViewModel : ObservableObject
         AtrasoTexto = $"El vehículo tenía que volver hace {dias} día(s). " +
                       $"Al día de hoy corresponden {extra.ToString("N2", Textos.CulturaRd)} DOP de más " +
                       $"({TarifaVigente.ToString("N2", Textos.CulturaRd)} por día). " +
-                      "Si el cliente lo trae, cerrá el contrato y el vehículo vuelve al inventario; " +
+                      "Si el cliente lo trae, cierra el contrato y el vehículo vuelve al inventario; " +
                       "si sigue con él, renovalo con la fecha nueva.";
     }
 
@@ -492,7 +496,7 @@ public partial class AlquilerDetalleViewModel : ObservableObject
         HaySaldoAFavor = estado.SaldoAFavor > 0m;
         SaldoAFavorTexto = HaySaldoAFavor
             ? $"El cliente pagó {estado.SaldoAFavor.ToString("N2", Textos.CulturaRd)} DOP de más. " +
-              "Queda a su favor: acordá con él si se le devuelve o se le descuenta del próximo alquiler."
+              "Queda a su favor: acuerda con él si se le devuelve o se le descuenta del próximo alquiler."
             : string.Empty;
 
         Cobros.Clear();
@@ -516,6 +520,41 @@ public partial class AlquilerDetalleViewModel : ObservableObject
     /// el switch toma el siguiente de la secuencia de ESTA estancia (030).
     /// </summary>
     [ObservableProperty] private string _ncfTexto = string.Empty;
+    /// <summary>
+    /// Proximo comprobante que entregaria la secuencia, para mostrarlo como
+    /// marcador dentro de la caja de NCF (pedido del cliente 2026-09-03).
+    /// Cadena vacia cuando esta estancia no tiene secuencia configurada, esta
+    /// apagada, vencio o se agoto: en ese caso la caja no muestra marcador.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HayNcfConfigurado))]
+    [NotifyPropertyChangedFor(nameof(NcfSwitchTexto))]
+    private string _ncfMarcador = string.Empty;
+
+    /// <summary>
+    /// Hay una secuencia de la que tomar el proximo comprobante. Cuando es
+    /// false el switch se apaga Y se deshabilita: prenderlo solo conseguiria
+    /// que la operacion fallara al final con "esta estancia no tiene secuencia
+    /// configurada", que es un error que conviene no dejar llegar tan tarde.
+    /// </summary>
+    public bool HayNcfConfigurado => NcfMarcador.Length > 0;
+
+    /// <summary>Texto del switch: nombra el numero exacto que se va a usar.</summary>
+    public string NcfSwitchTexto => HayNcfConfigurado
+        ? $"Usar el comprobante {NcfMarcador}"
+        : "No hay secuencia de comprobantes configurada (Configuración → Comprobante fiscal)";
+
+    /// <summary>
+    /// Si la secuencia dejo de estar disponible (se apago, vencio, se agoto o
+    /// se cambio de estancia), el switch no puede quedar prendido apuntando a
+    /// un talonario que ya no existe.
+    /// </summary>
+    partial void OnNcfMarcadorChanged(string value)
+    {
+        if (value.Length == 0)
+            NcfDeSecuencia = false;
+    }
+
     [ObservableProperty] private bool _ncfDeSecuencia;
 
     /// <summary>Al prender el switch el NCF escrito se borra: el servicio lo ignora.</summary>
@@ -532,7 +571,7 @@ public partial class AlquilerDetalleViewModel : ObservableObject
         if (!decimal.TryParse(MontoCobroTexto, NumberStyles.Number, Textos.CulturaRd, out var monto)
             || monto <= 0m)
         {
-            _dialogos.MostrarError("Cobrar", "Escribí cuánto está pagando el cliente.");
+            _dialogos.MostrarError("Cobrar", "Escribe cuánto está pagando el cliente.");
             return;
         }
 
@@ -549,6 +588,7 @@ public partial class AlquilerDetalleViewModel : ObservableObject
             // El comprobante se limpia: un NCF se consume una sola vez.
             NcfTexto = string.Empty;
             NcfDeSecuencia = false;
+            NcfMarcador = await _ncf.ProximoNcfAsync() ?? string.Empty;
             await CargarCobrosAsync();
 
             _dialogos.Informar("Cobro registrado",
@@ -608,7 +648,7 @@ public record CierreAlquilerPedido(
     long AlquilerId,
     string Codigo,
     string VehiculoDescripcion,
-    /// <summary>Desde acá se cuentan los días reales si devolvió tarde o antes.</summary>
+    /// <summary>Desde aquí se cuentan los días reales si devolvió tarde o antes.</summary>
     DateOnly FechaInicio,
     decimal TarifaDia,
     int DiasPactados,

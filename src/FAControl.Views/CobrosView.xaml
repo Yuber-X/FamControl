@@ -1,6 +1,7 @@
-<UserControl x:Class="FAControl.Views.CobrosView"
+﻿<UserControl x:Class="FAControl.Views.CobrosView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:FAControl.Views"
              DataContextChanged="CobrosView_DataContextChanged">
 
   <Grid>
@@ -152,11 +153,13 @@
           <TextBlock Text="Comprobante fiscal — NCF (opcional)" Style="{DynamicResource Input.Label}"
                      Margin="0,14,0,6" />
           <TextBox Style="{DynamicResource Input.Texto}"
-                   ToolTip="Pegá el e-NCF del Facturador Gratuito DGII, o prendé el switch para tomar el siguiente de la secuencia"
+                   ToolTip="Pega el e-NCF del Facturador Gratuito DGII, o enciende el switch para tomar el siguiente de la secuencia"
                    IsEnabled="{Binding NcfDeSecuencia, Converter={StaticResource InversorBool}}"
+                   v:Marcador.Texto="{Binding NcfMarcador}"
                    Text="{Binding NcfTexto, UpdateSourceTrigger=PropertyChanged}" />
           <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,10,0,0"
-                    Content="Tomar el siguiente de la secuencia configurada (Configuración → Comprobante fiscal)"
+                    Content="{Binding NcfSwitchTexto}"
+                    IsEnabled="{Binding HayNcfConfigurado}"
                     IsChecked="{Binding NcfDeSecuencia}" />
 
           <TextBlock Text="Notas (opcional)" Style="{DynamicResource Input.Label}"

@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Input;
 using FAControl.ViewModels;
 using Microsoft.Win32;
@@ -19,6 +19,7 @@ public partial class CodigosWindow : Window
     public CodigosWindow(CodigosViewModel vm)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         _vm = vm;
         DataContext = vm;
         vm.CerrarSolicitado += Close;

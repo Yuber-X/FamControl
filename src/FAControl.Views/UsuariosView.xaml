@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.UsuariosView"
+﻿<UserControl x:Class="FAControl.Views.UsuariosView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              DataContextChanged="UsuariosView_DataContextChanged">
@@ -94,18 +94,18 @@
 
           <!-- ROLES POR MODO: admin global, o un rol por cada estancia -->
           <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,16,0,12" />
-          <CheckBox Content="Administrador (acceso total a los tres modos)" FontSize="13"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Administrador (acceso total a los tres modos)" FontSize="13"
                     IsChecked="{Binding EsAdministrador}" />
           <!-- Rol Programador (017): la casilla solo existe para otro Programador.
                El servicio la vuelve a validar, esto es comodidad visual. -->
           <StackPanel Visibility="{Binding PuedeAsignarProgramador, Converter={StaticResource BoolAVisibilidad}}">
-            <CheckBox Content="Programador (autoridad total, intocable por el Admin)" FontSize="13"
+            <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Programador (autoridad total, intocable por el Admin)" FontSize="13"
                       Margin="0,6,0,0" IsChecked="{Binding EsProgramador}" />
             <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
                        Text="Reservado al desarrollador: ningún administrador puede verla, editarla ni quitarle la autoridad. Solo otro Programador." />
           </StackPanel>
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,4,0,8"
-                     Text="Si no es administrador, elegí un rol por modo. 'Sin acceso' = no entra a ese modo. Cada rol trae sus propios permisos." />
+                     Text="Si no es administrador, elige un rol por modo. 'Sin acceso' = no entra a ese modo. Cada rol trae sus propios permisos." />
 
           <StackPanel IsEnabled="{Binding RolesPorModoHabilitados}">
             <TextBlock Text="PrestControl (préstamos)" Style="{DynamicResource Input.Label}" />
@@ -121,7 +121,7 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <CheckBox Content="{Binding Nombre}" ToolTip="{Binding Descripcion}"
+                  <CheckBox Style="{DynamicResource Casilla.Moderna}" Content="{Binding Nombre}" ToolTip="{Binding Descripcion}"
                             FontSize="12" Margin="0,2,14,2"
                             IsChecked="{Binding Marcado, Mode=TwoWay}" />
                 </DataTemplate>
@@ -140,7 +140,7 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <CheckBox Content="{Binding Nombre}" ToolTip="{Binding Descripcion}"
+                  <CheckBox Style="{DynamicResource Casilla.Moderna}" Content="{Binding Nombre}" ToolTip="{Binding Descripcion}"
                             FontSize="12" Margin="0,2,14,2"
                             IsChecked="{Binding Marcado, Mode=TwoWay}" />
                 </DataTemplate>
@@ -166,7 +166,7 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <CheckBox Content="{Binding Nombre}" ToolTip="{Binding Descripcion}"
+                  <CheckBox Style="{DynamicResource Casilla.Moderna}" Content="{Binding Nombre}" ToolTip="{Binding Descripcion}"
                             FontSize="12" Margin="0,2,14,2"
                             IsChecked="{Binding Marcado, Mode=TwoWay}" />
                 </DataTemplate>
@@ -188,9 +188,12 @@
                el ConverterParameter. -->
           <CheckBox Content="Usuario activo" Margin="0,12,0,0" IsChecked="{Binding Activo}">
             <CheckBox.Style>
-              <!-- BasedOn el estilo implícito (Foreground dinámico): sin él, este
-                   estilo inline lo pisa y el texto queda oscuro en modo noche. -->
-              <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+              <!-- El estilo va aquí y no en un Style= porque esta casilla necesita
+                   además un trigger propio (se esconde al crear un usuario nuevo),
+                   y las dos formas de asignar Style no pueden convivir.
+                   BasedOn Switch.Moderno: hereda el interruptor y le suma el
+                   trigger, en vez de volver al chrome de Windows. -->
+              <Style TargetType="CheckBox" BasedOn="{StaticResource Switch.Moderno}">
                 <Style.Triggers>
                   <DataTrigger Binding="{Binding EsNuevo}" Value="True">
                     <Setter Property="Visibility" Value="Collapsed" />

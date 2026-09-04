@@ -52,6 +52,7 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     private readonly VentaVehiculoService _ventas;
     private readonly AjustesLocales _ajustes;
     private readonly IDialogService _dialogos;
+    private readonly NcfService _ncf;
     private long _ventaId;
     private EstadoFinanciamiento? _estado;
     private FacturaVentaDatos? _datosVenta;
@@ -85,12 +86,14 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     }
 
     public VentaFinanciamientoViewModel(VentaPlazoService plazos, VentaVehiculoService ventas,
-        AjustesLocales ajustes, IDialogService dialogos, ExpedienteViewModel expediente)
+        AjustesLocales ajustes, IDialogService dialogos, ExpedienteViewModel expediente,
+        NcfService ncf)
     {
         _plazos = plazos;
         _ventas = ventas;
         _ajustes = ajustes;
         _dialogos = dialogos;
+        _ncf = ncf;
         Expediente = expediente;
 
         Metodos =
@@ -212,6 +215,7 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
         try
         {
             _ventaId = ventaId;
+            NcfMarcador = await _ncf.ProximoNcfAsync() ?? string.Empty;
             var estado = await _plazos.ObtenerEstadoAsync(ventaId);
             var datos = await _ventas.ObtenerFacturaAsync(ventaId);
             _estado = estado;
@@ -288,7 +292,7 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
         if (estado.SeparacionVencida(hoy))
         {
             AvisoTexto = $"⚠ La separación venció el {estado.FechaLimite:dd/MM/yyyy}. " +
-                         "El cliente ya no tiene derecho sobre el vehículo: liberalo o acordá una prórroga.";
+                         "El cliente ya no tiene derecho sobre el vehículo: liberalo o acuerda una prórroga.";
             HayAviso = true;
         }
         else if (estado.Tipo == TipoVenta.Separacion && estado.FechaLimite is { } limite)
@@ -324,6 +328,41 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     /// el switch toma el siguiente de la secuencia de ESTA estancia (030).
     /// </summary>
     [ObservableProperty] private string _ncfTexto = string.Empty;
+    /// <summary>
+    /// Proximo comprobante que entregaria la secuencia, para mostrarlo como
+    /// marcador dentro de la caja de NCF (pedido del cliente 2026-09-03).
+    /// Cadena vacia cuando esta estancia no tiene secuencia configurada, esta
+    /// apagada, vencio o se agoto: en ese caso la caja no muestra marcador.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HayNcfConfigurado))]
+    [NotifyPropertyChangedFor(nameof(NcfSwitchTexto))]
+    private string _ncfMarcador = string.Empty;
+
+    /// <summary>
+    /// Hay una secuencia de la que tomar el proximo comprobante. Cuando es
+    /// false el switch se apaga Y se deshabilita: prenderlo solo conseguiria
+    /// que la operacion fallara al final con "esta estancia no tiene secuencia
+    /// configurada", que es un error que conviene no dejar llegar tan tarde.
+    /// </summary>
+    public bool HayNcfConfigurado => NcfMarcador.Length > 0;
+
+    /// <summary>Texto del switch: nombra el numero exacto que se va a usar.</summary>
+    public string NcfSwitchTexto => HayNcfConfigurado
+        ? $"Usar el comprobante {NcfMarcador}"
+        : "No hay secuencia de comprobantes configurada (Configuración → Comprobante fiscal)";
+
+    /// <summary>
+    /// Si la secuencia dejo de estar disponible (se apago, vencio, se agoto o
+    /// se cambio de estancia), el switch no puede quedar prendido apuntando a
+    /// un talonario que ya no existe.
+    /// </summary>
+    partial void OnNcfMarcadorChanged(string value)
+    {
+        if (value.Length == 0)
+            NcfDeSecuencia = false;
+    }
+
     [ObservableProperty] private bool _ncfDeSecuencia;
 
     /// <summary>Al prender el switch el NCF escrito se borra: el servicio lo ignora.</summary>
@@ -339,12 +378,12 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
         MensajeCobro = string.Empty;
         if (PlazoSeleccionado is not { } plazo)
         {
-            MensajeCobro = "Elegí el plazo que vas a cobrar.";
+            MensajeCobro = "Elige el plazo que vas a cobrar.";
             return;
         }
         if (!decimal.TryParse(MontoAbonoTexto, NumberStyles.Number, Textos.CulturaRd, out var monto) || monto <= 0m)
         {
-            MensajeCobro = "Ingresá un monto válido mayor que cero (ej. 25,000).";
+            MensajeCobro = "Ingresa un monto válido mayor que cero (ej. 25,000).";
             return;
         }
 
@@ -387,7 +426,7 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
     // ---------- Cancelación: el cliente devolvió el vehículo (028) ----------
 
     /// <summary>
-    /// La View pone acá cómo pedirle al usuario el motivo y el porcentaje.
+    /// La View pone aquí cómo pedirle al usuario el motivo y el porcentaje.
     /// Es una FUNCIÓN y no un evento porque devuelve un valor: null significa
     /// que se arrepintió, y entonces no se cancela nada.
     /// </summary>
@@ -582,7 +621,7 @@ public partial class VentaFinanciamientoViewModel : ObservableObject
                                $"DOP que el cliente ya había pagado: {r.PlazosSaldados} plazo(s) quedaron saldados.";
                 if (r.HaySaldoAFavor)
                     mensaje += $"\n\nEl cliente pagó {r.SaldoAFavor.ToString("N2", Textos.CulturaRd)} DOP " +
-                               "de más. Queda a su favor: acordá con él si se le devuelve o se le " +
+                               "de más. Queda a su favor: acuerda con él si se le devuelve o se le " +
                                "descuenta de otra compra.";
             }
             _dialogos.Informar("Venta corregida", mensaje);

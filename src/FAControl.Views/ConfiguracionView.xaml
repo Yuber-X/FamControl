@@ -1,6 +1,7 @@
 ﻿<UserControl x:Class="FAControl.Views.ConfiguracionView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:FAControl.Views">
 
   <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,12,0">
     <StackPanel MaxWidth="720" HorizontalAlignment="Left">
@@ -23,14 +24,14 @@
           <!-- Modo noche (pedido del cliente 2026-07-16). Binding directo:
                el VM aplica el tema y lo recuerda por PC. -->
           <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,16,0,14" />
-          <CheckBox Content="Modo oscuro" FontSize="13" IsChecked="{Binding TemaOscuro}" />
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Modo oscuro" FontSize="13" IsChecked="{Binding TemaOscuro}" />
           <TextBlock Text="Invierte los colores para trabajar de noche o con poca luz. Se aplica al instante y se recuerda en esta computadora."
                      Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0" />
 
           <!-- Arranque directo (cliente 2026-07-29): se prende en la pantalla de
-               inicio y se apaga acá. -->
+               inicio y se apaga aquí. -->
           <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,16,0,14" />
-          <CheckBox Content="Abrir directamente esta estancia al iniciar FAControl"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Abrir directamente esta estancia al iniciar FAControl"
                     FontSize="13" IsChecked="{Binding ArranqueDirectoActivo}" />
           <TextBlock Text="{Binding ArranqueDirectoTexto}"
                      Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0" />
@@ -50,9 +51,9 @@
                     ItemsSource="{Binding Impresoras}"
                     SelectedItem="{Binding ImpresoraSeleccionada}" />
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
-                     Text="Si dejás la predeterminada de Windows y esa es &quot;Microsoft Print to PDF&quot;, al cobrar te va a pedir guardar un archivo en vez de imprimir. Elegí acá la impresora del mostrador." />
+                     Text="Si dejás la predeterminada de Windows y esa es &quot;Microsoft Print to PDF&quot;, al cobrar te va a pedir guardar un archivo en vez de imprimir. Elige aquí la impresora del mostrador." />
 
-          <CheckBox Content="Ver el ticket antes de imprimir" FontSize="13" Margin="0,14,0,0"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Ver el ticket antes de imprimir" FontSize="13" Margin="0,14,0,0"
                     IsChecked="{Binding MostrarVistaPreviaTicket}" />
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
                      Text="Apagado, el ticket sale directo al cobrar — con un cliente esperando es lo que conviene. Al reimprimir desde Comprobantes siempre se muestra primero, esté como esté esta casilla." />
@@ -140,7 +141,7 @@
           <TextBlock Text="ITBIS" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
                      Text="Impuesto que se cobra en cada venta del punto de venta. Es del NEGOCIO, no de esta computadora: al cambiarlo cambia en todas las terminales. No toca las facturas ya emitidas." />
-          <CheckBox Content="Cobrar ITBIS en las ventas" FontSize="13"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Cobrar ITBIS en las ventas" FontSize="13"
                     IsChecked="{Binding ItbisActivo}" />
           <StackPanel Orientation="Horizontal" Margin="24,10,0,0"
                       IsEnabled="{Binding ItbisActivo}">
@@ -156,7 +157,7 @@
           <TextBlock Text="Comisión del vendedor" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
                      Text="Porcentaje que gana el vendedor sobre lo que vende. Se muestra en Vender junto al subtotal, en el cuadre del día y en la exportación a Excel." />
-          <CheckBox Content="Calcular comisión del vendedor" FontSize="13"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Calcular comisión del vendedor" FontSize="13"
                     IsChecked="{Binding ComisionPosActiva}" />
           <StackPanel Margin="24,10,0,0" IsEnabled="{Binding ComisionPosActiva}">
             <StackPanel Orientation="Horizontal">
@@ -167,7 +168,7 @@
               </StackPanel>
             </StackPanel>
             <!-- 038: mostrarla al cliente es una decisión aparte de calcularla -->
-            <CheckBox Content="Mostrar la comisión en la factura del cliente" FontSize="13"
+            <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Mostrar la comisión en la factura del cliente" FontSize="13"
                       Margin="0,12,0,0" IsChecked="{Binding ComisionPosEnFactura}" />
             <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap"
                        Margin="24,4,0,0" MaxWidth="420"
@@ -184,6 +185,181 @@
         </StackPanel>
       </Border>
 
+      <!-- ============ PAGARÉ NOTARIAL (044, plantilla del cliente 2026-08-26) ============
+           Lo que se repite en TODAS las actas. Cambia una vez cada varios años,
+           no por contrato, así que se carga una sola vez aquí. Lo que es de cada
+           préstamo (acto, folio, garantía, datos del deudor) va en Nuevo Préstamo.
+
+           Se guarda solo al escribir, igual que los datos del negocio. -->
+      <Border Style="{DynamicResource Card}" Margin="0,0,0,12"
+              Visibility="{Binding PuedeConfigurarNcf, Converter={StaticResource BoolAVisibilidad}}">
+        <StackPanel>
+          <TextBlock Text="Pagaré notarial" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="Datos que el acta notarial pide y se repiten en todos los contratos. Nuevo Préstamo los trae precargados desde aquí, y ahí se pueden ajustar para un contrato puntual sin tocar estos. Lo que quede vacío sale como una raya en el documento, para llenarlo a mano." />
+
+          <TextBlock Text="LA EMPRESA" Style="{DynamicResource Texto.MicroLabel}" Margin="0,0,0,8" />
+          <WrapPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Asiento social (dirección)" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="380" Style="{DynamicResource Input.Texto}" Height="34"
+                       ToolTip="Dirección completa como la escribe el acta"
+                       Text="{Binding NegocioDireccion, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Municipio del acto" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="240" Style="{DynamicResource Input.Texto}" Height="34"
+                       ToolTip="Ciudad, municipio y provincia donde se firman las actas"
+                       Text="{Binding ActaMunicipio, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+          </WrapPanel>
+
+          <TextBlock Text="EL NOTARIO" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,8" />
+          <WrapPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="300" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding NotarioNombre, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Matrícula" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="110" Style="{DynamicResource Input.Texto}" Height="34"
+                       ToolTip="Matrícula del Colegio Dominicano de Notarios"
+                       Text="{Binding NotarioMatricula, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="160" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding NotarioCedula, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="140" Style="{DynamicResource Input.Texto}" Height="34"
+                       v:Marcador.Texto="soltero, casado…"
+                       Text="{Binding NotarioEstadoCivil, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Domicilio profesional" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="380" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding NotarioDomicilio, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+          </WrapPanel>
+
+          <TextBlock Text="QUIÉN FIRMA POR LA EMPRESA" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,8" />
+          <WrapPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="300" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding RepresentanteNombre, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="160" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding RepresentanteCedula, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="140" Style="{DynamicResource Input.Texto}" Height="34"
+                       v:Marcador.Texto="soltera, casada…"
+                       Text="{Binding RepresentanteEstadoCivil, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Ocupación" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="180" Style="{DynamicResource Input.Texto}" Height="34"
+                       v:Marcador.Texto="comerciante…"
+                       Text="{Binding RepresentanteOcupacion, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Domicilio" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="380" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding RepresentanteDomicilio, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+          </WrapPanel>
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,2,0,0"
+                    Content="Es mujer (el acta se escribe en femenino: dominicana, domiciliada, portadora)"
+                    IsChecked="{Binding RepresentanteEsFemenino}" />
+
+          <TextBlock Text="TESTIGO 1" Style="{DynamicResource Texto.MicroLabel}" Margin="0,14,0,8" />
+          <WrapPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="300" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding Testigo1Nombre, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="160" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding Testigo1Cedula, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="140" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding Testigo1EstadoCivil, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Ocupación" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="180" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding Testigo1Ocupacion, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+          </WrapPanel>
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,2,0,0"
+                    Content="Es mujer" IsChecked="{Binding Testigo1EsFemenino}" />
+
+          <TextBlock Text="TESTIGO 2" Style="{DynamicResource Texto.MicroLabel}" Margin="0,14,0,8" />
+          <WrapPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="300" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding Testigo2Nombre, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="160" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding Testigo2Cedula, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="140" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding Testigo2EstadoCivil, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Ocupación" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="180" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding Testigo2Ocupacion, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+          </WrapPanel>
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Margin="0,2,0,0"
+                    Content="Es mujer" IsChecked="{Binding Testigo2EsFemenino}" />
+
+          <TextBlock Text="CONDICIONES POR DEFECTO" Style="{DynamicResource Texto.MicroLabel}" Margin="0,14,0,4" />
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                     Text="Se usan cuando el préstamo no trae las suyas. Cada préstamo puede pisarlas desde Nuevo Préstamo." />
+          <WrapPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Cuotas en atraso que vencen el plazo" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="90" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding ActaCuotasExigibilidadTexto, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Días de gracia" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="90" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding ActaDiasGraciaTexto, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Mora (%)" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="90" Style="{DynamicResource Input.Texto}" Height="34"
+                       Text="{Binding ActaMoraTexto, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Margin="0,0,16,8">
+              <TextBlock Text="Registro de Títulos" Style="{DynamicResource Input.Label}" />
+              <TextBox Width="300" Style="{DynamicResource Input.Texto}" Height="34"
+                       ToolTip="El que se autoriza a ejecutar el traspaso de la garantía"
+                       Text="{Binding ActaRegistroTitulos, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
       <!-- ============ COMPROBANTE FISCAL / SECUENCIA NCF (cliente 2026-07-25) ============ -->
       <Border Style="{DynamicResource Card}" Margin="0,0,0,12"
               Visibility="{Binding PuedeConfigurarNcf, Converter={StaticResource BoolAVisibilidad}}">
@@ -191,7 +367,7 @@
           <TextBlock Text="Comprobante fiscal (NCF)" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
                      Text="Secuencia autorizada por la DGII para numerar comprobantes desde la app (prefijo B02 tradicional o E32 e-CF). Si usan el Facturador Gratuito de la DGII, no hace falta configurarla: el e-NCF generado allá se pega en el préstamo." />
-          <CheckBox Content="Usar secuencia local de comprobantes" FontSize="13"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Usar secuencia local de comprobantes" FontSize="13"
                     IsChecked="{Binding NcfActivo}" />
           <StackPanel Margin="24,10,0,0" IsEnabled="{Binding NcfActivo}">
             <WrapPanel>
@@ -239,7 +415,7 @@
           <TextBlock Text="Aviso de pagos vencidos" Style="{DynamicResource Texto.Titulo3}" Margin="0,0,0,4" />
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
                      Text="Al iniciar (y al cambiar el día con la aplicación abierta) se muestra la lista de clientes que se pasaron de su fecha de pago." />
-          <CheckBox Content="Avisar cuando un cliente se pase de su fecha de pago" FontSize="13"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Avisar cuando un cliente se pase de su fecha de pago" FontSize="13"
                     IsChecked="{Binding AvisoVencidosActivo}" />
           <StackPanel Orientation="Horizontal" Margin="24,10,0,0">
             <TextBlock Text="{Binding SilenciadosTexto}" Style="{DynamicResource Texto.Caption}"
@@ -300,22 +476,22 @@
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12">
             <Run Text="La 'Contraseña de aplicación' NO es tu contraseña de Gmail, ni tu PIN, ni la de FAControl: es un código de 16 letras que genera Google." />
             <LineBreak />
-            <Run Text="1) Prendé la verificación en 2 pasos de la cuenta remitente en " />
+            <Run Text="1) Enciende la verificación en 2 pasos de la cuenta remitente en " />
             <Hyperlink NavigateUri="https://myaccount.google.com/signinoptions/twosv"
                        RequestNavigate="Hyperlink_RequestNavigate">myaccount.google.com/signinoptions/twosv</Hyperlink>
             <Run Text=". SIN esto el paso 2 no existe: Google responde que 'esa opción no está disponible para tu cuenta'." />
             <LineBreak />
-            <Run Text="2) Entrá a " />
+            <Run Text="2) Entra a " />
             <Hyperlink NavigateUri="https://myaccount.google.com/apppasswords"
                        RequestNavigate="Hyperlink_RequestNavigate">myaccount.google.com/apppasswords</Hyperlink>
-            <Run Text=", escribí un nombre (ej: FAControl) y tocá 'Crear'." />
+            <Run Text=", escribe un nombre (ej: FAControl) y toca 'Crear'." />
             <LineBreak />
-            <Run Text="3) Copiá las 16 letras que aparecen y pegalas acá (los espacios se quitan solos)." />
+            <Run Text="3) Copia las 16 letras que aparecen y pégalas aquí (los espacios se quitan solos)." />
             <LineBreak />
             <Run Text="Guía completa con capturas: docs\CORREO-GMAIL.md" />
           </TextBlock>
 
-          <CheckBox Content="{Binding RecordatoriosActivarTexto}" FontSize="13"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="{Binding RecordatoriosActivarTexto}" FontSize="13"
                     IsChecked="{Binding RecordatoriosActivos}" />
 
           <StackPanel Margin="24,10,0,0" IsEnabled="{Binding RecordatoriosActivos}">
@@ -330,7 +506,7 @@
                 <PasswordBox x:Name="CampoGmailPassword" Width="200" Height="34"
                              Style="{DynamicResource Input.Password}"
                              PasswordChanged="CampoGmailPassword_PasswordChanged" />
-                <TextBlock Text="✓ Contraseña guardada — dejá el campo vacío para conservarla."
+                <TextBlock Text="✓ Contraseña guardada — deja el campo vacío para conservarla."
                            Style="{DynamicResource Texto.Caption}" Margin="0,4,0,0"
                            Foreground="{DynamicResource Brush.DeltaPositivo}"
                            Visibility="{Binding HayAppPasswordGuardada, Converter={StaticResource BoolAVisibilidad}}" />
@@ -349,7 +525,7 @@
               </StackPanel>
             </WrapPanel>
 
-            <CheckBox Content="Enviar automáticamente al abrir la aplicación (una vez al día)"
+            <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Enviar automáticamente al abrir la aplicación (una vez al día)"
                       FontSize="13" Margin="0,6,0,0"
                       IsChecked="{Binding RecordatoriosAutomaticos}" />
 
@@ -376,7 +552,7 @@
           <TextBlock Text="Respaldo de la base de datos" Style="{DynamicResource Texto.Titulo3}"
                      Margin="0,0,0,4" />
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
-                     Text="El respaldo (.sql) guarda TODO tal cual está. Es la forma recomendada de migrar FAControl a otra computadora: respaldá aquí y restaurá allá." />
+                     Text="El respaldo (.sql) guarda TODO tal cual está. Es la forma recomendada de migrar FAControl a otra computadora: respalda aquí y restaura allá." />
           <StackPanel Orientation="Horizontal">
             <Button Content="Respaldar ahora" Style="{DynamicResource Boton.Primario}"
                     Click="BotonRespaldar_Click" Margin="0,0,8,0"
@@ -389,7 +565,7 @@
           <Separator Margin="0,16" Background="{DynamicResource Brush.BordeSutil}" />
 
           <!-- Respaldo automático (cliente 2026-07-19) -->
-          <CheckBox Content="Respaldar automáticamente al abrir la aplicación" FontSize="13"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Respaldar automáticamente al abrir la aplicación" FontSize="13"
                     IsChecked="{Binding RespaldoAutoActivo}" />
           <WrapPanel Margin="24,10,0,0" IsEnabled="{Binding RespaldoAutoActivo}">
             <TextBlock Text="Cada" Style="{DynamicResource Texto.Cuerpo}"
@@ -419,7 +595,7 @@
           </Border>
           <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="24,6,0,0"
                      Foreground="{DynamicResource Brush.TextoTerciario}"
-                     Text="Consejo: si elegís la carpeta de OneDrive o Google Drive de tu PC, cada respaldo se sube solo a la nube." />
+                     Text="Consejo: si eliges la carpeta de OneDrive o Google Drive de tu PC, cada respaldo se sube solo a la nube." />
         </StackPanel>
       </Border>
 
@@ -436,7 +612,7 @@
 
           <Separator Margin="0,16" Background="{DynamicResource Brush.BordeSutil}" />
 
-          <CheckBox Content="Exportar automáticamente al abrir la aplicación" FontSize="13"
+          <CheckBox Style="{DynamicResource Switch.Moderno}" Content="Exportar automáticamente al abrir la aplicación" FontSize="13"
                     IsChecked="{Binding ExportActivo}" />
           <StackPanel Orientation="Horizontal" Margin="24,10,0,0"
                       IsEnabled="{Binding ExportActivo}">

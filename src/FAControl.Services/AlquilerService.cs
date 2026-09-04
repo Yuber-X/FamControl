@@ -458,13 +458,13 @@ public class AlquilerService
     private static void ExigirLectura()
     {
         if (!SesionActual.TienePermiso(Permisos.Alquileres))
-            throw new UnauthorizedAccessException("No tenés permiso para ver los alquileres.");
+            throw new UnauthorizedAccessException("No tienes permiso para ver los alquileres.");
     }
 
     private static void ExigirEscritura()
     {
         if (!SesionActual.TienePermiso(Permisos.Alquileres))
-            throw new UnauthorizedAccessException("No tenés permiso para gestionar alquileres.");
+            throw new UnauthorizedAccessException("No tienes permiso para gestionar alquileres.");
     }
 
     // ---------- Cobros del alquiler (034) ----------
@@ -652,6 +652,12 @@ public class AlquilerService
 
             Log.Information("Cobro {Recibo} del alquiler {Codigo}: {Monto} DOP",
                 pago.NumeroRecibo, alquiler.Codigo, monto);
+
+            // El comprobante digitado a mano pasa a ser el predeterminado
+            // (2026-09-03). Va DESPUES del commit y no puede tumbar la operacion.
+            if (!cobro.AsignarNcfAuto)
+                await NcfPredeterminado.AdoptarAsync(_ncf, SesionActual.Modo, ncf, ct);
+
             return pago;
         }
         catch

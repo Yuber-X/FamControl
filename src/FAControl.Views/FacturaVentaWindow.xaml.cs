@@ -23,6 +23,7 @@ public partial class FacturaVentaWindow : Window
         ExpedienteViewModel expediente)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         _factura = factura;
         _ventaId = ventaId;
@@ -56,7 +57,7 @@ public partial class FacturaVentaWindow : Window
     {
         var dialogo = new OpenFileDialog
         {
-            Title = "Elegí la factura firmada y escaneada",
+            Title = "Elige la factura firmada y escaneada",
             Filter = ExpedienteViewModel.FiltroArchivos
         };
         if (dialogo.ShowDialog(this) != true)
@@ -69,7 +70,7 @@ public partial class FacturaVentaWindow : Window
         await MostrarFirmadaAsync();
         MessageBox.Show(this,
             "La factura firmada quedó guardada en el expediente del contrato.\n\n" +
-            "Desde ahora aparece acá y en la sección Expediente del financiamiento.",
+            "Desde ahora aparece aquí y en la sección Expediente del financiamiento.",
             "Factura firmada", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 

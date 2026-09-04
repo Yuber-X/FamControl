@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using FAControl.Common;
@@ -94,7 +94,7 @@ public class RespaldoService
             MatarProceso(proceso);
             throw new InvalidOperationException(
                 $"El respaldo pasó de {TiempoLimite.TotalMinutes:0} minutos y se canceló. " +
-                "Revisá que MySQL esté respondiendo.");
+                "Revisa que MySQL esté respondiendo.");
         }
         finally
         {
@@ -222,7 +222,7 @@ public class RespaldoService
             MatarProceso(proceso);
             throw new InvalidOperationException(
                 $"La restauración pasó de {TiempoLimite.TotalMinutes:0} minutos y se canceló. " +
-                "⚠️ La base puede haber quedado a medio restaurar: volvé a restaurar " +
+                "⚠️ La base puede haber quedado a medio restaurar: vuelve a restaurar " +
                 "el mismo archivo antes de operar.");
         }
 
@@ -236,7 +236,7 @@ public class RespaldoService
         if (proceso.ExitCode != 0 || cortoAntesDeTiempo)
         {
             var detalle = string.IsNullOrWhiteSpace(errores)
-                ? "MySQL no dio detalles. Probá el archivo a mano:\n" +
+                ? "MySQL no dio detalles. Prueba el archivo a mano:\n" +
                   $"mysql -u {_usuario} -p {_baseDatos} < \"{rutaArchivo}\""
                 : errores.Trim();
             Log.Error("Falló la restauración desde {Ruta} (código {Codigo}): {Errores}",
@@ -273,7 +273,7 @@ public class RespaldoService
             throw new InvalidOperationException(
                 "Este archivo no parece un respaldo de FAControl.\n\n" +
                 "Un respaldo es un archivo .sql generado desde Configuración → " +
-                "Respaldar ahora. Revisá que no hayas elegido un Excel, un .zip " +
+                "Respaldar ahora. Revisa que no hayas elegido un Excel, un .zip " +
                 "de expedientes o un archivo a medio bajar.");
     }
 
@@ -338,7 +338,7 @@ public class RespaldoService
         }
 
         throw new FileNotFoundException(
-            $"No se encontró {nombreExe}. Verificá que MySQL Server esté instalado " +
-            "o agregá su carpeta bin al PATH.");
+            $"No se encontró {nombreExe}. Verifica que MySQL Server esté instalado " +
+            "o agrega su carpeta bin al PATH.");
     }
 }

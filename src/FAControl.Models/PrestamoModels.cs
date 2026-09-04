@@ -27,7 +27,45 @@ public record NuevoPrestamo(
     /// primera cuota que ya lleva abono a capital (modo manual). NULL = que lo
     /// decida el sistema (modo automático).
     /// </summary>
-    int? CuotaInicioCapital = null);
+    int? CuotaInicioCapital = null,
+    /// <summary>
+    /// Datos del acta notarial (044). NULL = no se cargaron; el acta se imprime
+    /// igual con los huecos en blanco.
+    /// </summary>
+    ContratoNotarialNuevo? Notarial = null);
+
+/// <summary>
+/// Lo que el formulario de Nuevo Préstamo captura para el pagaré notarial
+/// (plantilla del cliente 2026-08-26). Todo opcional: son datos de un papel
+/// que se firma ante notario, no condiciones del préstamo, así que ninguno
+/// puede impedir que el préstamo se cree.
+///
+/// Los que quedan en NULL caen al valor de Configuración al imprimir; los que
+/// no tienen valor ahí salen en blanco para llenarse a mano.
+/// </summary>
+public record ContratoNotarialNuevo(
+    string? ActoNo = null,
+    string? FolioNo = null,
+    DateOnly? FechaActo = null,
+    string? MunicipioActo = null,
+    SexoPersona DeudorSexo = SexoPersona.NoIndicado,
+    string? DeudorNacionalidad = null,
+    string? DeudorEstadoCivil = null,
+    string? DeudorOcupacion = null,
+    int? CuotasExigibilidad = null,
+    int? DiasGracia = null,
+    decimal? MoraPorcentaje = null,
+    string? RegistroTitulos = null,
+    /// <summary>
+    /// Las PARTES del acta (notario, quien firma por la empresa y los dos
+    /// testigos) tal como estaban al firmar. Se congelan junto al préstamo
+    /// (045): reimprimir el contrato el año que viene tiene que dar el mismo
+    /// papel aunque el negocio haya cambiado de notario.
+    ///
+    /// NULL = no se llenó el acta; el documento se arma con la configuración
+    /// vigente, que es lo único posible cuando no hay copia.
+    /// </summary>
+    DatosNotariales? Partes = null);
 
 /// <summary>
 /// Fila de la lista de préstamos: préstamo + cliente + agregados de sus cuotas
@@ -78,7 +116,12 @@ public record EdicionPrestamo(
     /// con abono a capital. NULL = automatico. Corregir un prestamo diferido sin
     /// este dato lo recalcularia con la cuota sugerida en vez de la pactada.
     /// </summary>
-    int? CuotaInicioCapital = null);
+    int? CuotaInicioCapital = null,
+    /// <summary>
+    /// Los datos del acta corregidos (045). NULL = la pantalla no los tocó y
+    /// se dejan como están: corregir el monto no puede borrar el acta.
+    /// </summary>
+    ContratoNotarialNuevo? Notarial = null);
 
 /// <summary>
 /// Que tanto se puede corregir de un prestamo, segun si ya tiene cobros.
@@ -122,4 +165,10 @@ public record PrestamoParaEditar(
     string Codigo,
     Prestamo Actual,
     EdicionPermitida Permitido,
-    Func<ParametrosAmortizacion, VistaPreviaCuota> Previsualizar);
+    Func<ParametrosAmortizacion, VistaPreviaCuota> Previsualizar,
+    /// <summary>
+    /// La copia congelada del acta, o las partes de Configuración si este
+    /// préstamo no tiene copia (es anterior a 045). La ventana la muestra para
+    /// poder corregir un dato que se cargó mal el día de la firma.
+    /// </summary>
+    DatosNotariales? Acta = null);

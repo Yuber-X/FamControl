@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using MySqlConnector;
 
 namespace FAControl.Data;
@@ -104,7 +104,7 @@ public class VerificadorBaseDatos
     /// ⚠️ DESTRUCTIVO — borra la base entera y la vuelve a crear vacía.
     /// Lo usa el CÓDIGO 6 del launcher ("hacer respaldo y limpiar todo", pedido
     /// del cliente 2026-07-29). Quien lo llama es responsable de haber hecho el
-    /// respaldo antes: acá ya no hay vuelta atrás.
+    /// respaldo antes: aquí ya no hay vuelta atrás.
     /// Requiere permiso DROP: root sí lo tiene, el usuario dedicado no.
     /// </summary>
     public async Task BorrarYRecrearAsync(CancellationToken ct = default)

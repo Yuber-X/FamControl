@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -28,7 +28,7 @@ public record VehiculoClienteFila(VehiculoDeCliente Vehiculo)
 
 /// <summary>
 /// Ficha de cliente de DEALCONTROL (pedido 2026-07-27). La ficha de
-/// PrestControl no sirve acá: hablaba de "Total prestado" y "Préstamos
+/// PrestControl no sirve aquí: hablaba de "Total prestado" y "Préstamos
 /// activos", que en un dealer no existen. Métricas propias:
 ///  * TOTAL TRANSFERIDO — lo que el cliente negoció (compras + alquileres)
 ///  * TOTAL COBRADO     — lo que ya entró por eso

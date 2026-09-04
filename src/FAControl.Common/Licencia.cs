@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -15,7 +15,7 @@ public enum EstadoLicencia
     /// <summary>Prueba corriendo (14 días desde que se digitó el código 1).</summary>
     EnPrueba,
     /// <summary>
-    /// La prueba se pasó de la fecha. Desde acá cada producto pide SU código
+    /// La prueba se pasó de la fecha. Desde aquí cada producto pide SU código
     /// (pedido del cliente 2026-07-29): "los códigos solo se pedirán cuando se
     /// termine el trial".
     /// </summary>

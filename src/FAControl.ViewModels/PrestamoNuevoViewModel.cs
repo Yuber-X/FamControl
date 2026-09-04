@@ -24,17 +24,42 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     private readonly IDialogService _dialogos;
     private readonly IAutorizadorAdmin _autorizador;
     private readonly AjustesLocales _ajustes;
+    private readonly NcfService _ncf;
+    private readonly ContratoService _contratos;
 
     public event Action<long>? PrestamoCreado;
-    /// <summary>La App abre la vista previa imprimible del pagaré.</summary>
-    public event Action<PagareImpreso>? PagareSolicitado;
+
+    /// <summary>
+    /// La vista previa lateral tiene que redibujarse: cambió el documento
+    /// elegido o los datos del formulario (2026-09-03).
+    ///
+    /// Es un evento y no una propiedad porque lo que hay que rehacer es un
+    /// FlowDocument, y eso es cosa de la capa de vistas: el ViewModel no
+    /// referencia a Printing.
+    /// </summary>
+    public event Action? VistaPreviaCambiada;
+
+    /// <summary>
+    /// Contratos para la vista: con la lista VACÍA se abre la ventana de vista
+    /// previa (el usuario elige y decide); con contratos adentro se mandan
+    /// directo a la impresora, que es lo que hace "Crear e imprimir".
+    ///
+    /// El expediente es null mientras el préstamo no exista: un borrador se
+    /// puede mirar e imprimir, pero no se archiva.
+    /// </summary>
+    public event Action<PagareNotarialImpreso, DuenoExpediente?, IReadOnlyList<TipoContrato>>?
+        ContratosParaImprimir;
 
     public PrestamoNuevoViewModel(PrestamoService prestamos, ClienteService clientes,
         AmortizacionService amortizacion, IDialogService dialogos, IAutorizadorAdmin autorizador,
-        AjustesLocales ajustes)
+        AjustesLocales ajustes, NcfService ncf, ContratoService contratos,
+        ExpedienteViewModel expediente)
     {
+        Expediente = expediente;
         _autorizador = autorizador;
         _ajustes = ajustes;
+        _ncf = ncf;
+        _contratos = contratos;
         _prestamos = prestamos;
         _clientes = clientes;
         _amortizacion = amortizacion;
@@ -63,6 +88,8 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         ];
         _modalidadSeleccionada = Modalidades[0];
         _metodoSeleccionado = Metodos[0];
+        _deudorSexo = Sexos[0];
+        CargarSeleccionDeContratos();
         _fechaPrimerPago = FechaNegocio.Hoy.AddMonths(1).ToDateTime(TimeOnly.MinValue);
     }
 
@@ -101,9 +128,391 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     [ObservableProperty] private DateTime _fechaPrimerPago;
     [ObservableProperty] private string _garantia = string.Empty;
     [ObservableProperty] private string _notas = string.Empty;
+
+    // ================= Pagaré notarial (044) =================
+    // Datos que solo pide el acta notarial. TODOS son opcionales: el acta se
+    // imprime igual con una raya para llenar a mano, que es como se trabaja
+    // con un notario. Ninguno puede impedir que el préstamo se cree.
+    //
+    // Lo que se repite en todas las actas (notario, representante, testigos,
+    // dirección de la empresa) NO está aquí: vive en Configuración y se carga
+    // una sola vez.
+
+    [ObservableProperty] private string _actoNo = string.Empty;
+    [ObservableProperty] private string _folioNo = string.Empty;
+    [ObservableProperty] private DateTime? _fechaActo;
+    [ObservableProperty] private string _municipioActo = string.Empty;
+    [ObservableProperty] private Opcion<SexoPersona> _deudorSexo;
+    [ObservableProperty] private string _deudorNacionalidad = string.Empty;
+    [ObservableProperty] private string _deudorEstadoCivil = string.Empty;
+    [ObservableProperty] private string _deudorOcupacion = string.Empty;
+    [ObservableProperty] private string _cuotasExigibilidadTexto = string.Empty;
+    [ObservableProperty] private string _diasGraciaTexto = string.Empty;
+    [ObservableProperty] private string _moraPorcentajeTexto = string.Empty;
+    [ObservableProperty] private string _registroTitulos = string.Empty;
+
+    // ---- Las partes del acta (2026-09-04) ----
+    // Antes vivian SOLO en Configuracion y aca no se veian. El cliente pidio
+    // tenerlas tambien en Nuevo Prestamo, precargadas desde Configuracion, para
+    // poder ajustarlas sin salir de la pantalla.
+    //
+    // La copia va en un solo sentido salvo que se prenda GuardarNotarialEnConfiguracion:
+    // escribir un testigo distinto para UN prestamo no tiene por que cambiar el
+    // testigo de todos los demas.
+
+    [ObservableProperty] private string _negocioDireccion = string.Empty;
+    [ObservableProperty] private string _notarioNombre = string.Empty;
+    [ObservableProperty] private string _notarioMatricula = string.Empty;
+    [ObservableProperty] private string _notarioCedula = string.Empty;
+    [ObservableProperty] private string _notarioEstadoCivil = string.Empty;
+    [ObservableProperty] private string _notarioDomicilio = string.Empty;
+    [ObservableProperty] private string _representanteNombre = string.Empty;
+    [ObservableProperty] private string _representanteCedula = string.Empty;
+    [ObservableProperty] private string _representanteEstadoCivil = string.Empty;
+    [ObservableProperty] private string _representanteOcupacion = string.Empty;
+    [ObservableProperty] private string _representanteDomicilio = string.Empty;
+    [ObservableProperty] private string _testigo1Nombre = string.Empty;
+    [ObservableProperty] private string _testigo1Cedula = string.Empty;
+    [ObservableProperty] private string _testigo1EstadoCivil = string.Empty;
+    [ObservableProperty] private string _testigo1Ocupacion = string.Empty;
+    [ObservableProperty] private string _testigo1Domicilio = string.Empty;
+    [ObservableProperty] private string _testigo2Nombre = string.Empty;
+    [ObservableProperty] private string _testigo2Cedula = string.Empty;
+    [ObservableProperty] private string _testigo2EstadoCivil = string.Empty;
+    [ObservableProperty] private string _testigo2Ocupacion = string.Empty;
+    [ObservableProperty] private string _testigo2Domicilio = string.Empty;
+    [ObservableProperty] private bool _representanteEsFemenino;
+    [ObservableProperty] private bool _testigo1EsFemenino;
+    [ObservableProperty] private bool _testigo2EsFemenino;
+
+    /// <summary>
+    /// Al crear el prestamo, lo escrito arriba PISA lo que haya en
+    /// Configuracion → Pagare notarial (pedido del cliente 2026-09-04).
+    ///
+    /// Apagado por defecto y a proposito: lo normal es corregir un dato para
+    /// este contrato puntual. Prenderlo es decir "de ahora en mas, estos son
+    /// los datos del negocio".
+    /// </summary>
+    [ObservableProperty] private bool _guardarNotarialEnConfiguracion;
+
+    partial void OnNegocioDireccionChanged(string value) => NotarialCambio();
+    partial void OnNotarioNombreChanged(string value) => NotarialCambio();
+    partial void OnNotarioMatriculaChanged(string value) => NotarialCambio();
+    partial void OnNotarioCedulaChanged(string value) => NotarialCambio();
+    partial void OnNotarioEstadoCivilChanged(string value) => NotarialCambio();
+    partial void OnNotarioDomicilioChanged(string value) => NotarialCambio();
+    partial void OnRepresentanteNombreChanged(string value) => NotarialCambio();
+    partial void OnRepresentanteCedulaChanged(string value) => NotarialCambio();
+    partial void OnRepresentanteEstadoCivilChanged(string value) => NotarialCambio();
+    partial void OnRepresentanteOcupacionChanged(string value) => NotarialCambio();
+    partial void OnRepresentanteDomicilioChanged(string value) => NotarialCambio();
+    partial void OnTestigo1NombreChanged(string value) => NotarialCambio();
+    partial void OnTestigo1CedulaChanged(string value) => NotarialCambio();
+    partial void OnTestigo1EstadoCivilChanged(string value) => NotarialCambio();
+    partial void OnTestigo1OcupacionChanged(string value) => NotarialCambio();
+    partial void OnTestigo1DomicilioChanged(string value) => NotarialCambio();
+    partial void OnTestigo2NombreChanged(string value) => NotarialCambio();
+    partial void OnTestigo2CedulaChanged(string value) => NotarialCambio();
+    partial void OnTestigo2EstadoCivilChanged(string value) => NotarialCambio();
+    partial void OnTestigo2OcupacionChanged(string value) => NotarialCambio();
+    partial void OnTestigo2DomicilioChanged(string value) => NotarialCambio();
+    partial void OnRepresentanteEsFemeninoChanged(bool value) => NotarialCambio();
+    partial void OnTestigo1EsFemeninoChanged(bool value) => NotarialCambio();
+    partial void OnTestigo2EsFemeninoChanged(bool value) => NotarialCambio();
+
+    /// <summary>
+    /// Cambio un dato del acta: si el panel lateral esta mostrando un contrato,
+    /// hay que redibujarlo para que se vea lo que se acaba de escribir.
+    /// </summary>
+    private void NotarialCambio()
+    {
+        if (VistaPreviaTipo is not null)
+            VistaPreviaCambiada?.Invoke();
+    }
+
+    /// <summary>
+    /// Trae las partes del acta desde Configuracion. Se llama al entrar a la
+    /// pantalla y despues de crear un prestamo: asi el formulario siempre
+    /// arranca con los datos vigentes del negocio.
+    /// </summary>
+    private void CargarNotarialDesdeConfiguracion()
+    {
+        var acta = _contratos.DesdeConfiguracion();
+
+        NegocioDireccion = acta.EmpresaDireccion;
+        if (string.IsNullOrWhiteSpace(MunicipioActo))
+            MunicipioActo = acta.Municipio;
+
+        NotarioNombre = acta.Notario.Nombre;
+        NotarioMatricula = acta.NotarioMatricula;
+        NotarioCedula = acta.Notario.Cedula;
+        NotarioEstadoCivil = acta.Notario.EstadoCivil;
+        NotarioDomicilio = acta.Notario.Domicilio;
+
+        RepresentanteNombre = acta.Representante.Nombre;
+        RepresentanteCedula = acta.Representante.Cedula;
+        RepresentanteEstadoCivil = acta.Representante.EstadoCivil;
+        RepresentanteOcupacion = acta.Representante.Ocupacion;
+        RepresentanteDomicilio = acta.Representante.Domicilio;
+        RepresentanteEsFemenino = Genero.EsFemenino(acta.Representante.Sexo);
+
+        var t1 = acta.Testigos.Count > 0 ? acta.Testigos[0] : new ParteDelActo("", "");
+        Testigo1Nombre = t1.Nombre;
+        Testigo1Cedula = t1.Cedula;
+        Testigo1EstadoCivil = t1.EstadoCivil;
+        Testigo1Ocupacion = t1.Ocupacion;
+        Testigo1Domicilio = t1.Domicilio;
+        Testigo1EsFemenino = Genero.EsFemenino(t1.Sexo);
+
+        var t2 = acta.Testigos.Count > 1 ? acta.Testigos[1] : new ParteDelActo("", "");
+        Testigo2Nombre = t2.Nombre;
+        Testigo2Cedula = t2.Cedula;
+        Testigo2EstadoCivil = t2.EstadoCivil;
+        Testigo2Ocupacion = t2.Ocupacion;
+        Testigo2Domicilio = t2.Domicilio;
+        Testigo2EsFemenino = Genero.EsFemenino(t2.Sexo);
+
+        if (string.IsNullOrWhiteSpace(CuotasExigibilidadTexto))
+            CuotasExigibilidadTexto = acta.CuotasParaExigibilidad.ToString(CulturaRd);
+        if (string.IsNullOrWhiteSpace(DiasGraciaTexto))
+            DiasGraciaTexto = acta.DiasDeGracia.ToString(CulturaRd);
+        if (string.IsNullOrWhiteSpace(MoraPorcentajeTexto))
+            MoraPorcentajeTexto = acta.MoraPorcentaje.ToString("0.##", CulturaRd);
+        if (string.IsNullOrWhiteSpace(RegistroTitulos))
+            RegistroTitulos = acta.RegistroTitulos;
+    }
+
+    /// <summary>Las partes del acta tal como estan escritas en el formulario.</summary>
+    private DatosNotariales ActoDelFormulario() => new()
+    {
+        Municipio = MunicipioActo.Trim(),
+        EmpresaDireccion = NegocioDireccion.Trim(),
+
+        Notario = new ParteDelActo(
+            Nombre: NotarioNombre.Trim(),
+            Cedula: NotarioCedula.Trim(),
+            Nacionalidad: "dominicano",
+            EstadoCivil: NotarioEstadoCivil.Trim(),
+            Ocupacion: "abogado notario público",
+            Domicilio: NotarioDomicilio.Trim()),
+        NotarioMatricula = NotarioMatricula.Trim(),
+
+        Representante = new ParteDelActo(
+            Nombre: RepresentanteNombre.Trim(),
+            Cedula: RepresentanteCedula.Trim(),
+            Sexo: RepresentanteEsFemenino ? SexoPersona.Femenino : SexoPersona.Masculino,
+            Nacionalidad: "dominicano",
+            EstadoCivil: RepresentanteEstadoCivil.Trim(),
+            Ocupacion: RepresentanteOcupacion.Trim(),
+            Domicilio: RepresentanteDomicilio.Trim()),
+
+        Testigos =
+        [
+            new ParteDelActo(Testigo1Nombre.Trim(), Testigo1Cedula.Trim(),
+                Testigo1EsFemenino ? SexoPersona.Femenino : SexoPersona.Masculino, "dominicano",
+                Testigo1EstadoCivil.Trim(), Testigo1Ocupacion.Trim(), Testigo1Domicilio.Trim()),
+            new ParteDelActo(Testigo2Nombre.Trim(), Testigo2Cedula.Trim(),
+                Testigo2EsFemenino ? SexoPersona.Femenino : SexoPersona.Masculino, "dominicano",
+                Testigo2EstadoCivil.Trim(), Testigo2Ocupacion.Trim(), Testigo2Domicilio.Trim())
+        ]
+    };
+
+    /// <summary>
+    /// Copia las partes del acta a Configuracion. Solo corre con el interruptor
+    /// prendido: sin el, un dato escrito para un contrato puntual no toca los
+    /// valores generales del negocio.
+    /// </summary>
+    private void GuardarNotarialEnAjustes()
+    {
+        _ajustes.DireccionNegocio = NegocioDireccion.Trim();
+        if (!string.IsNullOrWhiteSpace(MunicipioActo))
+            _ajustes.MunicipioActo = MunicipioActo.Trim();
+
+        _ajustes.NotarioNombre = NotarioNombre.Trim();
+        _ajustes.NotarioMatricula = NotarioMatricula.Trim();
+        _ajustes.NotarioCedula = NotarioCedula.Trim();
+        _ajustes.NotarioEstadoCivil = NotarioEstadoCivil.Trim();
+        _ajustes.NotarioDomicilio = NotarioDomicilio.Trim();
+
+        _ajustes.RepresentanteNombre = RepresentanteNombre.Trim();
+        _ajustes.RepresentanteCedula = RepresentanteCedula.Trim();
+        _ajustes.RepresentanteEstadoCivil = RepresentanteEstadoCivil.Trim();
+        _ajustes.RepresentanteOcupacion = RepresentanteOcupacion.Trim();
+        _ajustes.RepresentanteDomicilio = RepresentanteDomicilio.Trim();
+        _ajustes.RepresentanteSexo = RepresentanteEsFemenino ? 2 : 1;
+
+        _ajustes.Testigo1Nombre = Testigo1Nombre.Trim();
+        _ajustes.Testigo1Cedula = Testigo1Cedula.Trim();
+        _ajustes.Testigo1EstadoCivil = Testigo1EstadoCivil.Trim();
+        _ajustes.Testigo1Ocupacion = Testigo1Ocupacion.Trim();
+        _ajustes.Testigo1Domicilio = Testigo1Domicilio.Trim();
+        _ajustes.Testigo1Sexo = Testigo1EsFemenino ? 2 : 1;
+
+        _ajustes.Testigo2Nombre = Testigo2Nombre.Trim();
+        _ajustes.Testigo2Cedula = Testigo2Cedula.Trim();
+        _ajustes.Testigo2EstadoCivil = Testigo2EstadoCivil.Trim();
+        _ajustes.Testigo2Ocupacion = Testigo2Ocupacion.Trim();
+        _ajustes.Testigo2Domicilio = Testigo2Domicilio.Trim();
+        _ajustes.Testigo2Sexo = Testigo2EsFemenino ? 2 : 1;
+
+        if (EnteroOpcional(CuotasExigibilidadTexto) is { } cuotas && cuotas > 0)
+            _ajustes.CuotasParaExigibilidad = cuotas;
+        if (EnteroOpcional(DiasGraciaTexto) is { } dias)
+            _ajustes.DiasDeGracia = dias;
+        if (DecimalOpcional(MoraPorcentajeTexto) is { } mora)
+            _ajustes.MoraPorcentaje = mora;
+        if (!string.IsNullOrWhiteSpace(RegistroTitulos))
+            _ajustes.RegistroTitulos = RegistroTitulos.Trim();
+
+        _ajustes.Guardar();
+    }
+
+
+    /// <summary>Opciones de sexo del deudor, para la concordancia del acta.</summary>
+    public IReadOnlyList<Opcion<SexoPersona>> Sexos { get; } =
+    [
+        new(SexoPersona.NoIndicado, "Sin indicar"),
+        new(SexoPersona.Masculino, "Masculino"),
+        new(SexoPersona.Femenino, "Femenino")
+    ];
+
+    // ================= Qué contratos se imprimen (2026-09-03) =================
+    // Los tildados se imprimen al guardar; los destildados no. La elección se
+    // recuerda por PC: quién imprime qué depende de la impresora que tenga esa
+    // terminal al lado.
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HayContratoTildado))]
+    private bool _imprimirPagare;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HayContratoTildado))]
+    private bool _imprimirNotarial;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HayContratoTildado))]
+    private bool _imprimirCombinado;
+
+    /// <summary>
+    /// Al menos un contrato tildado. Con ninguno, "Crear e imprimir" no tiene
+    /// nada que imprimir y se deshabilita: dejarlo apretable haría creer que
+    /// salió un papel que nunca salió.
+    /// </summary>
+    public bool HayContratoTildado => ImprimirPagare || ImprimirNotarial || ImprimirCombinado;
+
+    /// <summary>Los contratos tildados, en el orden en que se imprimen.</summary>
+    public IReadOnlyList<TipoContrato> ContratosTildados()
+    {
+        var lista = new List<TipoContrato>();
+        if (ImprimirPagare) lista.Add(TipoContrato.Pagare);
+        if (ImprimirNotarial) lista.Add(TipoContrato.Notarial);
+        if (ImprimirCombinado) lista.Add(TipoContrato.Combinado);
+        return lista;
+    }
+
+    partial void OnImprimirPagareChanged(bool value) => GuardarSeleccionDeContratos();
+    partial void OnImprimirNotarialChanged(bool value) => GuardarSeleccionDeContratos();
+    partial void OnImprimirCombinadoChanged(bool value) => GuardarSeleccionDeContratos();
+
+    private void GuardarSeleccionDeContratos()
+    {
+        GuardarEImprimirCommand.NotifyCanExecuteChanged();
+        if (_cargandoSeleccion)
+            return;
+        _ajustes.ContratosAImprimir = [.. ContratosTildados().Select(t => t.ToString())];
+        _ajustes.Guardar();
+    }
+
+    /// <summary>Evita reescribir el ajuste mientras se lee del ajuste.</summary>
+    private bool _cargandoSeleccion;
+
+    private void CargarSeleccionDeContratos()
+    {
+        _cargandoSeleccion = true;
+        var guardados = _ajustes.ContratosAImprimir ?? [];
+        ImprimirPagare = guardados.Contains(nameof(TipoContrato.Pagare));
+        ImprimirNotarial = guardados.Contains(nameof(TipoContrato.Notarial));
+        ImprimirCombinado = guardados.Contains(nameof(TipoContrato.Combinado));
+        _cargandoSeleccion = false;
+        GuardarEImprimirCommand.NotifyCanExecuteChanged();
+    }
+
+    // ================= Vista previa lateral (2026-09-03) =================
+
+    /// <summary>
+    /// Qué se ve en el panel lateral: null = la tabla de amortización (lo de
+    /// siempre), o uno de los tres contratos.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MuestraTablaLateral))]
+    [NotifyPropertyChangedFor(nameof(MuestraContratoLateral))]
+    [NotifyPropertyChangedFor(nameof(MuestraMetricas))]
+    private TipoContrato? _vistaPreviaTipo;
+
+    public bool MuestraTablaLateral => VistaPreviaTipo is null;
+    public bool MuestraContratoLateral => VistaPreviaTipo is not null;
+
+    partial void OnVistaPreviaTipoChanged(TipoContrato? value) => VistaPreviaCambiada?.Invoke();
+
+    /// <summary>
+    /// Cambia el documento del panel lateral. Volver a apretar el mismo botón
+    /// regresa a la tabla de amortización, que es lo que la pantalla mostraba
+    /// antes y sigue siendo lo que más se mira.
+    /// </summary>
+    [RelayCommand]
+    private void VerEnLateral(TipoContrato tipo) =>
+        VistaPreviaTipo = VistaPreviaTipo == tipo ? null : tipo;
+
+    /// <summary>
+    /// El borrador de los contratos con lo que hay escrito ahora mismo, o null
+    /// si el formulario todavía no da para armarlo. Lo pide la vista para
+    /// dibujar el panel lateral y la ventana de vista previa.
+    /// </summary>
+    public PagareNotarialImpreso? ContratoBorrador()
+    {
+        var parametros = ParsearParametros(out _);
+        if (parametros is null || ClienteSeleccionado is null)
+            return null;
+        return ConstruirContrato("(borrador)", ClienteSeleccionado, parametros);
+    }
     // Comprobante fiscal (pedido 2026-07-25): pegado del Facturador Gratuito
     // DGII, o tomado de la secuencia local configurada en Configuración.
     [ObservableProperty] private string _ncfTexto = string.Empty;
+    /// <summary>
+    /// Proximo comprobante que entregaria la secuencia, para mostrarlo como
+    /// marcador dentro de la caja de NCF (pedido del cliente 2026-09-03).
+    /// Cadena vacia cuando esta estancia no tiene secuencia configurada, esta
+    /// apagada, vencio o se agoto: en ese caso la caja no muestra marcador.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HayNcfConfigurado))]
+    [NotifyPropertyChangedFor(nameof(NcfSwitchTexto))]
+    private string _ncfMarcador = string.Empty;
+
+    /// <summary>
+    /// Hay una secuencia de la que tomar el proximo comprobante. Cuando es
+    /// false el switch se apaga Y se deshabilita: prenderlo solo conseguiria
+    /// que la operacion fallara al final con "esta estancia no tiene secuencia
+    /// configurada", que es un error que conviene no dejar llegar tan tarde.
+    /// </summary>
+    public bool HayNcfConfigurado => NcfMarcador.Length > 0;
+
+    /// <summary>Texto del switch: nombra el numero exacto que se va a usar.</summary>
+    public string NcfSwitchTexto => HayNcfConfigurado
+        ? $"Usar el comprobante {NcfMarcador}"
+        : "No hay secuencia de comprobantes configurada (Configuración → Comprobante fiscal)";
+
+    /// <summary>
+    /// Si la secuencia dejo de estar disponible (se apago, vencio, se agoto o
+    /// se cambio de estancia), el switch no puede quedar prendido apuntando a
+    /// un talonario que ya no existe.
+    /// </summary>
+    partial void OnNcfMarcadorChanged(string value)
+    {
+        if (value.Length == 0)
+            NcfDeSecuencia = false;
+    }
+
     [ObservableProperty] private bool _ncfDeSecuencia;
 
     /// <summary>
@@ -232,9 +641,24 @@ public partial class PrestamoNuevoViewModel : ObservableObject
 
     // ---------- Preview ----------
 
+    /// <summary>
+    /// Expediente donde se archiva lo que se imprima (2026-09-03). La vista se
+    /// lo pasa a la impresión; aquí no se usa para nada más.
+    /// </summary>
+    public ExpedienteViewModel Expediente { get; }
+
     public ObservableCollection<CuotaCalculada> Preview { get; } = [];
 
-    [ObservableProperty] private bool _tienePreview;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MuestraMetricas))]
+    private bool _tienePreview;
+
+    /// <summary>
+    /// Las tarjetas de cuota/total/interés/capital solo tienen sentido junto a
+    /// la tabla Y con datos: sin formulario mostrarían cuatro ceros, y con un
+    /// contrato en pantalla no vienen al caso.
+    /// </summary>
+    public bool MuestraMetricas => MuestraTablaLateral && TienePreview;
     [ObservableProperty] private string _mensajeValidacion = string.Empty;
     [ObservableProperty] private decimal _resumenCuota;
     [ObservableProperty] private decimal _resumenTotal;
@@ -293,6 +717,9 @@ public partial class PrestamoNuevoViewModel : ObservableObject
                     VehiculosDisponibles.Add(v);
                 VehiculoSeleccionado = VehiculosDisponibles.FirstOrDefault(v => v.Id == vehSel?.Id);
             }
+
+            NcfMarcador = await _ncf.ProximoNcfAsync() ?? string.Empty;
+            CargarNotarialDesdeConfiguracion();
         }
         catch (Exception ex)
         {
@@ -316,7 +743,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
 
         if (!decimal.TryParse(MontoTexto, NumberStyles.Number, CulturaRd, out var monto) || monto <= 0m)
         {
-            mensaje = "Ingresá un monto válido mayor que cero (ej. 75,000).";
+            mensaje = "Ingresa un monto válido mayor que cero (ej. 75,000).";
             return null;
         }
 
@@ -329,7 +756,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         {
             if (!int.TryParse(PlazoTexto, NumberStyles.Integer, CulturaRd, out plazo) || plazo <= 0)
             {
-                mensaje = "Ingresá la cantidad de cuotas (ej. 12).";
+                mensaje = "Ingresa la cantidad de cuotas (ej. 12).";
                 return null;
             }
             if (plazo > 1000)
@@ -346,7 +773,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
             if (!decimal.TryParse(MontoFinalTexto, NumberStyles.Number, CulturaRd, out var montoFinal) ||
                 montoFinal <= 0m)
             {
-                mensaje = "Ingresá cuánto te devolverá el cliente en total (ej. 90,000).";
+                mensaje = "Ingresa cuánto te devolverá el cliente en total (ej. 90,000).";
                 return null;
             }
             if (montoFinal < monto)
@@ -369,13 +796,13 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         {
             if (!decimal.TryParse(TasaTexto, NumberStyles.Number, CulturaRd, out tasa) || tasa < 0m)
             {
-                mensaje = "Ingresá una tasa mensual válida (ej. 5).";
+                mensaje = "Ingresa una tasa mensual válida (ej. 5).";
                 return null;
             }
         }
 
         // Modo manual del método diferido: el usuario escribe la cuota donde
-        // arranca el capital, así que se valida acá y con el mensaje del
+        // arranca el capital, así que se valida aquí y con el mensaje del
         // formulario. El Service vuelve a validarlo: esto es para la UX.
         int? inicioCapital = null;
         if (metodo == MetodoAmortizacion.CapitalDiferido && modalidad != Modalidad.PagoUnico &&
@@ -383,7 +810,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         {
             if (!int.TryParse(InicioCapitalTexto, NumberStyles.Integer, CulturaRd, out var inicio))
             {
-                mensaje = "Indicá en qué cuota empieza a cobrarse el capital (ej. 7).";
+                mensaje = "Indica en qué cuota empieza a cobrarse el capital (ej. 7).";
                 return null;
             }
             if (inicio < 1 || inicio > plazo)
@@ -421,6 +848,11 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         foreach (var cuota in tabla)
             Preview.Add(cuota);
 
+        // Si el panel lateral está mostrando un contrato, hay que rehacerlo:
+        // cambió el monto, el plazo o la tasa y el documento quedó viejo.
+        if (VistaPreviaTipo is not null)
+            VistaPreviaCambiada?.Invoke();
+
         // Autodetección de préstamo antiguo: cuotas que ya estarían vencidas hoy
         var hoy = FechaNegocio.Hoy;
         _cuotasVencidasAlCrear = tabla.Count(c => c.FechaVencimiento <= hoy);
@@ -444,11 +876,35 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     private void NotificarComandos()
     {
         GuardarCommand.NotifyCanExecuteChanged();
+        GuardarEImprimirCommand.NotifyCanExecuteChanged();
         VerPagareCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>
+    /// Se puede guardar E imprimir: hace falta lo mismo que para guardar, más
+    /// al menos un contrato tildado. Sin ninguno no hay nada que imprimir, y
+    /// dejar el botón apretable haría creer que salió un papel que nunca salió.
+    /// </summary>
+    private bool PuedeGuardarEImprimir() => PuedeGuardar() && HayContratoTildado;
+
+    /// <summary>
+    /// "Crear préstamo": guarda y nada más (pedido del cliente 2026-09-03).
+    ///
+    /// Hasta el 2026-09-02 este botón abría además la vista previa del pagaré.
+    /// Ahora imprimir es una decisión aparte, con su propio botón y sus tildes.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(PuedeGuardar))]
-    private async Task GuardarAsync()
+    private Task GuardarAsync() => CrearAsync(imprimir: false);
+
+    /// <summary>
+    /// "Crear e imprimir": crea el préstamo y manda a la impresora los
+    /// contratos tildados, en orden. Lo impreso queda archivado en el
+    /// expediente del préstamo.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(PuedeGuardarEImprimir))]
+    private Task GuardarEImprimirAsync() => CrearAsync(imprimir: true);
+
+    private async Task CrearAsync(bool imprimir)
     {
         var parametros = ParsearParametros(out _);
         if (parametros is null || ClienteSeleccionado is null)
@@ -467,7 +923,7 @@ public partial class PrestamoNuevoViewModel : ObservableObject
                 if (!int.TryParse(CuotasPagadasTexto, NumberStyles.Integer, CulturaRd, out var n) ||
                     n < 0 || n > parametros.PlazoCuotas)
                 {
-                    MensajeValidacion = $"Cuotas ya pagadas: ingresá un número entre 0 y {parametros.PlazoCuotas}.";
+                    MensajeValidacion = $"Cuotas ya pagadas: ingresa un número entre 0 y {parametros.PlazoCuotas}.";
                     return;
                 }
                 cuotasPagadasAlCrear = n;
@@ -516,21 +972,36 @@ public partial class PrestamoNuevoViewModel : ObservableObject
                 CuotasPagadasAlCrear: cuotasPagadasAlCrear,
                 // Sale de los parámetros, no del formulario: así se guarda
                 // exactamente la cuota con la que se calculó el preview.
-                CuotaInicioCapital: parametros.CuotaInicioCapital);
+                CuotaInicioCapital: parametros.CuotaInicioCapital,
+                Notarial: DatosNotarialesDelFormulario());
 
             var (id, codigo) = await _prestamos.CrearAsync(solicitud, autorizacion);
 
-            // El pagaré se imprime SOLO al crear (pedido del cliente 2026-07-17):
-            // se abre la vista previa con el contrato listo para firmar.
+            // Los contratos salen SOLO si se apretó "Crear e imprimir" y hay
+            // alguno tildado. Se arman con el código real ya asignado, no con
+            // "(borrador)", y la vista los archiva en el expediente al imprimir.
             var cliente = ClienteSeleccionado;
-            PagareSolicitado?.Invoke(ConstruirPagare(codigo, cliente, parametros));
+            if (imprimir && ContratosTildados() is { Count: > 0 } tildados)
+                ContratosParaImprimir?.Invoke(
+                    ConstruirContrato(codigo, cliente, parametros),
+                    DuenoExpediente.DePrestamo(id),
+                    tildados);
 
             var quien = autorizacion is null
                 ? string.Empty
                 : $"\n\nAutorizado por {autorizacion.Nombre}.";
             _dialogos.Informar("Préstamo creado",
                 $"El préstamo {codigo} de {cliente.NombreCompleto} se creó correctamente.{quien}");
+            // Los datos del acta pasan a ser los del negocio SOLO si el usuario
+            // lo pidió con el interruptor. Va después de crear: si el préstamo
+            // falla, la configuración no se toca.
+            if (GuardarNotarialEnConfiguracion)
+                GuardarNotarialEnAjustes();
+
             Limpiar();
+            // La secuencia pudo moverse: o consumio un numero, o adopto el NCF
+            // que se digito a mano. El marcador tiene que reflejar el nuevo.
+            NcfMarcador = await _ncf.ProximoNcfAsync() ?? string.Empty;
             PrestamoCreado?.Invoke(id);
         }
         catch (UnauthorizedAccessException ex)
@@ -545,18 +1016,99 @@ public partial class PrestamoNuevoViewModel : ObservableObject
     }
 
     /// <summary>
-    /// "Ver pagaré" en Nuevo Préstamo: previsualiza el contrato con los datos
-    /// actuales ANTES de crear (código en borrador). Sirve para revisarlo con
-    /// el cliente antes de firmar.
+    /// "Ver contratos" en Nuevo Préstamo: previsualiza los tres documentos con
+    /// los datos actuales ANTES de crear (código en borrador). Sirve para
+    /// revisarlos con el cliente antes de firmar.
+    ///
+    /// No lleva expediente porque el préstamo todavía no existe: lo que se
+    /// imprima desde aquí es un borrador y no se archiva.
     /// </summary>
     [RelayCommand(CanExecute = nameof(PuedeGuardar))]
     private void VerPagare()
     {
-        var parametros = ParsearParametros(out _);
-        if (parametros is null || ClienteSeleccionado is null)
-            return;
-        PagareSolicitado?.Invoke(ConstruirPagare("(borrador)", ClienteSeleccionado, parametros));
+        if (ContratoBorrador() is { } contrato)
+            ContratosParaImprimir?.Invoke(contrato, null, []);
     }
+
+    /// <summary>
+    /// Arma los TRES contratos con lo que hay en el formulario (2026-09-03).
+    ///
+    /// Se apoya en <see cref="ContratoService.ArmarNotarialBorrador"/>, que es
+    /// el mismo camino que usa un préstamo ya guardado: así la vista previa
+    /// muestra exactamente el papel que va a salir, y no una aproximación que
+    /// después no coincide.
+    /// </summary>
+    private PagareNotarialImpreso ConstruirContrato(string codigo, Cliente cliente,
+        ParametrosAmortizacion parametros)
+    {
+        var tabla = _amortizacion.Calcular(parametros);
+        var borrador = new Prestamo
+        {
+            Codigo = codigo,
+            ClienteId = cliente.Id,
+            MontoCapital = parametros.MontoCapital,
+            TasaInteres = parametros.TasaInteresMensual,
+            PlazoCuotas = parametros.PlazoCuotas,
+            Modalidad = parametros.Modalidad,
+            MetodoAmortizacion = parametros.Metodo,
+            FechaInicio = parametros.FechaPrimerPago,
+            Garantia = string.IsNullOrWhiteSpace(Garantia) ? null : Garantia.Trim(),
+            // Sin préstamo guardado no hay created_at: el acta usa la fecha
+            // cargada o, si no hay, la de hoy.
+            CreatedAtUtc = DateTime.UtcNow,
+            ActoNo = Vacio(ActoNo),
+            FolioNo = Vacio(FolioNo),
+            FechaActo = FechaActo is { } f ? DateOnly.FromDateTime(f) : null,
+            MunicipioActo = Vacio(MunicipioActo),
+            DeudorSexo = DeudorSexo?.Valor ?? SexoPersona.NoIndicado,
+            DeudorNacionalidad = Vacio(DeudorNacionalidad),
+            DeudorEstadoCivil = Vacio(DeudorEstadoCivil),
+            DeudorOcupacion = Vacio(DeudorOcupacion),
+            CuotasExigibilidad = EnteroOpcional(CuotasExigibilidadTexto),
+            DiasGracia = EnteroOpcional(DiasGraciaTexto),
+            MoraPorcentaje = DecimalOpcional(MoraPorcentajeTexto),
+            RegistroTitulos = Vacio(RegistroTitulos)
+        };
+        return _contratos.ArmarNotarialBorrador(borrador, cliente, tabla, ActoDelFormulario());
+    }
+
+    /// <summary>Lo que capturó el formulario para el acta, listo para guardar.</summary>
+    private ContratoNotarialNuevo DatosNotarialesDelFormulario() => new(
+        ActoNo: Vacio(ActoNo),
+        FolioNo: Vacio(FolioNo),
+        FechaActo: FechaActo is { } f ? DateOnly.FromDateTime(f) : null,
+        MunicipioActo: Vacio(MunicipioActo),
+        DeudorSexo: DeudorSexo?.Valor ?? SexoPersona.NoIndicado,
+        DeudorNacionalidad: Vacio(DeudorNacionalidad),
+        DeudorEstadoCivil: Vacio(DeudorEstadoCivil),
+        DeudorOcupacion: Vacio(DeudorOcupacion),
+        CuotasExigibilidad: EnteroOpcional(CuotasExigibilidadTexto),
+        DiasGracia: EnteroOpcional(DiasGraciaTexto),
+        MoraPorcentaje: DecimalOpcional(MoraPorcentajeTexto),
+        RegistroTitulos: Vacio(RegistroTitulos),
+        // Las partes se congelan con el préstamo (045): reimprimir el contrato
+        // el año que viene tiene que dar el MISMO papel que se firmó, aunque
+        // para entonces el negocio haya cambiado de notario o de testigos.
+        Partes: ActoDelFormulario());
+
+    private static string? Vacio(string? texto) =>
+        string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
+
+    /// <summary>
+    /// Un número opcional del formulario. Lo que no se entienda se trata como
+    /// "no cargado" y cae al valor de Configuración: es un dato de un papel, no
+    /// una condición del préstamo, así que no vale la pena frenar el guardado
+    /// por un tipeo.
+    /// </summary>
+    private static int? EnteroOpcional(string texto) =>
+        int.TryParse(texto, NumberStyles.Integer, CulturaRd, out var valor) && valor >= 0
+            ? valor
+            : null;
+
+    private static decimal? DecimalOpcional(string texto) =>
+        decimal.TryParse(texto, NumberStyles.Number, CulturaRd, out var valor) && valor >= 0m
+            ? valor
+            : null;
 
     /// <summary>Arma el pagaré desde el negocio (AjustesLocales), el cliente y la tabla.</summary>
     private PagareImpreso ConstruirPagare(string codigo, Cliente cliente, ParametrosAmortizacion parametros)
@@ -598,6 +1150,27 @@ public partial class PrestamoNuevoViewModel : ObservableObject
         FechaPrimerPago = FechaNegocio.Hoy.AddMonths(1).ToDateTime(TimeOnly.MinValue);
         Garantia = string.Empty;
         Notas = string.Empty;
+        // Los datos del acta también se limpian: son del contrato que se acaba
+        // de crear, y dejarlos puestos los pegaría al préstamo siguiente sin
+        // que nadie lo note. La selección de qué imprimir SÍ se conserva: es
+        // una preferencia de la terminal, no del contrato.
+        ActoNo = string.Empty;
+        FolioNo = string.Empty;
+        FechaActo = null;
+        MunicipioActo = string.Empty;
+        DeudorSexo = Sexos[0];
+        DeudorNacionalidad = string.Empty;
+        DeudorEstadoCivil = string.Empty;
+        DeudorOcupacion = string.Empty;
+        CuotasExigibilidadTexto = string.Empty;
+        DiasGraciaTexto = string.Empty;
+        MoraPorcentajeTexto = string.Empty;
+        RegistroTitulos = string.Empty;
+        VistaPreviaTipo = null;
+        // Las partes del acta vuelven a las del negocio: son las que sirven
+        // para el próximo préstamo. Lo del acto puntual (acto, folio, fecha)
+        // sí se borró arriba.
+        CargarNotarialDesdeConfiguracion();
         NcfTexto = string.Empty;
         NcfDeSecuencia = false;
         EsPrestamoAntiguo = false;

@@ -1,4 +1,4 @@
-<Window x:Class="FAControl.Views.AyudaWindow"
+﻿<Window x:Class="FAControl.Views.AyudaWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Ayuda y soporte"
@@ -12,7 +12,7 @@
       <TextBlock Text="¿Algo no funciona como debería?"
                  Style="{DynamicResource Texto.Titulo3}" />
       <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
-                 Text="Escribí o llamá con confianza. Se atiende cualquier inconveniente con FAControl." />
+                 Text="Escribe o llama con confianza. Se atiende cualquier inconveniente con FAControl." />
 
       <!-- El número, grande y copiable: es el dato que la gente vino a buscar -->
       <Border Margin="0,18,0,0" CornerRadius="10" Padding="18,14"
@@ -40,7 +40,7 @@
 
       <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,20,0,14" />
 
-      <TextBlock Text="Para resolverlo rápido, contá esto"
+      <TextBlock Text="Para resolverlo rápido, cuenta esto"
                  Style="{DynamicResource Texto.CuerpoEnfatizado}" />
       <ItemsControl x:Name="ListaQueContar" Margin="0,8,0,0">
         <ItemsControl.ItemTemplate>

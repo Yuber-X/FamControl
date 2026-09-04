@@ -354,6 +354,11 @@ public class PagoService
 
             await transaccion.CommitAsync(ct);
 
+            // El comprobante digitado a mano pasa a ser el predeterminado
+            // (2026-09-03). Va DESPUES del commit y no puede tumbar la operacion.
+            if (!solicitud.AsignarNcfAuto)
+                await NcfPredeterminado.AdoptarAsync(_ncf, SesionActual.Modo, ncfDelCobro, ct);
+
             var recibo = new ReciboPago(
                 reciboPrincipal,
                 fechaPagoUtc,

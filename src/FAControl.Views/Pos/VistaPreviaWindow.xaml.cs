@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using FAControl.Printing.Pos;
 
 namespace FAControl.Views.Pos;
@@ -16,6 +16,7 @@ public partial class VistaPreviaWindow : Window
     public VistaPreviaWindow(FrameworkElement visual, string titulo, string descripcion)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         Title = titulo;
         _visual = visual;
         _descripcion = descripcion;

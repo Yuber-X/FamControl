@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.RegularExpressions;
 using MySqlConnector;
 
@@ -61,7 +61,7 @@ public class MigradorEsquema
     {
         _scripts = scripts;
         // Varias migraciones usan variables de usuario (@tiene := ...) para ser
-        // repetibles. Sin esto MySqlConnector las rechaza. Se activa solo acá:
+        // repetibles. Sin esto MySqlConnector las rechaza. Se activa solo aquí:
         // las conexiones normales de la app no lo necesitan.
         var constructor = new MySqlConnectionStringBuilder(cadenaConexion)
         {

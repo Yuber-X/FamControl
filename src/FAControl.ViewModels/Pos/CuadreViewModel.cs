@@ -12,7 +12,7 @@ namespace FAControl.ViewModels.Pos;
 
 /// <summary>Fila del desglose por cajero (modo general).</summary>
 /// <param name="Comision">
-/// Lo que gano el cajero por sus ventas (037). Se calcula acá y no en la base
+/// Lo que gano el cajero por sus ventas (037). Se calcula aquí y no en la base
 /// porque el porcentaje puede cambiar: el cuadre de ayer se recalcula con el
 /// porcentaje de ayer solo si se guarda, y guardarlo es una decision que el
 /// cliente no pidio. Hoy muestra la comision al porcentaje VIGENTE.

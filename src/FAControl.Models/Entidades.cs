@@ -111,7 +111,45 @@ public class Prestamo
     public int? CuotaInicioCapital { get; set; }
     /// <summary>Fecha del primer pago (fecha de negocio, sin componente horario).</summary>
     public DateOnly FechaInicio { get; set; }
+    /// <summary>
+    /// La garantía tal como la describe el acta. Es TEXT en la base desde 044:
+    /// la descripción legal de un inmueble (solar, superficie, designación
+    /// catastral, ubicación y mejoras) no entra en 255 caracteres.
+    /// </summary>
     public string? Garantia { get; set; }
+
+    // ---- Pagaré notarial (044) ----
+    // La foto del contrato al momento de firmarlo. Va aquí y no en `cliente`
+    // a propósito: si el deudor se casa el año que viene, el acta ya firmada
+    // tiene que seguir diciendo "soltero". Todo es opcional — el acta se
+    // imprime igual con huecos para llenar a mano.
+
+    /// <summary>Número de acto. Lo asigna el notario, no el sistema.</summary>
+    public string? ActoNo { get; set; }
+    public string? FolioNo { get; set; }
+    /// <summary>Fecha del acto notarial. NULL = se usa la de creación del préstamo.</summary>
+    public DateOnly? FechaActo { get; set; }
+    /// <summary>Ciudad, municipio y provincia donde se instrumenta.</summary>
+    public string? MunicipioActo { get; set; }
+
+    /// <summary>
+    /// Sexo del deudor. NO es un dato demográfico: el acta está declinada en
+    /// género de punta a punta y sin esto sale mal escrita la mitad de las veces.
+    /// </summary>
+    public SexoPersona DeudorSexo { get; set; } = SexoPersona.NoIndicado;
+    public string? DeudorNacionalidad { get; set; }
+    public string? DeudorEstadoCivil { get; set; }
+    public string? DeudorOcupacion { get; set; }
+
+    /// <summary>Cuotas en atraso que hacen exigible el total. NULL = el valor de Configuración.</summary>
+    public int? CuotasExigibilidad { get; set; }
+    /// <summary>Días de gracia antes de que corra la mora. NULL = el de Configuración.</summary>
+    public int? DiasGracia { get; set; }
+    /// <summary>Mora en % sobre el monto adeudado. NULL = la de Configuración.</summary>
+    public decimal? MoraPorcentaje { get; set; }
+    /// <summary>Registro de Títulos autorizado a ejecutar el traspaso.</summary>
+    public string? RegistroTitulos { get; set; }
+
     public EstadoPrestamo Estado { get; set; } = EstadoPrestamo.Activo;
     public string? Notas { get; set; }
     public DateTime CreatedAtUtc { get; set; }

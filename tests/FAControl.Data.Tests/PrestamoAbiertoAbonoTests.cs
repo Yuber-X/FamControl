@@ -54,7 +54,7 @@ public class PrestamoAbiertoAbonoTests : IAsyncLifetime
 
         _prestamos = new PrestamoService(_factory, _prestamoRepo, contador,
             new AmortizacionService(), auditoria, new VehiculoRepository(_factory),
-            new NcfRepository(_factory), pagoRepo);
+            new NcfRepository(_factory), pagoRepo, new PrestamoActaRepository(_factory));
         _pagos = new PagoService(_factory, _prestamoRepo, pagoRepo,
             new ClienteRepository(_factory), contador, auditoria,
             new AjustesLocales(), new NcfRepository(_factory));

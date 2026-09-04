@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -14,17 +14,28 @@ public partial class PrestamosViewModel : ObservableObject
     private readonly PrestamoService _servicio;
     private readonly IDialogService _dialogos;
     private readonly RecordatorioService _recordatorios;
+    private readonly ContratoService _contratos;
     private IReadOnlyList<PrestamoResumen> _todos = [];
 
     public event Action<long>? DetalleSolicitado;
     public event Action? NuevoSolicitado;
 
+    /// <summary>
+    /// La vista abre los TRES contratos de ese préstamo (2026-09-03), sin tener
+    /// que entrar al detalle. Reimprimir un contrato es de las cosas que más se
+    /// piden por teléfono, y bajaba de tres clics a uno.
+    /// </summary>
+    public event Action<PagareNotarialImpreso, DuenoExpediente>? ContratosSolicitados;
+
     public PrestamosViewModel(PrestamoService servicio, IDialogService dialogos,
-        RecordatorioService recordatorios)
+        RecordatorioService recordatorios, ContratoService contratos,
+        ExpedienteViewModel expediente)
     {
         _servicio = servicio;
         _dialogos = dialogos;
         _recordatorios = recordatorios;
+        _contratos = contratos;
+        Expediente = expediente;
 
         FiltrosEstado =
         [
@@ -152,4 +163,28 @@ public partial class PrestamosViewModel : ObservableObject
         if (fila is not null)
             DetalleSolicitado?.Invoke(fila.Id);
     }
+    /// <summary>Expediente donde se archiva lo que se imprima (2026-09-03).</summary>
+    public ExpedienteViewModel Expediente { get; }
+
+    /// <summary>
+    /// Abre los tres contratos del préstamo de esa fila para verlos o
+    /// reimprimirlos. Lo que se imprima queda archivado en su expediente.
+    /// </summary>
+    [RelayCommand]
+    private async Task VerContratosAsync(PrestamoFila? fila)
+    {
+        if (fila is null)
+            return;
+        try
+        {
+            var contrato = await _contratos.ArmarNotarialAsync(fila.Id);
+            ContratosSolicitados?.Invoke(contrato, DuenoExpediente.DePrestamo(fila.Id));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error armando los contratos del préstamo {Id}", fila.Id);
+            _dialogos.MostrarError("Contratos", $"No se pudieron abrir los contratos.\n\n{ex.Message}");
+        }
+    }
+
 }

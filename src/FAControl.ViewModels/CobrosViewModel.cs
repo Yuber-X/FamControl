@@ -22,15 +22,18 @@ public partial class CobrosViewModel : ObservableObject
     private readonly PagoService _pagos;
     private readonly PrestamoService _prestamos;
     private readonly IDialogService _dialogos;
+    private readonly NcfService _ncf;
     private IReadOnlyList<Cuota> _cuotasImpagas = [];
 
     public event Action<ReciboPago>? PagoRegistrado;
 
-    public CobrosViewModel(PagoService pagos, PrestamoService prestamos, IDialogService dialogos)
+    public CobrosViewModel(PagoService pagos, PrestamoService prestamos, IDialogService dialogos,
+        NcfService ncf)
     {
         _pagos = pagos;
         _prestamos = prestamos;
         _dialogos = dialogos;
+        _ncf = ncf;
 
         Metodos =
         [
@@ -71,6 +74,41 @@ public partial class CobrosViewModel : ObservableObject
     /// prende el switch y se toma el siguiente de la secuencia configurada.
     /// </summary>
     [ObservableProperty] private string _ncfTexto = string.Empty;
+    /// <summary>
+    /// Proximo comprobante que entregaria la secuencia, para mostrarlo como
+    /// marcador dentro de la caja de NCF (pedido del cliente 2026-09-03).
+    /// Cadena vacia cuando esta estancia no tiene secuencia configurada, esta
+    /// apagada, vencio o se agoto: en ese caso la caja no muestra marcador.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HayNcfConfigurado))]
+    [NotifyPropertyChangedFor(nameof(NcfSwitchTexto))]
+    private string _ncfMarcador = string.Empty;
+
+    /// <summary>
+    /// Hay una secuencia de la que tomar el proximo comprobante. Cuando es
+    /// false el switch se apaga Y se deshabilita: prenderlo solo conseguiria
+    /// que la operacion fallara al final con "esta estancia no tiene secuencia
+    /// configurada", que es un error que conviene no dejar llegar tan tarde.
+    /// </summary>
+    public bool HayNcfConfigurado => NcfMarcador.Length > 0;
+
+    /// <summary>Texto del switch: nombra el numero exacto que se va a usar.</summary>
+    public string NcfSwitchTexto => HayNcfConfigurado
+        ? $"Usar el comprobante {NcfMarcador}"
+        : "No hay secuencia de comprobantes configurada (Configuración → Comprobante fiscal)";
+
+    /// <summary>
+    /// Si la secuencia dejo de estar disponible (se apago, vencio, se agoto o
+    /// se cambio de estancia), el switch no puede quedar prendido apuntando a
+    /// un talonario que ya no existe.
+    /// </summary>
+    partial void OnNcfMarcadorChanged(string value)
+    {
+        if (value.Length == 0)
+            NcfDeSecuencia = false;
+    }
+
     [ObservableProperty] private bool _ncfDeSecuencia;
     [ObservableProperty] private string _mensajeValidacion = string.Empty;
     [ObservableProperty] private bool _tienePreview;
@@ -148,6 +186,7 @@ public partial class CobrosViewModel : ObservableObject
                 : PrestamosActivos.FirstOrDefault(p => p.Id == preseleccionarPrestamoId);
 
             await CargarPagosRecientesAsync();
+            NcfMarcador = await _ncf.ProximoNcfAsync() ?? string.Empty;
         }
         catch (Exception ex)
         {
@@ -247,7 +286,7 @@ public partial class CobrosViewModel : ObservableObject
     private decimal ParsearMonto()
     {
         if (!decimal.TryParse(MontoTexto, NumberStyles.Number, CulturaRd, out var monto))
-            throw new ArgumentException("Ingresá un monto válido (ej. 1,600.00).");
+            throw new ArgumentException("Ingresa un monto válido (ej. 1,600.00).");
         return monto;
     }
 
@@ -257,7 +296,7 @@ public partial class CobrosViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(AbonoTexto))
             return 0m;
         if (!decimal.TryParse(AbonoTexto, NumberStyles.Number, CulturaRd, out var abono) || abono < 0m)
-            throw new ArgumentException("Ingresá un abono válido (o dejalo vacío).");
+            throw new ArgumentException("Ingresa un abono válido (o dejalo vacío).");
         if (abono > ParsearMonto())
             throw new ArgumentException("El abono no puede ser mayor que el monto recibido.");
         return abono;

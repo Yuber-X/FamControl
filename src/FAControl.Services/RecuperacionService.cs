@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using Serilog;
 
@@ -19,7 +19,7 @@ namespace FAControl.Services;
 /// autenticado a quien atribuirle la operación (y además la tabla de auditoría
 /// se borra junto con el resto).
 ///
-/// La recuperación de contraseñas ya NO vive acá: desde el 2026-07-29 esa puerta
+/// La recuperación de contraseñas ya NO vive aquí: desde el 2026-07-29 esa puerta
 /// es la cuenta de respaldo del desarrollador que se siembra con el esquema
 /// (scripts/db/020_usuario_programador.sql). Dos puertas traseras para lo mismo
 /// era una de más.
@@ -49,7 +49,7 @@ public class RecuperacionService
     public async Task<string> RespaldarYLimpiarAsync(string carpetaRespaldo, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(carpetaRespaldo))
-            throw new ArgumentException("Elegí dónde guardar el respaldo antes de limpiar.");
+            throw new ArgumentException("Elige dónde guardar el respaldo antes de limpiar.");
 
         var archivo = Path.Combine(carpetaRespaldo,
             $"FAControl_antes_de_limpiar_{DateTime.Now:yyyy-MM-dd_HHmm}.sql");

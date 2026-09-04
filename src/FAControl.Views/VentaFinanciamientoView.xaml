@@ -203,13 +203,15 @@
               <TextBlock Text="Comprobante fiscal — NCF (opcional)"
                          Style="{DynamicResource Input.Label}" />
               <TextBox Width="200" Height="34" Style="{DynamicResource Input.Texto}"
-                       ToolTip="Pegá el e-NCF del Facturador Gratuito DGII, o prendé el switch para tomar el siguiente de la secuencia"
+                       ToolTip="Pega el e-NCF del Facturador Gratuito DGII, o enciende el switch para tomar el siguiente de la secuencia"
                        IsEnabled="{Binding NcfDeSecuencia, Converter={StaticResource InversorBool}}"
+                       local:Marcador.Texto="{Binding NcfMarcador}"
                        Text="{Binding NcfTexto, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
-            <CheckBox Style="{DynamicResource Switch.Moderno}"
+            <CheckBox Style="{DynamicResource Switch.Moderno}" MaxWidth="240"
                       VerticalAlignment="Bottom" Margin="0,0,12,12"
-                      Content="Tomar el siguiente de la secuencia"
+                      Content="{Binding NcfSwitchTexto}"
+                      IsEnabled="{Binding HayNcfConfigurado}"
                       IsChecked="{Binding NcfDeSecuencia}" />
             <Button Content="Registrar cobro" Style="{DynamicResource Boton.Primario}"
                     VerticalAlignment="Bottom" Margin="0,0,0,6"
@@ -219,7 +221,7 @@
           <!-- Los avisos van DEBAJO de los campos, nunca entre ellos.
                Estaban dentro del WrapPanel, entre la última caja y el botón:
                al aparecer un mensaje tomaban un lugar en el flujo y corrían el
-               botón de sitio (reportado 2026-08-01). Acá abajo el botón se
+               botón de sitio (reportado 2026-08-01). Aquí abajo el botón se
                queda quieto pase lo que pase. -->
           <TextBlock Text="{Binding RepartoTexto}" TextWrapping="Wrap"
                      Style="{DynamicResource Texto.Caption}"

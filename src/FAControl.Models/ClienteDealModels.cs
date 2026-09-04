@@ -1,9 +1,9 @@
-namespace FAControl.Models;
+﻿namespace FAControl.Models;
 
 /// <summary>
 /// Métricas de un cliente DEL DEALER (pedido 2026-07-27). Reemplazan a las de
 /// PrestControl (Total prestado / Préstamos activos), que no significan nada
-/// en un dealer: acá el cliente COMPRA o ALQUILA vehículos, no pide crédito.
+/// en un dealer: aquí el cliente COMPRA o ALQUILA vehículos, no pide crédito.
 /// </summary>
 /// <param name="TotalTransferido">Lo que el cliente negoció: precio de sus compras + sus alquileres.</param>
 /// <param name="TotalCobrado">Lo efectivamente recibido: contado completo, inicial + plazos pagados, alquileres finalizados.</param>

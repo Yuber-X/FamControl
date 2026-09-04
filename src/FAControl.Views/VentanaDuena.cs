@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 
 
 
@@ -81,7 +81,7 @@ public static class VentanaDuena
     /// vista: el ticket del punto de venta y el cierre de caja, que los dispara
     /// la App al recibir el evento del ViewModel.
     ///
-    /// Acá sí se muestra sin dueño en vez de no mostrar nada: el papel es la
+    /// Aquí sí se muestra sin dueño en vez de no mostrar nada: el papel es la
     /// razón de ser de la operación que acaba de terminar.
     /// </summary>
     public static bool? MostrarDesdeLaPrincipal(this Window dialogo)

@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using FAControl.Models;
 using FAControl.ViewModels;
@@ -28,6 +28,7 @@ public partial class CerrarAlquilerWindow : Window
     public CerrarAlquilerWindow(CierreAlquilerPedido pedido)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         _pedido = pedido;
 
@@ -70,7 +71,7 @@ public partial class CerrarAlquilerWindow : Window
 
         if (SelectorFecha.SelectedDate is not { } fecha)
         {
-            TextoReal.Text = "Elegí el día en que devolvió el vehículo.";
+            TextoReal.Text = "Elige el día en que devolvió el vehículo.";
             TextoDiferencia.Text = string.Empty;
             return;
         }
@@ -93,7 +94,7 @@ public partial class CerrarAlquilerWindow : Window
 
     /// <summary>
     /// La misma cuenta del servicio (días mínimo 1, redondeo a favor del
-    /// negocio): lo que se ve acá tiene que ser exactamente lo que se guarda.
+    /// negocio): lo que se ve aquí tiene que ser exactamente lo que se guarda.
     /// </summary>
     private (int Dias, decimal Total) CalcularCuenta(DateOnly devolucion)
     {
@@ -105,7 +106,7 @@ public partial class CerrarAlquilerWindow : Window
     {
         if (string.IsNullOrWhiteSpace(CajaMotivo.Text))
         {
-            TextoError.Text = "Escribí el motivo: queda en el historial y es lo que explica el cierre.";
+            TextoError.Text = "Escribe el motivo: queda en el historial y es lo que explica el cierre.";
             CajaMotivo.Focus();
             return;
         }
@@ -115,7 +116,7 @@ public partial class CerrarAlquilerWindow : Window
         {
             if (SelectorFecha.SelectedDate is not { } fecha)
             {
-                TextoError.Text = "Elegí el día en que devolvió el vehículo.";
+                TextoError.Text = "Elige el día en que devolvió el vehículo.";
                 return;
             }
             if (DateOnly.FromDateTime(fecha) < _pedido.FechaInicio)

@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 using Serilog;
@@ -104,12 +104,12 @@ public class VehiculoGastoService
     private static void ExigirLectura()
     {
         if (!SesionActual.TienePermiso(Permisos.Gastos))
-            throw new UnauthorizedAccessException("No tenés permiso para ver los gastos de vehículos.");
+            throw new UnauthorizedAccessException("No tienes permiso para ver los gastos de vehículos.");
     }
 
     private static void ExigirEscritura()
     {
         if (!SesionActual.TienePermiso(Permisos.Gastos))
-            throw new UnauthorizedAccessException("No tenés permiso para gestionar gastos de vehículos.");
+            throw new UnauthorizedAccessException("No tienes permiso para gestionar gastos de vehículos.");
     }
 }

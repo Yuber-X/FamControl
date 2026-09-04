@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Input;
 
 namespace FAControl.Views.Pos;
@@ -14,6 +14,7 @@ public partial class PedirTextoWindow : Window
     public PedirTextoWindow(string titulo, string mensaje, string textoInicial)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         Title = titulo;
         Mensaje.Text = mensaje;
         CajaTexto.Text = textoInicial;

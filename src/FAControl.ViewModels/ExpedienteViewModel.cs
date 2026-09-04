@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -49,7 +49,7 @@ public record DocumentoFila(DocumentoVenta Documento)
 public record DestinoDocumento(DuenoExpediente Dueno, string Texto);
 
 /// <summary>
-/// Expediente digital del contrato (018, pedido del cliente 2026-07-27): acá se
+/// Expediente digital del contrato (018, pedido del cliente 2026-07-27): aquí se
 /// guardan las facturas, documentos e imágenes que el cliente entregó para
 /// comprar. Dos vistas (lista y cuadrícula), subida de varios archivos a la vez
 /// y descarga de todo en un ZIP.
@@ -91,7 +91,7 @@ public partial class ExpedienteViewModel : ObservableObject
     public bool PuedeAdministrar => SesionActual.EsAdmin;
 
     /// <summary>
-    /// Filtro para el selector de archivos de la View. Se arma acá y no en la
+    /// Filtro para el selector de archivos de la View. Se arma aquí y no en la
     /// View para que las extensiones permitidas tengan una sola fuente de
     /// verdad (la del servicio, que es quien las hace cumplir).
     /// </summary>
@@ -227,7 +227,7 @@ public partial class ExpedienteViewModel : ObservableObject
 
     /// <summary>
     /// Reemplaza la factura del sistema por la escaneada y firmada. No borra
-    /// nada: la del sistema se sigue pudiendo imprimir, pero a partir de acá la
+    /// nada: la del sistema se sigue pudiendo imprimir, pero a partir de aquí la
     /// que vale para el expediente es esta.
     /// </summary>
     public async Task<DocumentoFila?> ReemplazarFacturaAsync(long ventaId, string rutaArchivo)

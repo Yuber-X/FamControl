@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using FAControl.ViewModels;
@@ -12,7 +12,7 @@ public partial class ClientesListView : UserControl
         InitializeComponent();
 
         // Los encabezados y la columna de alquileres se ajustan a la estancia
-        // ACÁ y no con un Binding: las columnas de un DataGrid no viven en el
+        // AQUÍ y no con un Binding: las columnas de un DataGrid no viven en el
         // árbol visual, así que no heredan DataContext y un Binding en Header o
         // en Visibility no resuelve. Es una limitación conocida de WPF, y
         // esquivarla con un proxy congelado sería más código que esto.

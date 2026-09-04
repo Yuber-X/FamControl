@@ -88,6 +88,34 @@ public partial class ConfiguracionViewModel : ObservableObject
         _negocioTelefono = ajustes.TelefonoNegocio;
         _negocioEmail = ajustes.EmailNegocio;
         _negocioRnc = ajustes.RncNegocio;
+        // ---- Pagaré notarial (044) ----
+        _negocioDireccion = ajustes.DireccionNegocio;
+        _actaMunicipio = ajustes.MunicipioActo;
+        _notarioNombre = ajustes.NotarioNombre;
+        _notarioMatricula = ajustes.NotarioMatricula;
+        _notarioCedula = ajustes.NotarioCedula;
+        _notarioEstadoCivil = ajustes.NotarioEstadoCivil;
+        _notarioDomicilio = ajustes.NotarioDomicilio;
+        _representanteNombre = ajustes.RepresentanteNombre;
+        _representanteCedula = ajustes.RepresentanteCedula;
+        _representanteEstadoCivil = ajustes.RepresentanteEstadoCivil;
+        _representanteOcupacion = ajustes.RepresentanteOcupacion;
+        _representanteDomicilio = ajustes.RepresentanteDomicilio;
+        _representanteEsFemenino = ajustes.RepresentanteSexo == 2;
+        _testigo1Nombre = ajustes.Testigo1Nombre;
+        _testigo1Cedula = ajustes.Testigo1Cedula;
+        _testigo1EstadoCivil = ajustes.Testigo1EstadoCivil;
+        _testigo1Ocupacion = ajustes.Testigo1Ocupacion;
+        _testigo1EsFemenino = ajustes.Testigo1Sexo == 2;
+        _testigo2Nombre = ajustes.Testigo2Nombre;
+        _testigo2Cedula = ajustes.Testigo2Cedula;
+        _testigo2EstadoCivil = ajustes.Testigo2EstadoCivil;
+        _testigo2Ocupacion = ajustes.Testigo2Ocupacion;
+        _testigo2EsFemenino = ajustes.Testigo2Sexo == 2;
+        _actaCuotasExigibilidadTexto = ajustes.CuotasParaExigibilidad.ToString();
+        _actaDiasGraciaTexto = ajustes.DiasDeGracia.ToString();
+        _actaMoraTexto = ajustes.MoraPorcentaje.ToString("0.##", Textos.CulturaRd);
+        _actaRegistroTitulos = ajustes.RegistroTitulos;
         _comisionVendedorTexto = ajustes.PorcentajeComisionVendedor.ToString("0.##", Textos.CulturaRd);
         // Impresión del ticket (POS-500)
         _mostrarVistaPreviaTicket = ajustes.MostrarVistaPreviaTicket;
@@ -225,7 +253,7 @@ public partial class ConfiguracionViewModel : ObservableObject
     }
 
     // ---------- Comprobante fiscal / secuencia NCF (cliente 2026-07-25) ----------
-    // La empresa está legalizada ante la DGII. Acá se configura la secuencia
+    // La empresa está legalizada ante la DGII. Aquí se configura la secuencia
     // autorizada (prefijo B02/E32, próxima, fin de rango, vencimiento). Los
     // préstamos toman el siguiente número de forma atómica, o registran el
     // e-NCF generado en el Facturador Gratuito de la DGII.
@@ -239,12 +267,12 @@ public partial class ConfiguracionViewModel : ObservableObject
     [ObservableProperty] private string _ncfEstadoTexto = string.Empty;
 
     /// <summary>
-    /// True cuando lo que se ve arriba es el EJEMPLO de fábrica y no una
-    /// secuencia guardada. Manda si al marcar la casilla se borran los campos:
-    /// borrar un ejemplo es lo que se pidió, borrar una secuencia real le
-    /// haría perder al usuario en qué número va su talonario.
+    /// True mientras <see cref="CargarNcfAsync"/> está llenando los campos
+    /// desde la base. Sin esto, poner <see cref="NcfActivo"/> en true al cargar
+    /// una secuencia guardada dispararía el borrado y la pantalla arrancaría
+    /// vacía.
     /// </summary>
-    private bool _ncfEsEjemplo;
+    private bool _cargandoNcf;
     /// <summary>Solo el Admin ve/edita la secuencia.</summary>
     public bool PuedeConfigurarNcf => SesionActual.EsAdmin;
 
@@ -253,15 +281,13 @@ public partial class ConfiguracionViewModel : ObservableObject
     {
         try
         {
+            _cargandoNcf = true;
             var secuencia = await _ncf.ObtenerSecuenciaAsync();
             if (secuencia is null)
             {
                 LimpiarNcf();
                 return;
             }
-            // Antes de mover NcfActivo: ese cambio dispara el borrado de los
-            // campos, y acá justamente NO hay que borrar nada.
-            _ncfEsEjemplo = false;
             NcfActivo = secuencia.Activo;
             NcfPrefijo = secuencia.Prefijo;
             NcfLargoTexto = secuencia.Largo.ToString();
@@ -275,6 +301,10 @@ public partial class ConfiguracionViewModel : ObservableObject
             Log.Error(ex, "Error cargando la secuencia NCF");
             NcfEstadoTexto = "No se pudo cargar la configuración de comprobantes.";
         }
+        finally
+        {
+            _cargandoNcf = false;
+        }
     }
 
     /// <summary>
@@ -284,7 +314,7 @@ public partial class ConfiguracionViewModel : ObservableObject
     /// modo. Antes, al entrar a DealControl o al POS-500 sin secuencia propia,
     /// la carga salía temprano y en pantalla quedaban el prefijo y la próxima
     /// de PrestControl —números reales de otra estancia, que además se habrían
-    /// guardado acá si alguien tocaba "Guardar" (2026-08-01).
+    /// guardado aquí si alguien tocaba "Guardar" (2026-08-01).
     ///
     /// Los valores que quedan son los de fábrica, a modo de ejemplo: B02
     /// (Consumidor Final) de 8 dígitos empezando en 1. No hay secuencia hasta
@@ -292,7 +322,6 @@ public partial class ConfiguracionViewModel : ObservableObject
     /// </summary>
     private void LimpiarNcf()
     {
-        _ncfEsEjemplo = true;
         NcfActivo = false;
         NcfPrefijo = "B02";
         NcfLargoTexto = "8";
@@ -301,28 +330,31 @@ public partial class ConfiguracionViewModel : ObservableObject
         NcfVencimiento = null;
         NcfEstadoTexto =
             $"{IdentidadModo.De(SesionActual.Modo).Nombre} todavía no tiene secuencia de comprobantes. " +
-            "Cada estancia lleva la suya: lo que se configure acá no afecta a las demás. " +
+            "Cada estancia lleva la suya: lo que se configure aquí no afecta a las demás. " +
             "Los valores de arriba son un ejemplo (B02 = Consumidor Final); al marcar la casilla " +
-            "se borran para que escribas los tuyos.";
+            "se borran para que escribas los de tu negocio.";
     }
 
     /// <summary>
-    /// Al ENCENDER la casilla se borra el ejemplo (pedido del cliente
-    /// 2026-08-02: "que borre el ejemplo para que no intenten usarlo").
+    /// Al ENCENDER la casilla se borra TODO lo que haya escrito (pedido del
+    /// cliente 2026-09-03: "si está desactivado y vuelve a activarse, debe
+    /// limpiar todo").
     ///
-    /// Un B02 de ejemplo empezando en 1 se ve exactamente igual que una
-    /// secuencia legítima. Dejarlo escrito y habilitado invita a apretar
-    /// Guardar sin cambiarlo, y a partir de ahí la app numera comprobantes
-    /// fiscales con una serie que la DGII nunca autorizó.
+    /// Antes solo se borraba el ejemplo de fábrica, y una secuencia guardada
+    /// se respetaba para no hacerle perder al usuario en qué número iba. Lo que
+    /// cambió es de dónde sale ese número: desde este mismo pedido, el NCF que
+    /// se digita en un cobro o un préstamo se adopta solo como predeterminado
+    /// (<see cref="FAControl.Data.NcfRepository.AdoptarComoPredeterminadaAsync"/>),
+    /// así que la secuencia se recupera sola y lo peligroso pasa a ser lo
+    /// contrario: reactivar la casilla y quedarse con los números de un
+    /// talonario viejo o de otra estancia sin notarlo.
     ///
-    /// Si lo que hay es una secuencia GUARDADA, no se toca nada: reactivar un
-    /// talonario que estaba en pausa no puede hacerle perder al usuario en qué
-    /// número iba. Por eso el borrado depende de _ncfEsEjemplo y no del simple
-    /// hecho de marcar la casilla.
+    /// Un prefijo escrito nunca vuelve por accidente: o se escribe a mano, o
+    /// entra por un comprobante realmente usado.
     /// </summary>
     partial void OnNcfActivoChanged(bool value)
     {
-        if (!value || !_ncfEsEjemplo)
+        if (!value || _cargandoNcf)
             return;
 
         NcfPrefijo = string.Empty;
@@ -330,11 +362,9 @@ public partial class ConfiguracionViewModel : ObservableObject
         NcfProximaTexto = string.Empty;
         NcfFinTexto = string.Empty;
         NcfVencimiento = null;
-        // Ya no es el ejemplo: son campos vacíos que el usuario va a llenar.
-        _ncfEsEjemplo = false;
 
         NcfEstadoTexto =
-            $"Escribí la secuencia que la DGII le autorizó a {IdentidadModo.De(SesionActual.Modo).Nombre}: " +
+            $"Escribe la secuencia que la DGII le autorizó a {IdentidadModo.De(SesionActual.Modo).Nombre}: " +
             "prefijo (B02 tradicional, E32 e-CF), largo (8 o 10 dígitos), " +
             "en qué número arranca y hasta dónde llega el rango.";
     }
@@ -349,9 +379,9 @@ public partial class ConfiguracionViewModel : ObservableObject
         var hoy = FechaNegocio.Hoy;
         var proximo = secuencia.Formatear(secuencia.Proxima);
         if (secuencia.EstaVencida(hoy))
-            NcfEstadoTexto = $"⚠ La secuencia venció el {secuencia.Vencimiento:dd/MM/yyyy}. Solicitá una nueva a la DGII.";
+            NcfEstadoTexto = $"⚠ La secuencia venció el {secuencia.Vencimiento:dd/MM/yyyy}. Solicita una nueva a la DGII.";
         else if (secuencia.EstaAgotada)
-            NcfEstadoTexto = "⚠ La secuencia se agotó (fin del rango). Solicitá una nueva a la DGII.";
+            NcfEstadoTexto = "⚠ La secuencia se agotó (fin del rango). Solicita una nueva a la DGII.";
         else
         {
             NcfEstadoTexto = $"Próximo comprobante: {proximo}";
@@ -451,6 +481,125 @@ public partial class ConfiguracionViewModel : ObservableObject
             _ajustes.PorcentajeComisionVendedor = comision;
         _ajustes.Guardar();
     }
+
+    // ==================================================================
+    // Pagaré notarial (044) — lo que se repite en TODAS las actas
+    // ==================================================================
+    // El notario, quien firma por la empresa y los dos testigos cambian una vez
+    // cada varios años, no por contrato: se cargan aquí una sola vez y salen en
+    // todas las actas nuevas. Las ya impresas y firmadas no se tocan.
+    //
+    // Se guarda al escribir, igual que los datos del negocio: la pantalla no
+    // tiene botón de guardar para esta sección y agregarle uno solo a ésta
+    // sería inconsistente.
+
+    [ObservableProperty] private string _negocioDireccion;
+    [ObservableProperty] private string _actaMunicipio;
+
+    [ObservableProperty] private string _notarioNombre;
+    [ObservableProperty] private string _notarioMatricula;
+    [ObservableProperty] private string _notarioCedula;
+    [ObservableProperty] private string _notarioEstadoCivil;
+    [ObservableProperty] private string _notarioDomicilio;
+
+    [ObservableProperty] private string _representanteNombre;
+    [ObservableProperty] private string _representanteCedula;
+    [ObservableProperty] private string _representanteEstadoCivil;
+    [ObservableProperty] private string _representanteOcupacion;
+    [ObservableProperty] private string _representanteDomicilio;
+    /// <summary>El acta declina en género todo lo que sigue al nombre.</summary>
+    [ObservableProperty] private bool _representanteEsFemenino;
+
+    [ObservableProperty] private string _testigo1Nombre;
+    [ObservableProperty] private string _testigo1Cedula;
+    [ObservableProperty] private string _testigo1EstadoCivil;
+    [ObservableProperty] private string _testigo1Ocupacion;
+    [ObservableProperty] private bool _testigo1EsFemenino;
+
+    [ObservableProperty] private string _testigo2Nombre;
+    [ObservableProperty] private string _testigo2Cedula;
+    [ObservableProperty] private string _testigo2EstadoCivil;
+    [ObservableProperty] private string _testigo2Ocupacion;
+    [ObservableProperty] private bool _testigo2EsFemenino;
+
+    [ObservableProperty] private string _actaCuotasExigibilidadTexto;
+    [ObservableProperty] private string _actaDiasGraciaTexto;
+    [ObservableProperty] private string _actaMoraTexto;
+    [ObservableProperty] private string _actaRegistroTitulos;
+
+    partial void OnNegocioDireccionChanged(string value) => GuardarAjustesActa();
+    partial void OnActaMunicipioChanged(string value) => GuardarAjustesActa();
+    partial void OnNotarioNombreChanged(string value) => GuardarAjustesActa();
+    partial void OnNotarioMatriculaChanged(string value) => GuardarAjustesActa();
+    partial void OnNotarioCedulaChanged(string value) => GuardarAjustesActa();
+    partial void OnNotarioEstadoCivilChanged(string value) => GuardarAjustesActa();
+    partial void OnNotarioDomicilioChanged(string value) => GuardarAjustesActa();
+    partial void OnRepresentanteNombreChanged(string value) => GuardarAjustesActa();
+    partial void OnRepresentanteCedulaChanged(string value) => GuardarAjustesActa();
+    partial void OnRepresentanteEstadoCivilChanged(string value) => GuardarAjustesActa();
+    partial void OnRepresentanteOcupacionChanged(string value) => GuardarAjustesActa();
+    partial void OnRepresentanteDomicilioChanged(string value) => GuardarAjustesActa();
+    partial void OnRepresentanteEsFemeninoChanged(bool value) => GuardarAjustesActa();
+    partial void OnTestigo1NombreChanged(string value) => GuardarAjustesActa();
+    partial void OnTestigo1CedulaChanged(string value) => GuardarAjustesActa();
+    partial void OnTestigo1EstadoCivilChanged(string value) => GuardarAjustesActa();
+    partial void OnTestigo1OcupacionChanged(string value) => GuardarAjustesActa();
+    partial void OnTestigo1EsFemeninoChanged(bool value) => GuardarAjustesActa();
+    partial void OnTestigo2NombreChanged(string value) => GuardarAjustesActa();
+    partial void OnTestigo2CedulaChanged(string value) => GuardarAjustesActa();
+    partial void OnTestigo2EstadoCivilChanged(string value) => GuardarAjustesActa();
+    partial void OnTestigo2OcupacionChanged(string value) => GuardarAjustesActa();
+    partial void OnTestigo2EsFemeninoChanged(bool value) => GuardarAjustesActa();
+    partial void OnActaCuotasExigibilidadTextoChanged(string value) => GuardarAjustesActa();
+    partial void OnActaDiasGraciaTextoChanged(string value) => GuardarAjustesActa();
+    partial void OnActaMoraTextoChanged(string value) => GuardarAjustesActa();
+    partial void OnActaRegistroTitulosChanged(string value) => GuardarAjustesActa();
+
+    private void GuardarAjustesActa()
+    {
+        _ajustes.DireccionNegocio = Recortar(NegocioDireccion);
+        _ajustes.MunicipioActo = Recortar(ActaMunicipio);
+
+        _ajustes.NotarioNombre = Recortar(NotarioNombre);
+        _ajustes.NotarioMatricula = Recortar(NotarioMatricula);
+        _ajustes.NotarioCedula = Recortar(NotarioCedula);
+        _ajustes.NotarioEstadoCivil = Recortar(NotarioEstadoCivil);
+        _ajustes.NotarioDomicilio = Recortar(NotarioDomicilio);
+
+        _ajustes.RepresentanteNombre = Recortar(RepresentanteNombre);
+        _ajustes.RepresentanteCedula = Recortar(RepresentanteCedula);
+        _ajustes.RepresentanteEstadoCivil = Recortar(RepresentanteEstadoCivil);
+        _ajustes.RepresentanteOcupacion = Recortar(RepresentanteOcupacion);
+        _ajustes.RepresentanteDomicilio = Recortar(RepresentanteDomicilio);
+        _ajustes.RepresentanteSexo = RepresentanteEsFemenino ? 2 : 1;
+
+        _ajustes.Testigo1Nombre = Recortar(Testigo1Nombre);
+        _ajustes.Testigo1Cedula = Recortar(Testigo1Cedula);
+        _ajustes.Testigo1EstadoCivil = Recortar(Testigo1EstadoCivil);
+        _ajustes.Testigo1Ocupacion = Recortar(Testigo1Ocupacion);
+        _ajustes.Testigo1Sexo = Testigo1EsFemenino ? 2 : 1;
+
+        _ajustes.Testigo2Nombre = Recortar(Testigo2Nombre);
+        _ajustes.Testigo2Cedula = Recortar(Testigo2Cedula);
+        _ajustes.Testigo2EstadoCivil = Recortar(Testigo2EstadoCivil);
+        _ajustes.Testigo2Ocupacion = Recortar(Testigo2Ocupacion);
+        _ajustes.Testigo2Sexo = Testigo2EsFemenino ? 2 : 1;
+
+        // Lo que no sea un número válido se ignora: el campo se está escribiendo
+        // y no hay por qué pisarle el valor bueno con un cero.
+        if (int.TryParse(ActaCuotasExigibilidadTexto, out var cuotas) && cuotas > 0)
+            _ajustes.CuotasParaExigibilidad = cuotas;
+        if (int.TryParse(ActaDiasGraciaTexto, out var dias) && dias >= 0)
+            _ajustes.DiasDeGracia = dias;
+        if (decimal.TryParse(ActaMoraTexto, System.Globalization.NumberStyles.Number,
+                Textos.CulturaRd, out var mora) && mora >= 0m && mora <= 100m)
+            _ajustes.MoraPorcentaje = mora;
+        _ajustes.RegistroTitulos = Recortar(ActaRegistroTitulos);
+
+        _ajustes.Guardar();
+    }
+
+    private static string Recortar(string? texto) => texto?.Trim() ?? string.Empty;
 
     // ---------- Recordatorios por correo (cliente 2026-07-19) ----------
 
@@ -557,7 +706,7 @@ public partial class ConfiguracionViewModel : ObservableObject
         _ajustes.RecordatoriosAutomaticos = RecordatoriosAutomaticos;
         _ajustes.GmailRemitente = GmailRemitente?.Trim() ?? string.Empty;
         _ajustes.CorreoDueno = CorreoDueno?.Trim() ?? string.Empty;
-        // Los "días antes" apuntan a cosas distintas según la estancia: acá se
+        // Los "días antes" apuntan a cosas distintas según la estancia: aquí se
         // avisa de cuotas por vencer, en el POS de mercancía por caducar. Es la
         // misma idea ("avisame N días antes"), así que se reusa el mismo campo
         // en pantalla y se guarda en el ajuste que corresponde. Dos perillas
@@ -599,7 +748,7 @@ public partial class ConfiguracionViewModel : ObservableObject
             || m.Contains("not accepted", StringComparison.OrdinalIgnoreCase)
             || m.Contains("BadAuthentication", StringComparison.OrdinalIgnoreCase);
         if (esAuth)
-            return "Gmail rechazó las credenciales. Revisá que: 1) uses una CONTRASEÑA DE " +
+            return "Gmail rechazó las credenciales. Revisa que: 1) uses una CONTRASEÑA DE " +
                    "APLICACIÓN de 16 caracteres (no tu contraseña normal de Gmail ni la de " +
                    "FAControl); 2) la cuenta remitente tenga la verificación en 2 pasos ACTIVADA; " +
                    "3) la pegues sin espacios. Generala en myaccount.google.com → Seguridad → " +
@@ -617,7 +766,7 @@ public partial class ConfiguracionViewModel : ObservableObject
             : _ajustes.CorreoDueno;
         if (string.IsNullOrWhiteSpace(destino))
         {
-            MensajeCorreo = "Configurá al menos la cuenta de Gmail o el correo del dueño.";
+            MensajeCorreo = "Configura al menos la cuenta de Gmail o el correo del dueño.";
             return;
         }
         try
@@ -653,7 +802,7 @@ public partial class ConfiguracionViewModel : ObservableObject
         MensajeCorreo = string.Empty;
         if (!_email.EstaConfigurado)
         {
-            MensajeCorreo = "Configurá la cuenta de Gmail y la contraseña de aplicación primero.";
+            MensajeCorreo = "Configura la cuenta de Gmail y la contraseña de aplicación primero.";
             return;
         }
         try
@@ -864,7 +1013,7 @@ public partial class ConfiguracionViewModel : ObservableObject
     }
 
     // ---------- Arranque directo (cliente 2026-07-29) ----------
-    // Se prende marcando la casilla del launcher; acá se puede prender para la
+    // Se prende marcando la casilla del launcher; aquí se puede prender para la
     // estancia activa y, sobre todo, APAGAR para volver a ver el launcher.
 
     [ObservableProperty] private bool _arranqueDirectoActivo;
@@ -954,10 +1103,10 @@ public partial class ConfiguracionViewModel : ObservableObject
         // Doble confirmación: es DESTRUCTIVO
         if (!_dialogos.Confirmar("Restaurar base de datos",
             "Restaurar REEMPLAZA todos los datos actuales por los del archivo.\n\n" +
-            "¿Seguro que querés continuar?"))
+            "¿Seguro que quieres continuar?"))
             return;
         if (!_dialogos.Confirmar("Confirmación final",
-            "Última confirmación: los datos actuales se perderán si no tenés respaldo.\n\n¿Restaurar ahora?"))
+            "Última confirmación: los datos actuales se perderán si no tienes respaldo.\n\n¿Restaurar ahora?"))
             return;
 
         try
@@ -965,7 +1114,7 @@ public partial class ConfiguracionViewModel : ObservableObject
             Ocupado = true;
             await _respaldo.RestaurarAsync(ruta);
             _dialogos.Informar("Restaurar",
-                "Base de datos restaurada. Cerrá y volvé a abrir FAControl para recargar todo.");
+                "Base de datos restaurada. Cierra y vuelve a abrir FAControl para recargar todo.");
         }
         catch (Exception ex)
         {
@@ -1035,7 +1184,7 @@ public partial class ConfiguracionViewModel : ObservableObject
             ? $"⚠️ El respaldo automático del " +
               $"{FechaNegocio.AUtcLocal(_ajustes.UltimoRespaldoErrorUtc ?? DateTime.UtcNow):dd/MM/yyyy hh:mm tt} " +
               $"NO se pudo hacer: {_ajustes.UltimoRespaldoError}\n" +
-              "Hacé un respaldo a mano con el botón de arriba hasta resolverlo."
+              "Haz un respaldo a mano con el botón de arriba hasta resolverlo."
             : string.Empty;
     }
 

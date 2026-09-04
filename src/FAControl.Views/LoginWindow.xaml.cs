@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Input;
 using FAControl.ViewModels;
 
@@ -15,6 +15,7 @@ public partial class LoginWindow : Window
     public LoginWindow(LoginViewModel vm)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         _vm = vm;
         DataContext = vm;
         Loaded += async (_, _) =>

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -13,7 +13,7 @@ public record AuditoriaFila(Auditoria Entrada)
 {
     // Separadores ESCAPADOS ('/'): sin escapar, "/" es un comodín que .NET
     // reemplaza por el separador de la cultura de Windows, y la misma app
-    // mostraría 17/07 en un binding XAML y 17-07 acá. Ver Textos.FormatoFechaHora.
+    // mostraría 17/07 en un binding XAML y 17-07 aquí. Ver Textos.FormatoFechaHora.
     public string FechaTexto =>
         FechaNegocio.AUtcLocal(Entrada.TimestampUtc).ToString(Textos.FormatoFechaHoraSegundos, Textos.CulturaRd);
     /// <summary>Quién hizo la acción (multiusuario, pedido del cliente 2026-07-16).</summary>
@@ -88,7 +88,7 @@ public partial class HistorialViewModel : ObservableObject
             new Opcion<string?>(DbNamesPos.CuadreCaja, "Cuadre de caja (POS)")
         ];
         // Estancias (025). El historial arranca acotado a la estancia activa
-        // —que es lo que el usuario está mirando— y desde acá se puede abrir
+        // —que es lo que el usuario está mirando— y desde aquí se puede abrir
         // a todas cuando hace falta ver el conjunto.
         Modos =
         [
@@ -189,7 +189,7 @@ public partial class HistorialViewModel : ObservableObject
                 Filas.Add(new AuditoriaFila(entrada));
 
             ContadorTexto = entradas.Count >= filtro.Limite
-                ? $"Mostrando los {filtro.Limite} registros más recientes (ajustá los filtros para ver más atrás)"
+                ? $"Mostrando los {filtro.Limite} registros más recientes (ajusta los filtros para ver más atrás)"
                 : $"{entradas.Count} registro(s)";
 
             await CargarActividadAsync(desde, hasta);

@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Mail;
 using FAControl.Common;
 using Serilog;
@@ -39,7 +39,7 @@ public class EmailService
     {
         if (!EstaConfigurado)
             throw new InvalidOperationException(
-                "El correo no está configurado. Completá la cuenta y la contraseña de aplicación en Configuración.");
+                "El correo no está configurado. Completa la cuenta y la contraseña de aplicación en Configuración.");
 
         using var mensaje = new MailMessage
         {

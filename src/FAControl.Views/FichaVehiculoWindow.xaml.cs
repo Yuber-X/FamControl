@@ -17,6 +17,7 @@ public partial class FichaVehiculoWindow : Window
     public FichaVehiculoWindow(FichaVehiculoImpresa ficha)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         _ficha = ficha;
         ContenedorFicha.Content = FichaVehiculoVisualFactory.Crear(ficha);

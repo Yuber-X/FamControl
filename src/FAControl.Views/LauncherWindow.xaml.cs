@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using FAControl.Common;
@@ -76,11 +76,12 @@ public partial class LauncherWindow : Window
     public LauncherWindow(CodigosViewModel codigosVm, AjustesLocales ajustes)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         _codigosVm = codigosVm;
         _ajustes = ajustes;
         ChromeVentana.OcultarBotones(this);
         ContenedorLogo.Content = new LogoFA { Width = 92, Height = 92 };
-        // Si el arranque directo está prendido, el usuario llegó acá por "cerrar
+        // Si el arranque directo está prendido, el usuario llegó aquí por "cerrar
         // sesión": la casilla tiene que reflejar que sigue prendido.
         CasillaArranqueDirecto.IsChecked = _ajustes.ArranqueDirecto is not null;
         MostrarLicencia();
@@ -95,7 +96,7 @@ public partial class LauncherWindow : Window
     {
         _codigosVm.RefrescarEstado();
         TextoLicencia.Text = _codigosVm.PermiteUsar
-            ? $"Elegí un modo para iniciar sesión.  ·  {_codigosVm.EstadoTexto}"
+            ? $"Elige un modo para iniciar sesión.  ·  {_codigosVm.EstadoTexto}"
             : _codigosVm.EstadoTexto;
 
         ListaModos.ItemsSource = IdentidadModo.Todos
@@ -156,7 +157,7 @@ public partial class LauncherWindow : Window
             MessageBox.Show(this,
                 $"{tarjeta.Nombre} no está activado en esta computadora.\n\n" +
                 $"{_codigosVm.EstadoTexto}.\n\n" +
-                "Usá el botón \"Ingresar código\" para activarlo o para iniciar la prueba.",
+                "Usa el botón \"Ingresar código\" para activarlo o para iniciar la prueba.",
                 $"{tarjeta.Nombre} no está activado", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -180,7 +181,7 @@ public partial class LauncherWindow : Window
         MessageBox.Show(this,
             $"{Pos500.Descripcion}\n\n" +
             "Ya viene instalado con FAControl: para usarlo solo hace falta el código de " +
-            $"activación.\n\nPara cotizarlo o verlo funcionando, escribí al {Soporte.Telefono}.",
+            $"activación.\n\nPara cotizarlo o verlo funcionando, escribe al {Soporte.Telefono}.",
             $"{Pos500.Nombre} — {Pos500.Etiqueta}",
             MessageBoxButton.OK, MessageBoxImage.Information);
 

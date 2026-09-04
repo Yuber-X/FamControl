@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using FAControl.ViewModels;
 
@@ -13,7 +13,7 @@ namespace FAControl.Views;
 ///
 /// El cálculo que vale es el del servicio: esto es la vista previa. Se usa el
 /// mismo redondeo (a favor del negocio, como el resto de la app) para que el
-/// número que se ve acá y el que se guarda sean el mismo.
+/// número que se ve aquí y el que se guarda sean el mismo.
 /// </summary>
 public partial class CancelarVentaWindow : Window
 {
@@ -29,6 +29,7 @@ public partial class CancelarVentaWindow : Window
         decimal porcentajeInicial, bool yaEstabaFijo)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         _cobrado = cobrado;
 
@@ -65,7 +66,7 @@ public partial class CancelarVentaWindow : Window
     {
         if (string.IsNullOrWhiteSpace(CajaMotivo.Text))
         {
-            TextoError.Text = "Escribí el motivo: queda en el historial y es lo que explica la devolución.";
+            TextoError.Text = "Escribe el motivo: queda en el historial y es lo que explica la devolución.";
             CajaMotivo.Focus();
             return;
         }

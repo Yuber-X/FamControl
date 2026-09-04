@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 using Serilog;
@@ -80,7 +80,7 @@ public class ClienteService
         if (activos > 0)
             throw new InvalidOperationException(
                 $"{cliente.NombreCompleto} tiene {activos} préstamo(s) activo(s). " +
-                "Cobrá o cancelá sus préstamos antes de eliminarlo.");
+                "Cobra o cancela sus préstamos antes de eliminarlo.");
 
         await _clientes.EliminarAsync(id, ct);
         await _auditoria.RegistrarAsync(AccionAuditoria.Eliminar, DbNames.Cliente, id,

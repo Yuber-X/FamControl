@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using FAControl.Common;
 using Serilog;
@@ -39,9 +39,9 @@ public record ResultadoCodigo(AccionCodigo Accion, bool Aceptado, string Mensaje
 ///
 /// Los códigos por producto (3, 4, 5) se piden recién CUANDO TERMINA LA PRUEBA:
 /// durante los 14 días la suite está abierta completa. Eso se decide en
-/// LicenciaLocal.PermiteProducto, no acá.
+/// LicenciaLocal.PermiteProducto, no aquí.
 ///
-/// Los códigos NO viajan en texto: acá solo hay su SHA-256 con sal. El
+/// Los códigos NO viajan en texto: aquí solo hay su SHA-256 con sal. El
 /// desarrollador los guarda aparte (Freelancer - Claude Save\docs\Done\
 /// FAControl_CodigosDeActivacion_v2_2026-07-30.md). Que estén hasheados evita
 /// que alguien los saque abriendo el .exe con un editor de texto; no pretende
@@ -91,10 +91,10 @@ public class LicenciaService
             : $"Versión de prueba — quedan {DiasRestantes} días",
         EstadoLicencia.PruebaVencida => ProductosTexto is { } comprados
             ? $"Prueba terminada — activado: {comprados}"
-            : "La prueba terminó: ingresá el código del módulo que vas a usar",
+            : "La prueba terminó: ingresa el código del módulo que vas a usar",
         _ => ProductosTexto is { } sueltos
             ? $"Activado: {sueltos}"
-            : "Sin activar: ingresá un código para empezar"
+            : "Sin activar: ingresa un código para empezar"
     };
 
     /// <summary>Nombres de los productos comprados sueltos, o null si no hay ninguno.</summary>
@@ -211,7 +211,7 @@ public class LicenciaService
 
         return _licencia.EstadoEn(DateTime.UtcNow) == EstadoLicencia.EnPrueba
             ? new(accion, true, $"{nombre} activado. Queda habilitado también cuando termine la prueba.")
-            : new(accion, true, $"{nombre} activado. Ya podés entrar.");
+            : new(accion, true, $"{nombre} activado. Ya puedes entrar.");
     }
 
     private static string Hashear(string? codigo)

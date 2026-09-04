@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using FAControl.Printing.Pos;
 
 namespace FAControl.Views.Pos;
@@ -17,6 +17,7 @@ public partial class TicketWindow : Window
     public TicketWindow(FrameworkElement visualTicket, string descripcion, int copias)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         _visual = visualTicket;
         _descripcion = descripcion;
         _copias = copias;

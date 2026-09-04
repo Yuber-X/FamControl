@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using FAControl.Common;
 using FAControl.Data;
@@ -44,7 +44,7 @@ public class RecordatorioService
     {
         if (!_email.EstaConfigurado)
             throw new InvalidOperationException(
-                "El correo no está configurado. Completá la cuenta de Gmail en Configuración.");
+                "El correo no está configurado. Completa la cuenta de Gmail en Configuración.");
 
         var hoy = FechaNegocio.Hoy;
         var clientes = await _clientes.ObtenerRecordatoriosAsync(
@@ -109,7 +109,7 @@ public class RecordatorioService
     {
         if (!_email.EstaConfigurado)
             throw new InvalidOperationException(
-                "El correo no está configurado. Completá la cuenta de Gmail en Configuración.");
+                "El correo no está configurado. Completa la cuenta de Gmail en Configuración.");
 
         var hoy = FechaNegocio.Hoy;
         var clientes = await _clientes.ObtenerRecordatoriosAsync(
@@ -155,7 +155,7 @@ public class RecordatorioService
     private string CuerpoCliente(RecordatorioCliente c, DateOnly hoy)
     {
         var estado = c.HayVencidas
-            ? $"tenés cuota(s) VENCIDA(S) desde el {c.ProximoVencimiento.ToString(@"dd'/'MM'/'yyyy", CulturaRd)}"
+            ? $"tienes cuota(s) VENCIDA(S) desde el {c.ProximoVencimiento.ToString(@"dd'/'MM'/'yyyy", CulturaRd)}"
             : $"tu próxima cuota vence el {c.ProximoVencimiento.ToString(@"dd'/'MM'/'yyyy", CulturaRd)}";
 
         return $"""

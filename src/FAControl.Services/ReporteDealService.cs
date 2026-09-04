@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 
@@ -23,7 +23,7 @@ public class ReporteDealService
     /// Expediente de contratos del dealer, del más reciente al más viejo:
     /// VENTAS y ALQUILERES juntos (032 — "también debe mostrarse en contratos").
     ///
-    /// Cada uno se consulta por su lado y se mezclan acá, ordenados por fecha.
+    /// Cada uno se consulta por su lado y se mezclan aquí, ordenados por fecha.
     /// Los datos no se cruzan en la base: solo comparten pantalla.
     ///
     /// Los alquileres se incluyen solo si el usuario tiene permiso para verlos.
@@ -34,7 +34,7 @@ public class ReporteDealService
         CancellationToken ct = default)
     {
         if (!SesionActual.TienePermiso(Permisos.Ventas))
-            throw new UnauthorizedAccessException("No tenés permiso para ver los contratos del dealer.");
+            throw new UnauthorizedAccessException("No tienes permiso para ver los contratos del dealer.");
 
         var ventas = await _repositorio.ObtenerContratosAsync(FechaNegocio.Hoy, ct);
         if (!SesionActual.TienePermiso(Permisos.Alquileres))
@@ -59,7 +59,7 @@ public class ReporteDealService
         long? usuarioId = null, long? clienteId = null, CancellationToken ct = default)
     {
         if (!SesionActual.TienePermiso(Permisos.Reportes))
-            throw new UnauthorizedAccessException("No tenés permiso para ver los reportes del dealer.");
+            throw new UnauthorizedAccessException("No tienes permiso para ver los reportes del dealer.");
         if (hasta < desde)
             throw new ArgumentException("La fecha final no puede ser anterior a la inicial.");
         return _repositorio.ObtenerReporteAsync(desde, hasta, _ajustes.PorcentajeComisionVendedor,
@@ -71,7 +71,7 @@ public class ReporteDealService
         CancellationToken ct = default)
     {
         if (!SesionActual.TienePermiso(Permisos.Reportes))
-            throw new UnauthorizedAccessException("No tenés permiso para ver los reportes del dealer.");
+            throw new UnauthorizedAccessException("No tienes permiso para ver los reportes del dealer.");
         return _repositorio.ObtenerUsuariosDelDealerAsync(ct);
     }
 
@@ -80,7 +80,7 @@ public class ReporteDealService
         CancellationToken ct = default)
     {
         if (!SesionActual.TienePermiso(Permisos.Reportes))
-            throw new UnauthorizedAccessException("No tenés permiso para ver los reportes del dealer.");
+            throw new UnauthorizedAccessException("No tienes permiso para ver los reportes del dealer.");
         return _repositorio.ObtenerClientesDelDealerAsync(ct);
     }
 }

@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using FAControl.Common;
 using FAControl.Data.Pos;
@@ -62,7 +62,7 @@ public class RecordatorioCaducidadService
     {
         if (!_email.EstaConfigurado)
             throw new InvalidOperationException(
-                "El correo no está configurado. Completá la cuenta de Gmail en Configuración.");
+                "El correo no está configurado. Completa la cuenta de Gmail en Configuración.");
         if (string.IsNullOrWhiteSpace(_ajustes.CorreoDueno))
             throw new InvalidOperationException(
                 "Falta el correo del dueño: es el único destinatario de este aviso. " +

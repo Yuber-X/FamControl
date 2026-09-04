@@ -56,7 +56,7 @@
       </TextBlock>
 
       <TextBlock Margin="0,10,0,0" Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap"
-                 Text="Arrancá subiendo la factura firmada, el contrato y la cédula del cliente. Doble clic sobre un documento para abrirlo, guardarlo o administrarlo."
+                 Text="Arranca subiendo la factura firmada, el contrato y la cédula del cliente. Doble clic sobre un documento para abrirlo, guardarlo o administrarlo."
                  Visibility="{Binding SinDocumentos, Converter={StaticResource BoolAVisibilidad}}" />
 
       <!-- VISTA 1: lista con nombre, tipo y fecha -->

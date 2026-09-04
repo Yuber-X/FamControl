@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using FAControl.ViewModels;
@@ -12,7 +12,7 @@ namespace FAControl.Views;
 /// CONTROL COMPARTIDO (2026-07-31, pedido de Yuber: "¿no sería mejor hacer una
 /// réplica del expediente del cliente que ya tiene DealControl?"). Nació dentro
 /// de Financiamiento de venta y funcionaba bien, así que en vez de escribirlo
-/// dos veces más se sacó acá y lo usan las tres estancias.
+/// dos veces más se sacó aquí y lo usan las tres estancias.
 ///
 /// NO MEZCLA DATOS: cada pantalla le pasa SU propio ExpedienteViewModel como
 /// DataContext, y ese ViewModel ya sabe de qué contrato cuelga —una venta, un
@@ -35,7 +35,7 @@ public partial class ExpedienteClienteView : UserControl
 
         var dialogo = new OpenFileDialog
         {
-            Title = "Elegí los documentos del cliente",
+            Title = "Elige los documentos del cliente",
             Multiselect = true,     // pedido: poder subir varios de una vez
             Filter = ExpedienteViewModel.FiltroArchivos
         };

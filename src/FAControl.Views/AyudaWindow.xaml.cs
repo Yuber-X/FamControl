@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
 using FAControl.Common;
@@ -18,6 +18,7 @@ public partial class AyudaWindow : Window
     public AyudaWindow()
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
 
         TextoDesarrollador.Text = $"{Soporte.Desarrollador} · desarrollador de FAControl";
         TextoTelefono.Text = Soporte.Telefono;
@@ -39,7 +40,7 @@ public partial class AyudaWindow : Window
         {
             Serilog.Log.Warning(ex, "No se pudo abrir WhatsApp desde la ventana de ayuda");
             MessageBox.Show(this,
-                $"No se pudo abrir WhatsApp en este equipo.\n\nEscribí o llamá al {Soporte.Telefono}.",
+                $"No se pudo abrir WhatsApp en este equipo.\n\nEscribe o llama al {Soporte.Telefono}.",
                 "Ayuda", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }

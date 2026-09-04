@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using FAControl.Models;
 using FAControl.Printing;
@@ -19,6 +19,7 @@ public partial class PrestamoDetalleView : UserControl
         {
             _vm.ImpresionSolicitada -= MostrarImpresion;
             _vm.IntimacionSolicitada -= MostrarIntimacion;
+            _vm.ContratosSolicitados -= MostrarContratos;
         }
 
         _vm = e.NewValue as PrestamoDetalleViewModel;
@@ -26,6 +27,7 @@ public partial class PrestamoDetalleView : UserControl
         {
             _vm.ImpresionSolicitada += MostrarImpresion;
             _vm.IntimacionSolicitada += MostrarIntimacion;
+            _vm.ContratosSolicitados += MostrarContratos;
             _vm.EdicionSolicitada = PedirCorreccion;
         }
     }
@@ -43,6 +45,16 @@ public partial class PrestamoDetalleView : UserControl
     private void MostrarImpresion(PrestamoImpreso prestamo)
     {
         new PrestamoImpresionWindow(prestamo).MostrarDesde(this);
+    }
+
+    /// <summary>
+    /// Los tres contratos del préstamo (2026-09-03). El expediente viaja para
+    /// que lo que se imprima quede archivado en la ficha del cliente.
+    /// </summary>
+    private void MostrarContratos(PagareNotarialImpreso contrato, DuenoExpediente dueno)
+    {
+        new ContratosWindow(contrato, TipoContrato.Pagare, dueno, _vm?.Expediente)
+            .MostrarDesde(this);
     }
 
     private void MostrarIntimacion(IntimacionImpresa intimacion)

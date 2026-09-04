@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.PrestamosListView"
+﻿<UserControl x:Class="FAControl.Views.PrestamosListView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -129,13 +129,23 @@
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTemplateColumn Width="120">
+          <DataGridTemplateColumn Width="Auto" MinWidth="210">
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
-                <Button Content="Ver detalle" Style="{DynamicResource Boton.Terciario}"
-                        Command="{Binding DataContext.VerDetalleCommand,
-                                  RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                        CommandParameter="{Binding}" />
+                <StackPanel Orientation="Horizontal">
+                  <Button Content="Ver detalle" Style="{DynamicResource Boton.Terciario}"
+                          Command="{Binding DataContext.VerDetalleCommand,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                          CommandParameter="{Binding}" />
+                  <!-- Contratos (2026-09-03): reimprimir es de las cosas que mas
+                       se piden por telefono; desde aca baja de tres clics a uno. -->
+                  <Button Content="Contratos" Style="{DynamicResource Boton.Terciario}"
+                          Margin="6,0,0,0"
+                          ToolTip="Ver o imprimir el pagaré, el pagaré notarial o los dos juntos"
+                          Command="{Binding DataContext.VerContratosCommand,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                          CommandParameter="{Binding}" />
+                </StackPanel>
               </DataTemplate>
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>

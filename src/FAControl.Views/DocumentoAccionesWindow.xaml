@@ -1,4 +1,4 @@
-<Window x:Class="FAControl.Views.DocumentoAccionesWindow"
+﻿<Window x:Class="FAControl.Views.DocumentoAccionesWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Documento del expediente"
@@ -26,7 +26,7 @@
 
       <Border Height="1" Background="{DynamicResource Brush.BordeSutil}" Margin="0,16,0,14" />
 
-      <TextBlock Text="¿Qué querés hacer con este documento?"
+      <TextBlock Text="¿Qué quieres hacer con este documento?"
                  Style="{DynamicResource Texto.Caption}" Margin="0,0,0,10" />
 
       <!-- Abrir y Guardar: para cualquiera que tenga la pantalla -->

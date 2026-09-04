@@ -1,4 +1,4 @@
-namespace FAControl.Models;
+﻿namespace FAControl.Models;
 
 /// <summary>Frecuencia de pago del préstamo. Coincide con ENUM prestamo.modalidad.</summary>
 public enum Modalidad
@@ -52,8 +52,8 @@ public enum MetodoAmortizacion
     /// interés fijo. Cuotas 1-6: 7,500. Cuota 7: 7,500 de interés + 12,500 de
     /// capital = 20,000. Cuota 18: 625 + 12,500 = 13,125 y el saldo queda en 0.
     ///
-    /// Es distinto del ABIERTO (acá el capital sí se termina de pagar) y del
-    /// FRANCÉS (acá la cuota no es fija: va bajando).
+    /// Es distinto del ABIERTO (aquí el capital sí se termina de pagar) y del
+    /// FRANCÉS (aquí la cuota no es fija: va bajando).
     /// </summary>
     CapitalDiferido
 }

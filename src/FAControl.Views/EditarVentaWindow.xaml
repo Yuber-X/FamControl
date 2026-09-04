@@ -4,14 +4,19 @@
         Title="Corregir venta"
         Width="500" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
         Background="{DynamicResource Brush.FondoApp}">
+  <!-- ScrollViewer + CanResize (2026-09-04): con el alto atado al contenido y
+       sin poder redimensionar, en una pantalla de laptop el formulario crecia
+       por debajo del borde y los botones quedaban fuera de alcance. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+
 
   <Border Margin="24" Style="{DynamicResource Card}">
     <StackPanel>
       <TextBlock x:Name="TextoTitulo" Style="{DynamicResource Texto.Titulo3}" TextWrapping="Wrap" />
       <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
-                 Text="Para arreglar errores de digitación. El vehículo y el cliente no se cambian acá: eso no es corregir un tipeo, es otra venta." />
+                 Text="Para arreglar errores de digitación. El vehículo y el cliente no se cambian aquí: eso no es corregir un tipeo, es otra venta." />
 
       <!-- Aviso cuando el cliente YA PAGO algo: lo que se corrige va a repartir
            esa plata de nuevo, y conviene decirlo antes de tocar nada. -->
@@ -89,4 +94,5 @@
       </Grid>
     </StackPanel>
   </Border>
+  </ScrollViewer>
 </Window>

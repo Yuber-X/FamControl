@@ -84,7 +84,7 @@
                          Style="{DynamicResource Texto.Titulo2}" />
             </Viewbox>
             <!-- Se muestra la VIGENTE. Con renovaciones a otro precio, la
-                 original queda acá abajo para no perderla de vista (039). -->
+                 original queda aquí abajo para no perderla de vista (039). -->
             <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap"
                        Visibility="{Binding TarifaCambio, Converter={StaticResource BoolAVisibilidad}}">
               <Run Text="Renovado. Salió a" />
@@ -315,13 +315,15 @@
                 <TextBlock Text="Comprobante fiscal — NCF (opcional)"
                            Style="{DynamicResource Input.Label}" />
                 <TextBox Width="200" Height="36" Style="{DynamicResource Input.Texto}"
-                         ToolTip="Pegá el e-NCF del Facturador Gratuito DGII, o prendé el switch para tomar el siguiente de la secuencia"
+                         ToolTip="Pega el e-NCF del Facturador Gratuito DGII, o enciende el switch para tomar el siguiente de la secuencia"
                          IsEnabled="{Binding NcfDeSecuencia, Converter={StaticResource InversorBool}}"
+                         local:Marcador.Texto="{Binding NcfMarcador}"
                          Text="{Binding NcfTexto, UpdateSourceTrigger=PropertyChanged}" />
               </StackPanel>
               <CheckBox Style="{DynamicResource Switch.Moderno}"
                         Margin="16,0,0,0" VerticalAlignment="Bottom" Padding="0,0,0,8"
-                        Content="Tomar el siguiente de la secuencia configurada"
+                        Content="{Binding NcfSwitchTexto}"
+                        IsEnabled="{Binding HayNcfConfigurado}"
                         IsChecked="{Binding NcfDeSecuencia}" />
             </StackPanel>
           </Grid>

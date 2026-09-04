@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Documents;
 using Microsoft.Win32;
@@ -26,6 +26,7 @@ public partial class DocumentoPreviewWindow : Window
         Func<Task>? archivar = null)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         Title = titulo;
         _descripcion = descripcion;

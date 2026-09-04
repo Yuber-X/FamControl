@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 
@@ -17,7 +17,7 @@ public class PanelDealService
     public Task<ResumenPanelDeal> ObtenerResumenAsync(CancellationToken ct = default)
     {
         if (!SesionActual.TienePermiso(Permisos.Panel))
-            throw new UnauthorizedAccessException("No tenés permiso para ver el panel del dealer.");
+            throw new UnauthorizedAccessException("No tienes permiso para ver el panel del dealer.");
         return _repositorio.ObtenerResumenAsync(ct);
     }
 }

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
@@ -105,7 +105,7 @@ public partial class ClienteFichaViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Arma las tres líneas del historial. Se redacta acá, en el ViewModel, para
+    /// Arma las tres líneas del historial. Se redacta aquí, en el ViewModel, para
     /// que la View no tenga que decidir nada — solo pintar según ConductaClave.
     /// </summary>
     private void MostrarConducta(ClienteConducta c)

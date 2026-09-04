@@ -2,6 +2,113 @@
 
 > Actualizado: 2026-08-20 (ronda de la prueba de Veronica — version 2.0.2)
 
+## Ronda del 2026-09-04
+
+Pedidos del txt de `Freelancer - Claude Active\FamControl`.
+
+- [x] Botones de Nuevo Prestamo: 2 arriba compartiendo ancho, 1 abajo completo;
+      los 3 del lateral reparten el ancho, texto mas grande y centrado
+- [x] Todos los checkboxes clasicos a moderno (24). Estilo nuevo
+      `Casilla.Moderna` para las 3 listas de permisos
+- [x] Ventanas auto-ajustables: `VentanaAjustable` en las 24 + scroll y
+      redimension en 7 formularios
+- [x] BUG: el Launcher no abria maximizado (regresion del propio VentanaAjustable)
+- [x] BUG: el boton de cerrar sesion salia como cuadrito vacio (U+23FB sin
+      fuente declarada). Barrido de todo el XAML: no hay mas casos
+- [x] "Guardar e imprimir" -> "Crear e imprimir"
+- [x] Todos los campos del notarial en Nuevo Prestamo, precargados desde
+      Configuracion, en rejilla de 3 columnas
+- [x] Interruptor "Guardar estos datos en Configuracion"
+- [x] Acta CONGELADA con el prestamo (migracion 045, tabla prestamo_acta)
+- [x] Editar el acta desde Prestamos > Detalle > Editar, incluso con cobros
+- [x] Voseo -> tuteo dominicano: 256 cambios en 2 pasadas
+- [x] Lo de la factura de Jean Carlo: era un error real y ya estaba arreglado
+      ("Pagado" vs "Abonado (parcial)"). El recibo de la foto es anterior
+
+### Pendiente de probar a mano
+- [ ] Abrir el Launcher y confirmar que sale maximizado
+- [ ] Mirar la barra del perfil: los 3 iconos tienen que verse (ninguno cuadrado)
+- [ ] Crear un prestamo con el acta llena, imprimir, despues CAMBIAR el notario
+      en Configuracion y reimprimir: tiene que salir el notario viejo
+- [ ] Corregir el notario desde Prestamos > Detalle > Editar y reimprimir
+- [ ] Prender "Guardar estos datos en Configuracion", crear el prestamo y
+      verificar que Configuracion quedo con los datos nuevos
+- [ ] Revisar que ningun texto de la app quedo en voseo
+- [ ] Abrir Editar prestamo y Contratos en una pantalla chica: deben entrar y
+      poder scrollearse
+
+### Falta de la lista
+- [ ] Barrido general de errores (impresiones, archivos, calculos)
+- [ ] Actualizador para el cliente + rehacer el instalador
+
+## Ronda de los tres contratos (2026-09-03)
+
+- [x] Pagare notarial armado desde la plantilla del cliente, con las fallas
+      evidentes corregidas (dos clausulas "QUINTO", la frase cortada, erratas)
+- [x] `NumeroALetras`: montos, porcentajes, plazos y fechas en letras
+- [x] Concordancia de genero en toda el acta (sexo del deudor y de cada parte)
+- [x] Tercer documento: el acta + la tabla de cuotas atras
+- [x] Migracion 044: doce columnas del acta en `prestamo` + garantia a TEXT
+- [x] Configuracion > Pagare notarial: notario, representante, 2 testigos,
+      asiento social y condiciones por defecto
+- [x] Nuevo Prestamo: seccion plegable con los datos del acta (todos opcionales)
+- [x] Nuevo Prestamo: 3 tildes para elegir que se imprime (se recuerdan por PC)
+- [x] Nuevo Prestamo: "Crear prestamo" solo guarda; "Guardar e imprimir" guarda
+      e imprime lo tildado
+- [x] Nuevo Prestamo: 3 botones sobre la vista previa lateral
+- [x] Contratos (almacen): el boton "Pagare" pasa a "Contratos" y abre los tres
+- [x] Prestamos > Detalle: boton "Contratos" + tarjeta con lo cargado del acta
+- [x] ARREGLADO: el pagare nunca se archivaba (las dos pantallas no le pasaban
+      el expediente a PagareWindow). Ahora los tres quedan archivados al imprimir
+- [x] `PagareWindow` eliminada, reemplazada por `ContratosWindow`
+
+### Pendiente de probar a mano
+- [ ] Crear un prestamo con los tres tildados y contar que salgan tres papeles
+- [ ] Verificar que los tres quedaron en Prestamos > Detalle > Archivos
+- [ ] Crear un prestamo SIN datos del acta e imprimir el notarial: tiene que
+      salir con rayas, no con basura ni con error
+- [ ] Cargar el notario y los testigos en Configuracion y confirmar que el aviso
+      de "falta..." desaparece
+- [ ] Un acta con deudora mujer: revisar que diga dominicana, domiciliada,
+      portadora y LA DEUDORA
+- [ ] Una garantia larga (la del modelo del cliente) y ver que entre completa
+- [ ] Un prestamo de 48 cuotas con el combinado: contar que la tabla llegue
+      entera y no se corte
+- [ ] Los 3 botones del lateral en Nuevo Prestamo, y que el mismo boton vuelva
+      a la tabla de amortizacion
+
+### Decision pendiente del cliente
+- [ ] La mora del 20% se imprime en el acta pero el sistema NO la calcula:
+      FAControl no tiene concepto de recargo por atraso. Si la van a cobrar de
+      verdad es una funcionalidad aparte.
+
+## Ronda del comprobante que se aprende solo (2026-09-03)
+
+Pedido de Yuber sobre el NCF, en `Freelancer - Claude Active\FamControl`.
+
+- [x] Marcador con el proximo comprobante en las 5 cajas de NCF (cobro de cuota,
+      prestamo nuevo, cobro de alquiler, abono a plazo, "Asignar" del detalle)
+- [x] Sin secuencia configurada NO se muestra marcador en ninguna caja
+- [x] El switch nombra el numero ("Usar el comprobante B0200000046") y se
+      deshabilita cuando no hay secuencia
+- [x] El NCF digitado a mano queda de predeterminado y la secuencia continua
+      desde el (los 5 caminos), y se reaplica cada vez que se cambia
+- [x] Configuracion > NCF: la casilla limpia TODO al encenderse
+- [x] Propiedad adjunta `Marcador.Texto` reusable en `Input.Texto`
+- [x] 328 tests de servicios + los de datos en verde
+
+### Pendiente de probar a mano
+- [ ] Entrar a Cobros SIN secuencia configurada: la caja de NCF no debe mostrar
+      marcador y el switch tiene que verse apagado y deshabilitado
+- [ ] Configurar B02 proxima 45 y confirmar que las 5 cajas muestran B0200000045
+- [ ] Digitar B0200000060 en un cobro, guardar, y verificar en Configuracion que
+      la proxima quedo en 61
+- [ ] Pegar un e-NCF de otra serie (E32...) y confirmar que la serie activa cambia
+- [ ] Digitar un numero MAS VIEJO de la misma serie: la secuencia no debe retroceder
+- [ ] Configuracion: apagar la casilla, guardar, volver a encenderla y confirmar
+      que los campos quedan vacios
+- [ ] Repetir en DealControl y confirmar que la secuencia de PrestControl no se movio
+
 ## Ronda del comprobante fiscal y las impresiones (2026-08-27)
 
 Pedido del cliente en `Freelancer - Claude Active\FamControl\About the FamControl.txt`

@@ -1,7 +1,8 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:m="clr-namespace:FAControl.Models;assembly=FAControl.Models"
-                    xmlns:pos="clr-namespace:FAControl.Models.Pos;assembly=FAControl.Models">
+                    xmlns:pos="clr-namespace:FAControl.Models.Pos;assembly=FAControl.Models"
+                    xmlns:v="clr-namespace:FAControl.Views">
 
   <!-- ============================================================
        Botones — DESIGN.md §8: radius 8, altura 40, hover -8% luz
@@ -116,6 +117,61 @@
   </Style>
 
   <!-- ============================================================
+       Toggle.Segmento — selector de a varios (contratos, 2026-09-03)
+       Apagado se lee como un boton secundario; encendido se pinta con el
+       primario para que se vea a un metro cual esta en pantalla.
+       ============================================================ -->
+  <Style x:Key="Toggle.Segmento" TargetType="ToggleButton">
+    <!-- Sin MinWidth ni Height fijos: estos botones se reparten el ancho de su
+         contenedor, y en el panel lateral (que es angosto) un minimo los hacia
+         desbordar. El alto crece si el texto tiene que partirse en dos lineas. -->
+    <Setter Property="MinHeight" Value="40" />
+    <Setter Property="Padding" Value="10,6" />
+    <Setter Property="FontFamily" Value="{StaticResource Fuente.Interfaz}" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ToggleButton">
+          <Border x:Name="Fondo"
+                  Background="{DynamicResource Brush.FondoCard}"
+                  BorderBrush="{DynamicResource Brush.BordeEstandar}"
+                  BorderThickness="1"
+                  CornerRadius="8"
+                  Padding="{TemplateBinding Padding}">
+            <!-- TextBlock y no ContentPresenter: TextWrapping no es propiedad
+                 adjunta, asi que con un presenter el rotulo se recortaba en vez
+                 de partirse. Estos botones siempre llevan texto. -->
+            <TextBlock Text="{TemplateBinding Content}"
+                       TextWrapping="Wrap" TextAlignment="Center"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Fondo" Property="BorderBrush"
+                      Value="{DynamicResource Brush.Primario}" />
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Fondo" Property="Background"
+                      Value="{DynamicResource Brush.Primario}" />
+              <Setter TargetName="Fondo" Property="BorderBrush"
+                      Value="{DynamicResource Brush.Primario}" />
+              <Setter Property="Foreground" Value="White" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Fondo" Property="Opacity" Value="0.5" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ============================================================
        Inputs — altura 40, borde #D4D4D3, focus indigo
        ============================================================ -->
   <Style x:Key="Input.Texto" TargetType="TextBox">
@@ -135,12 +191,28 @@
                   BorderBrush="{TemplateBinding BorderBrush}"
                   BorderThickness="{TemplateBinding BorderThickness}"
                   CornerRadius="8">
-            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
-                          VerticalAlignment="Center" />
+            <Grid>
+              <!-- Marcador: se ve solo con el campo vacio. IsHitTestVisible=False
+                   para que el clic caiga en la caja y no en el texto gris. -->
+              <TextBlock x:Name="Marcador" Visibility="Collapsed"
+                         Text="{Binding (v:Marcador.Texto), RelativeSource={RelativeSource TemplatedParent}}"
+                         Margin="{TemplateBinding Padding}"
+                         VerticalAlignment="Center"
+                         FontFamily="{TemplateBinding FontFamily}"
+                         FontSize="{TemplateBinding FontSize}"
+                         Foreground="{DynamicResource Brush.TextoTerciario}"
+                         TextTrimming="CharacterEllipsis"
+                         IsHitTestVisible="False" />
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                            VerticalAlignment="Center" />
+            </Grid>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Borde" Property="BorderBrush" Value="{DynamicResource Brush.Primario}" />
+            </Trigger>
+            <Trigger Property="Text" Value="">
+              <Setter TargetName="Marcador" Property="Visibility" Value="Visible" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -210,6 +282,78 @@
     <Setter Property="FontFamily" Value="{DynamicResource Fuente.Interfaz}" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
+  <!-- ============================================================
+       Casilla.Moderna: la casilla de toda la vida, pero dibujada por
+       nosotros (cuadrito redondeado + palomita vectorial) en vez de por
+       el chrome de Windows.
+
+       Convive con Switch.Moderno y NO lo reemplaza. La diferencia es de
+       significado, no de gusto:
+         · Switch  → prender o apagar un modo ("modo oscuro", "cobrar ITBIS").
+         · Casilla → marcar opciones de una LISTA (los permisos por pantalla).
+       Veinte interruptores uno al lado del otro en la grilla de permisos
+       serian ilegibles y ocuparian el triple de ancho.
+
+       Sigue siendo un CheckBox: IsChecked, comandos y binding no cambian.
+       ============================================================ -->
+  <Style x:Key="Casilla.Moderna" TargetType="CheckBox">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextoPrincipal}" />
+    <Setter Property="FontFamily" Value="{DynamicResource Fuente.Interfaz}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="CheckBox">
+          <StackPanel Orientation="Horizontal" Background="Transparent">
+            <Border x:Name="Caja" Width="18" Height="18" CornerRadius="5"
+                    BorderThickness="1.5" VerticalAlignment="Center"
+                    Background="{DynamicResource Brush.FondoCard}"
+                    BorderBrush="{DynamicResource Brush.BordeEstandar}">
+              <!-- Palomita vectorial: nitida a cualquier escala y sin fuentes -->
+              <Path x:Name="Palomita" Visibility="Collapsed"
+                    Data="M 0,4 L 3.2,7.2 L 9,1"
+                    Stroke="White" StrokeThickness="2"
+                    StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                    StrokeLineJoin="Round"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ContentPresenter x:Name="Texto" Margin="8,0,0,0"
+                              VerticalAlignment="Center"
+                              RecognizesAccessKey="True"
+                              TextBlock.Foreground="{TemplateBinding Foreground}" />
+          </StackPanel>
+
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Caja" Property="Background"
+                      Value="{DynamicResource Brush.Primario}" />
+              <Setter TargetName="Caja" Property="BorderBrush"
+                      Value="{DynamicResource Brush.Primario}" />
+              <Setter TargetName="Palomita" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <!-- Tercer estado (null): raya en vez de palomita -->
+            <Trigger Property="IsChecked" Value="{x:Null}">
+              <Setter TargetName="Caja" Property="Background"
+                      Value="{DynamicResource Brush.Primario}" />
+              <Setter TargetName="Caja" Property="BorderBrush"
+                      Value="{DynamicResource Brush.Primario}" />
+              <Setter TargetName="Palomita" Property="Visibility" Value="Visible" />
+              <Setter TargetName="Palomita" Property="Data" Value="M 0,4 L 9,4" />
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Caja" Property="BorderBrush"
+                      Value="{DynamicResource Brush.Primario}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.5" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- ============================================================
        Switch.Moderno: CheckBox con apariencia de interruptor deslizante.
        El CheckBox nativo usa el chrome de Windows — el mismo look "Windows
@@ -845,7 +989,7 @@
        Punto de venta (POS-500, 2026-07-30)
        Reusan los mismos brushes del semáforo de cobros: verde/amarillo/
        naranja/rojo ya estaban definidos para las cuotas, y significan lo
-       mismo acá — de más lejos a más urgente.
+       mismo aquí — de más lejos a más urgente.
        ============================================================ -->
 
   <!-- Semáforo de caducidad de un producto -->

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -98,11 +98,11 @@ public partial class GastosViewModel : ObservableObject
         {
             MensajeError = string.Empty;
             if (VehiculoSeleccionado is null)
-                throw new ArgumentException("Elegí un vehículo primero.");
+                throw new ArgumentException("Elige un vehículo primero.");
             if (string.IsNullOrWhiteSpace(Concepto))
-                throw new ArgumentException("Ingresá el concepto del gasto.");
+                throw new ArgumentException("Ingresa el concepto del gasto.");
             if (!decimal.TryParse(MontoTexto, NumberStyles.Number, CulturaRd, out var monto) || monto <= 0m)
-                throw new ArgumentException("Ingresá un monto válido mayor que cero.");
+                throw new ArgumentException("Ingresa un monto válido mayor que cero.");
 
             await _gastos.AgregarAsync(new VehiculoGastoDatos(
                 VehiculoSeleccionado.Id, Concepto.Trim(), monto, DateOnly.FromDateTime(FechaGasto)));

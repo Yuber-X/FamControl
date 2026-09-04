@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -146,7 +146,7 @@ public partial class VehiculoFichaViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(ReparacionCostoTexto) &&
             (!decimal.TryParse(ReparacionCostoTexto, NumberStyles.Number, Textos.CulturaRd, out costo) || costo < 0m))
         {
-            MensajeReparacion = "Ingresá un costo válido (ej. 12,500) o dejalo vacío.";
+            MensajeReparacion = "Ingresa un costo válido (ej. 12,500) o dejalo vacío.";
             return;
         }
 

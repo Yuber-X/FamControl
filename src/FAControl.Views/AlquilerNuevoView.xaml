@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.AlquilerNuevoView"
+﻿<UserControl x:Class="FAControl.Views.AlquilerNuevoView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -59,7 +59,7 @@
                      Text="{Binding TarifaMesTexto, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
           </StackPanel>
         </Grid>
-        <TextBlock Text="Escribí una de las dos y la otra se completa sola (mes = 30 días). El total se calcula con la tarifa por día."
+        <TextBlock Text="Escribe una de las dos y la otra se completa sola (mes = 30 días). El total se calcula con la tarifa por día."
                    Style="{DynamicResource Texto.Caption}"
                    Foreground="{DynamicResource Brush.TextoSecundario}"
                    TextWrapping="Wrap" Margin="0,6,0,0" />

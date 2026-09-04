@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using FAControl.Models;
@@ -27,6 +27,7 @@ public partial class EditarAlquilerWindow : Window
     public EditarAlquilerWindow(AlquilerParaEditar datos)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         _datos = datos;
 
@@ -53,7 +54,7 @@ public partial class EditarAlquilerWindow : Window
 
         if (!TryLeer(out var inicio, out var fin, out var tarifa))
         {
-            TextoCuenta.Text = "Completá las fechas y la tarifa para ver cómo queda.";
+            TextoCuenta.Text = "Completa las fechas y la tarifa para ver cómo queda.";
             return;
         }
         if (fin < inicio)
@@ -85,13 +86,13 @@ public partial class EditarAlquilerWindow : Window
     {
         if (string.IsNullOrWhiteSpace(CajaMotivo.Text))
         {
-            TextoError.Text = "Escribí por qué se corrige: queda en el historial.";
+            TextoError.Text = "Escribe por qué se corrige: queda en el historial.";
             CajaMotivo.Focus();
             return;
         }
         if (!TryLeer(out var inicio, out var fin, out var tarifa))
         {
-            TextoError.Text = "Revisá las fechas y la tarifa: la tarifa tiene que ser mayor que cero.";
+            TextoError.Text = "Revisa las fechas y la tarifa: la tarifa tiene que ser mayor que cero.";
             return;
         }
         if (fin < inicio)

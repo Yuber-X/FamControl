@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 
 namespace FAControl.Views;
 
@@ -13,6 +13,7 @@ public partial class HistorialFichaWindow : Window
         string entidad, string descripcion)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         ValorFecha.Text = fecha;
         ValorUsuario.Text = usuario;

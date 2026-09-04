@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
 using FAControl.Models;
@@ -20,7 +20,7 @@ namespace FAControl.ViewModels;
 /// antes fue justamente lo que se pidió sacar.
 ///
 /// El expediente en sí es el mismo control compartido que usan DealControl y
-/// Alquileres; acá solo se le da marco, contexto del contrato y una salida
+/// Alquileres; aquí solo se le da marco, contexto del contrato y una salida
 /// rápida a la ficha del cliente.
 /// </summary>
 public partial class ExpedienteContratoViewModel : ObservableObject

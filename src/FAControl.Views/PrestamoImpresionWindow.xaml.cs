@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using FAControl.Models;
 using FAControl.Printing;
 using Serilog;
@@ -17,6 +17,7 @@ public partial class PrestamoImpresionWindow : Window
     public PrestamoImpresionWindow(PrestamoImpreso prestamo)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         _prestamo = prestamo;
         ContenedorPrestamo.Content = PrestamoVisualFactory.Crear(prestamo);

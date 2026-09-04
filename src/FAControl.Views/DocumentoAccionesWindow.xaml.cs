@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows;
 using FAControl.ViewModels;
 using Microsoft.Win32;
@@ -11,7 +11,7 @@ namespace FAControl.Views;
 /// Abrir, Guardar copia, Re-ubicar y Eliminar.
 ///
 /// Re-ubicar y Eliminar SOLO aparecen para un Admin. La regla real vive en
-/// ExpedienteService: acá se ocultan para no ofrecer lo que va a ser rechazado.
+/// ExpedienteService: aquí se ocultan para no ofrecer lo que va a ser rechazado.
 /// </summary>
 public partial class DocumentoAccionesWindow : Window
 {
@@ -21,6 +21,7 @@ public partial class DocumentoAccionesWindow : Window
     public DocumentoAccionesWindow(ExpedienteViewModel vm, DocumentoFila fila)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         _vm = vm;
         _fila = fila;
 
@@ -81,7 +82,7 @@ public partial class DocumentoAccionesWindow : Window
     {
         if (ComboDestinos.SelectedItem is not DestinoDocumento destino)
         {
-            MessageBox.Show(this, "Elegí a qué contrato hay que mover el documento.",
+            MessageBox.Show(this, "Elige a qué contrato hay que mover el documento.",
                 "Re-ubicar", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }

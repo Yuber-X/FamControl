@@ -165,7 +165,7 @@ public partial class ConfiguracionView : UserControl
             return;
         var dialogo = new OpenFolderDialog
         {
-            Title = "Carpeta para los respaldos automáticos (podés elegir la de OneDrive/Google Drive)"
+            Title = "Carpeta para los respaldos automáticos (puedes elegir la de OneDrive/Google Drive)"
         };
         if (dialogo.ShowDialog(Window.GetWindow(this)) == true)
             Vm.RespaldoCarpeta = dialogo.FolderName;

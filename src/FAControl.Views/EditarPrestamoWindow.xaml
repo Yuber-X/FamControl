@@ -1,12 +1,19 @@
-<Window x:Class="FAControl.Views.EditarPrestamoWindow"
+﻿<Window x:Class="FAControl.Views.EditarPrestamoWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Corregir préstamo"
         Width="560" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
+        MinWidth="460" MinHeight="320"
+        ResizeMode="CanResize"
         Background="{DynamicResource Brush.FondoApp}">
 
+  <!-- ScrollViewer + CanResize (2026-09-04): con alto fijo por contenido y sin
+       redimensionar, en una pantalla de laptop el formulario crecia por debajo
+       del borde y los botones de guardar quedaban fuera de vista, sin forma de
+       llegar a ellos. VentanaAjustable la recorta al alto de la pantalla y esto
+       hace que lo que sobre se pueda scrollear. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
   <Border Margin="24" Style="{DynamicResource Card}">
     <StackPanel>
       <TextBlock x:Name="TextoTitulo" Style="{DynamicResource Texto.Titulo3}" TextWrapping="Wrap" />
@@ -100,6 +107,277 @@
                TextWrapping="Wrap" AcceptsReturn="True"
                VerticalContentAlignment="Top" Padding="10,8" />
 
+
+      <!-- ============ PAGARÉ NOTARIAL (2026-09-04) ============
+           Pedido del cliente: "si el usuario llegó a hacer un error al llenar
+           el notarial con los datos que se le otorgaron, solo tendrá que
+           editarlo desde préstamos y listo".
+
+           Va FUERA de ZonaMontos a propósito: son datos de un papel, no del
+           dinero, así que se pueden corregir aunque el préstamo ya tenga
+           cobros. Lo que se guarde acá reemplaza la copia congelada, que es la
+           que se usa al reimprimir. -->
+      <Expander Margin="0,16,0,0" IsExpanded="False">
+        <Expander.Header>
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="Datos del pagaré notarial" Style="{DynamicResource Texto.Titulo3}" />
+            <TextBlock Text="(se puede corregir aunque haya cobros)" Margin="8,0,0,0"
+                       VerticalAlignment="Center" Style="{DynamicResource Texto.Caption}" />
+          </StackPanel>
+        </Expander.Header>
+
+        <StackPanel Margin="0,10,0,0">
+          <TextBlock Style="{DynamicResource Texto.Caption}" TextWrapping="Wrap" Margin="0,0,0,6"
+                     Text="Lo que se guarde acá es lo que va a salir al reimprimir el contrato de este préstamo. No toca la configuración del negocio ni los demás contratos." />
+
+      <TextBlock Text="EL ACTO" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,8">
+          <TextBlock Text="Acto No." Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaActoNo" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,10,8">
+          <TextBlock Text="Folio No." Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaFolioNo" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+          <TextBlock Text="Fecha del acto" Style="{DynamicResource Input.Label}" />
+          <DatePicker x:Name="ActaFecha" Height="32" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+          <TextBlock Text="Municipio del acto" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaMunicipio" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="EL DEUDOR, COMO LO DESCRIBE EL ACTA" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,8">
+          <TextBlock Text="Sexo" Style="{DynamicResource Input.Label}" />
+          <ComboBox x:Name="ActaDeudorSexo" Height="32"
+                     ToolTip="El acta se escribe en masculino o femenino según esto" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,10,8">
+          <TextBlock Text="Nacionalidad" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaDeudorNacionalidad" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+          <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaDeudorEstadoCivil" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+          <TextBlock Text="Ocupación" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaDeudorOcupacion" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="EL NOTARIO" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,10,8">
+          <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaNotarioNombre" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+          <TextBlock Text="Matrícula" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaNotarioMatricula" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,8">
+          <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaNotarioCedula" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,10,8">
+          <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaNotarioEstadoCivil" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+          <TextBlock Text="Domicilio profesional" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaNotarioDomicilio" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="QUIEN FIRMA POR LA EMPRESA" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,10,8">
+          <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaReprNombre" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+          <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaReprCedula" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,8">
+          <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaReprEstadoCivil" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,10,8">
+          <TextBlock Text="Ocupación" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaReprOcupacion" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <CheckBox Grid.Row="1" Grid.Column="2" x:Name="ActaReprMujer" Style="{DynamicResource Switch.Moderno}"
+                  Margin="0,18,10,8" FontSize="12" Content="Es mujer" />
+        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+          <TextBlock Text="Domicilio" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaReprDomicilio" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="TESTIGO 1" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,10,8">
+          <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaT1Nombre" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+          <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaT1Cedula" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,8">
+          <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaT1EstadoCivil" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,10,8">
+          <TextBlock Text="Ocupación" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaT1Ocupacion" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <CheckBox Grid.Row="1" Grid.Column="2" x:Name="ActaT1Mujer" Style="{DynamicResource Switch.Moderno}"
+                  Margin="0,18,10,8" FontSize="12" Content="Es mujer" />
+        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+          <TextBlock Text="Domicilio" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaT1Domicilio" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="TESTIGO 2" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,10,8">
+          <TextBlock Text="Nombre" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaT2Nombre" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+          <TextBlock Text="Cédula" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaT2Cedula" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,10,8">
+          <TextBlock Text="Estado civil" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaT2EstadoCivil" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,10,8">
+          <TextBlock Text="Ocupación" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaT2Ocupacion" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <CheckBox Grid.Row="1" Grid.Column="2" x:Name="ActaT2Mujer" Style="{DynamicResource Switch.Moderno}"
+                  Margin="0,18,10,8" FontSize="12" Content="Es mujer" />
+        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+          <TextBlock Text="Domicilio" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaT2Domicilio" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="LA EMPRESA" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+          <TextBlock Text="Asiento social (dirección)" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaEmpresaDireccion" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="CONDICIONES DEL CONTRATO" Style="{DynamicResource Texto.MicroLabel}" Margin="0,10,0,6" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,8">
+          <TextBlock Text="Cuotas en atraso que vencen el plazo" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaCuotasExigibilidad" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,10,8">
+          <TextBlock Text="Días de gracia" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaDiasGracia" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,10,8">
+          <TextBlock Text="Mora (%)" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaMora" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,10,8">
+          <TextBlock Text="Registro de Títulos" Style="{DynamicResource Input.Label}" />
+          <TextBox x:Name="ActaRegistroTitulos" Height="32" Style="{DynamicResource Input.Texto}" />
+        </StackPanel>
+      </Grid>
+        </StackPanel>
+      </Expander>
+
       <TextBlock Text="¿Por qué se corrige? (queda en el historial)"
                  Style="{DynamicResource Input.Label}" Margin="0,12,0,0" />
       <TextBox x:Name="CajaMotivo" Height="34" Style="{DynamicResource Input.Texto}" />
@@ -121,4 +399,5 @@
       </Grid>
     </StackPanel>
   </Border>
+  </ScrollViewer>
 </Window>

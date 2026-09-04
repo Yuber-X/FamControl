@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Documents;
 using Microsoft.Win32;
 using FAControl.Printing;
@@ -21,6 +21,7 @@ public partial class DocumentoDealWindow : Window
     public DocumentoDealWindow(string titulo, string nombreArchivo, Func<FlowDocument> fabrica)
     {
         InitializeComponent();
+        VentanaAjustable.Ajustar(this);
         ChromeVentana.OcultarBotones(this);
         _fabrica = fabrica;
         _titulo = titulo;

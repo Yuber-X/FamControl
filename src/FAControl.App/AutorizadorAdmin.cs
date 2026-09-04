@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using FAControl.Services;
 using FAControl.Views;
 
@@ -28,7 +28,7 @@ public class AutorizadorAdmin : IAutorizadorAdmin
             return resultado is null
                 // Mensaje deliberadamente ambiguo: no revela si el usuario
                 // existe, si la contraseña falló o si le falta el permiso.
-                ? "No se pudo autorizar. Verificá el usuario y la contraseña, " +
+                ? "No se pudo autorizar. Verifica el usuario y la contraseña, " +
                   "y que esa cuenta tenga permiso para autorizar préstamos."
                 : null;
         });

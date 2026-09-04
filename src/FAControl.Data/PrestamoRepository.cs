@@ -27,10 +27,16 @@ public class PrestamoRepository
         cmd.CommandText = $"""
             INSERT INTO {DbNames.Prestamo}
               (codigo, ncf, cliente_id, vehiculo_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
-               modalidad, metodo_amortizacion, cuota_inicio_capital, fecha_inicio, garantia, estado, notas)
+               modalidad, metodo_amortizacion, cuota_inicio_capital, fecha_inicio, garantia, estado, notas,
+               acto_no, folio_no, fecha_acto, municipio_acto,
+               deudor_sexo, deudor_nacionalidad, deudor_estado_civil, deudor_ocupacion,
+               cuotas_exigibilidad, dias_gracia, mora_porcentaje, registro_titulos)
             VALUES
               (@codigo, @ncf, @clienteId, @vehiculoId, @montoCapital, @moneda, @tasaInteres, @plazoCuotas,
-               @modalidad, @metodo, @cuotaInicioCapital, @fechaInicio, @garantia, @estado, @notas);
+               @modalidad, @metodo, @cuotaInicioCapital, @fechaInicio, @garantia, @estado, @notas,
+               @actoNo, @folioNo, @fechaActo, @municipioActo,
+               @deudorSexo, @deudorNacionalidad, @deudorEstadoCivil, @deudorOcupacion,
+               @cuotasExigibilidad, @diasGracia, @moraPorcentaje, @registroTitulos);
             SELECT LAST_INSERT_ID();
             """;
         cmd.Parameters.AddWithValue("@codigo", prestamo.Codigo);
@@ -49,6 +55,7 @@ public class PrestamoRepository
         cmd.Parameters.AddWithValue("@garantia", (object?)prestamo.Garantia ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@estado", EnumMap.ADb(prestamo.Estado));
         cmd.Parameters.AddWithValue("@notas", (object?)prestamo.Notas ?? DBNull.Value);
+        AgregarParametrosNotariales(cmd, prestamo);
         return Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
     }
 
@@ -256,7 +263,10 @@ public class PrestamoRepository
         cmd.CommandText = $"""
             SELECT id, codigo, ncf, cliente_id, vehiculo_id, monto_capital, moneda, tasa_interes, plazo_cuotas,
                    modalidad, metodo_amortizacion, cuota_inicio_capital, fecha_inicio,
-                   garantia, estado, notas, created_at, updated_at
+                   garantia, estado, notas, created_at, updated_at,
+                   acto_no, folio_no, fecha_acto, municipio_acto,
+                   deudor_sexo, deudor_nacionalidad, deudor_estado_civil, deudor_ocupacion,
+                   cuotas_exigibilidad, dias_gracia, mora_porcentaje, registro_titulos
             FROM {DbNames.Prestamo}
             WHERE id = @id;
             """;
@@ -289,8 +299,54 @@ public class PrestamoRepository
             CreatedAtUtc = DateTime.SpecifyKind(reader.GetDateTime("created_at"), DateTimeKind.Utc),
             UpdatedAtUtc = reader.IsDBNull(reader.GetOrdinal("updated_at"))
                 ? null
-                : DateTime.SpecifyKind(reader.GetDateTime("updated_at"), DateTimeKind.Utc)
+                : DateTime.SpecifyKind(reader.GetDateTime("updated_at"), DateTimeKind.Utc),
+
+            // ---- Pagaré notarial (044) ----
+            ActoNo = Texto(reader, "acto_no"),
+            FolioNo = Texto(reader, "folio_no"),
+            FechaActo = reader.IsDBNull(reader.GetOrdinal("fecha_acto"))
+                ? null
+                : DateOnly.FromDateTime(reader.GetDateTime("fecha_acto")),
+            MunicipioActo = Texto(reader, "municipio_acto"),
+            DeudorSexo = (SexoPersona)reader.GetInt32("deudor_sexo"),
+            DeudorNacionalidad = Texto(reader, "deudor_nacionalidad"),
+            DeudorEstadoCivil = Texto(reader, "deudor_estado_civil"),
+            DeudorOcupacion = Texto(reader, "deudor_ocupacion"),
+            CuotasExigibilidad = Entero(reader, "cuotas_exigibilidad"),
+            DiasGracia = Entero(reader, "dias_gracia"),
+            MoraPorcentaje = reader.IsDBNull(reader.GetOrdinal("mora_porcentaje"))
+                ? null
+                : reader.GetDecimal("mora_porcentaje"),
+            RegistroTitulos = Texto(reader, "registro_titulos")
         };
+    }
+
+    private static string? Texto(MySqlDataReader reader, string columna) =>
+        reader.IsDBNull(reader.GetOrdinal(columna)) ? null : reader.GetString(columna);
+
+    private static int? Entero(MySqlDataReader reader, string columna) =>
+        reader.IsDBNull(reader.GetOrdinal(columna)) ? null : reader.GetInt32(columna);
+
+    /// <summary>
+    /// Los datos del acta notarial (044). Van juntos en un método aparte porque
+    /// son doce parámetros que siempre viajan iguales, y porque el INSERT ya
+    /// tenía bastante ruido.
+    /// </summary>
+    private static void AgregarParametrosNotariales(MySqlCommand cmd, Prestamo prestamo)
+    {
+        cmd.Parameters.AddWithValue("@actoNo", (object?)prestamo.ActoNo ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@folioNo", (object?)prestamo.FolioNo ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@fechaActo",
+            (object?)prestamo.FechaActo?.ToDateTime(TimeOnly.MinValue) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@municipioActo", (object?)prestamo.MunicipioActo ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@deudorSexo", (int)prestamo.DeudorSexo);
+        cmd.Parameters.AddWithValue("@deudorNacionalidad", (object?)prestamo.DeudorNacionalidad ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@deudorEstadoCivil", (object?)prestamo.DeudorEstadoCivil ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@deudorOcupacion", (object?)prestamo.DeudorOcupacion ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@cuotasExigibilidad", (object?)prestamo.CuotasExigibilidad ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@diasGracia", (object?)prestamo.DiasGracia ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@moraPorcentaje", (object?)prestamo.MoraPorcentaje ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@registroTitulos", (object?)prestamo.RegistroTitulos ?? DBNull.Value);
     }
 
     /// <summary>
@@ -397,7 +453,15 @@ public class PrestamoRepository
                 plazo_cuotas = @plazoCuotas, modalidad = @modalidad,
                 metodo_amortizacion = @metodo, cuota_inicio_capital = @cuotaInicioCapital,
                 fecha_inicio = @fechaInicio,
-                garantia = @garantia, notas = @notas, updated_at = UTC_TIMESTAMP()
+                garantia = @garantia, notas = @notas,
+                acto_no = @actoNo, folio_no = @folioNo, fecha_acto = @fechaActo,
+                municipio_acto = @municipioActo, deudor_sexo = @deudorSexo,
+                deudor_nacionalidad = @deudorNacionalidad,
+                deudor_estado_civil = @deudorEstadoCivil,
+                deudor_ocupacion = @deudorOcupacion,
+                cuotas_exigibilidad = @cuotasExigibilidad, dias_gracia = @diasGracia,
+                mora_porcentaje = @moraPorcentaje, registro_titulos = @registroTitulos,
+                updated_at = UTC_TIMESTAMP()
             WHERE id = @id;
             """;
         cmd.Parameters.AddWithValue("@montoCapital", prestamo.MontoCapital);
@@ -410,6 +474,7 @@ public class PrestamoRepository
         cmd.Parameters.AddWithValue("@fechaInicio", prestamo.FechaInicio.ToDateTime(TimeOnly.MinValue));
         cmd.Parameters.AddWithValue("@garantia", (object?)prestamo.Garantia ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@notas", (object?)prestamo.Notas ?? DBNull.Value);
+        AgregarParametrosNotariales(cmd, prestamo);
         cmd.Parameters.AddWithValue("@id", prestamo.Id);
         await cmd.ExecuteNonQueryAsync(ct);
     }
@@ -419,7 +484,7 @@ public class PrestamoRepository
     ///
     /// La regla del CLAUDE.md ("nunca borrar cuotas de un préstamo activo")
     /// apunta a NO usar el borrado como forma de cancelar: para eso está
-    /// <see cref="CancelarCuotasImpagasAsync"/>, que las conserva. Acá es otra
+    /// <see cref="CancelarCuotasImpagasAsync"/>, que las conserva. Aquí es otra
     /// cosa: la tabla es un cálculo derivado del capital, la tasa y el plazo, y
     /// el servicio solo llega hasta aquí cuando NO hay ningún cobro, así que
     /// ninguna cuota tiene recibo colgando. Regenerarla es recalcular, no

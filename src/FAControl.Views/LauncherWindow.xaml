@@ -1,4 +1,4 @@
-<Window x:Class="FAControl.Views.LauncherWindow"
+﻿<Window x:Class="FAControl.Views.LauncherWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="FAControl — Familia Almonte Auto Import SRL"
@@ -199,7 +199,7 @@
       <!-- Arranque directo (pedido del cliente 2026-07-29): con esto marcado, el
            modo que se elija abajo pasa a abrirse solo la próxima vez que inicie
            la app. Se apaga desde Configuración de cualquier modo. -->
-      <CheckBox x:Name="CasillaArranqueDirecto" HorizontalAlignment="Center"
+      <CheckBox Style="{DynamicResource Switch.Moderno}" x:Name="CasillaArranqueDirecto" HorizontalAlignment="Center"
                 Margin="0,0,0,16" FontSize="12"
                 Foreground="{StaticResource Launcher.TextoSuave}"
                 Content="Abrir siempre el modo que elija, sin pasar por esta pantalla"

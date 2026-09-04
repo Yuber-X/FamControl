@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FAControl.Common;
 using FAControl.Services;
@@ -45,7 +45,7 @@ public partial class CodigosViewModel : ObservableObject
 
     /// <summary>
     /// True si la app se puede usar hoy (prueba viva, suite activada o algún
-    /// producto comprado). El launcher lo consulta acá y no en LicenciaService:
+    /// producto comprado). El launcher lo consulta aquí y no en LicenciaService:
     /// las Views no bajan a la capa de servicios (regla de dependencias).
     /// </summary>
     public bool PermiteUsar => _licencias.PermiteUsar;
@@ -130,7 +130,7 @@ public partial class CodigosViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(CarpetaRespaldo))
         {
             EsError = true;
-            Mensaje = "Elegí primero la carpeta donde guardar el respaldo.";
+            Mensaje = "Elige primero la carpeta donde guardar el respaldo.";
             return;
         }
 
@@ -183,7 +183,7 @@ public partial class CodigosViewModel : ObservableObject
         if (!ConfirmacionCorrecta)
         {
             EsError = true;
-            Mensaje = $"Escribí {PalabraDeConfirmacion} en mayúsculas para habilitar la operación.";
+            Mensaje = $"Escribe {PalabraDeConfirmacion} en mayúsculas para habilitar la operación.";
             return;
         }
 
@@ -193,8 +193,8 @@ public partial class CodigosViewModel : ObservableObject
             return;
 
         if (!_dialogos.Confirmar("Confirmación final",
-            "Última oportunidad. Si lo que querés es empezar de cero conservando un respaldo, " +
-            "cancelá y usá el código de \"respaldar y limpiar\".\n\n¿Eliminar todo ahora?"))
+            "Última oportunidad. Si lo que quieres es empezar de cero conservando un respaldo, " +
+            "cancela y usa el código de \"respaldar y limpiar\".\n\n¿Eliminar todo ahora?"))
             return;
 
         try
