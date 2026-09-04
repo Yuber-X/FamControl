@@ -49,7 +49,7 @@ public class NcfAutorizacionRealTests : IAsyncLifetime
 
         _prestamos = new PrestamoService(_factory, prestamoRepo, new ContadorRepository(),
             new AmortizacionService(), auditoria, new VehiculoRepository(_factory),
-            _ncfRepo, new PagoRepository(_factory));
+            _ncfRepo, new PagoRepository(_factory), new PrestamoActaRepository(_factory));
         _ncfServicio = new NcfService(_factory, _ncfRepo, prestamoRepo, auditoria);
 
         using var conexion = await _factory.AbrirAsync();
@@ -253,23 +253,36 @@ public class NcfAutorizacionRealTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// El e-NCF pegado a mano (Facturador Gratuito de la DGII) manda tal cual,
-    /// en mayúsculas, y NO mueve el contador de la secuencia local: ese número
-    /// lo emitió el portal, no la app.
+    /// El e-NCF pegado a mano (Facturador Gratuito de la DGII) manda tal cual y
+    /// en mayúsculas, y desde el 2026-09-03 ADEMÁS pasa a ser el predeterminado.
+    ///
+    /// Esta prueba afirmaba lo contrario ("no toca la secuencia local"), que era
+    /// el contrato hasta el 2026-09-02: el número lo había emitido el portal de
+    /// la DGII, no la app, así que la secuencia local no se movía. El cliente
+    /// pidió justo lo opuesto —"si se digita un NCF y la operación sale bien,
+    /// ese mismo NCF se toma como el predeterminado para continuar la
+    /// secuencia"— porque en la práctica dejaron de usar el talonario local y
+    /// numeran desde el Facturador: obligarlos a corregir Configuración a mano
+    /// después de cada cobro no tenía sentido.
+    ///
+    /// Se reescribe en vez de borrarse para que quede asentado que el cambio
+    /// fue pedido y no un descuido.
     /// </summary>
     [Fact]
-    public async Task El_comprobante_pegado_a_mano_va_al_recibo_sin_tocar_la_secuencia()
+    public async Task El_comprobante_pegado_a_mano_va_al_recibo_y_queda_de_predeterminado()
     {
         var (prestamoId, _) = await CrearPrestamoConComprobanteAsync();
         var pagos = CrearServicioDePagos();
-        var antes = (await _ncfRepo.ObtenerActivaAsync(SesionActual.Modo))!.Proxima;
 
         var resultado = await pagos.RegistrarPagoAsync(new SolicitudPago(
             prestamoId, UnaCuota, MetodoPago.Efectivo, null, Ncf: "e320000000045"));
 
         resultado.Recibo.Ncf.Should().Be("E320000000045");
-        (await _ncfRepo.ObtenerActivaAsync(SesionActual.Modo))!.Proxima
-            .Should().Be(antes, "un comprobante externo no consume la secuencia local");
+
+        var secuencia = (await _ncfRepo.ObtenerActivaAsync(SesionActual.Modo))!;
+        secuencia.Prefijo.Should().Be("E32", "la serie pegada a mano pasa a ser la activa");
+        secuencia.Largo.Should().Be(10);
+        secuencia.Proxima.Should().Be(46, "la secuencia continúa a partir del que se usó");
     }
 
     /// <summary>

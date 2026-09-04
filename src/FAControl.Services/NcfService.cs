@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FAControl.Data;
 using FAControl.Models;
 using Serilog;
@@ -12,7 +12,7 @@ namespace FAControl.Services;
 ///  * REGISTRAR: pegar el e-NCF generado por fuera (Facturador Gratuito).
 ///  * ASIGNAR: tomar el siguiente de la secuencia local autorizada
 ///    (reserva atómica FOR UPDATE; ver docs/NCF-DGII.md).
-/// Un NCF puesto en un préstamo NO se cambia desde acá (regla DGII: el
+/// Un NCF puesto en un préstamo NO se cambia desde aquí (regla DGII: el
 /// comprobante emitido es irreversible; una corrección es asunto del contador).
 /// </summary>
 public class NcfService
@@ -39,6 +39,49 @@ public class NcfService
     /// </summary>
     public Task<NcfSecuencia?> ObtenerSecuenciaAsync(CancellationToken ct = default) =>
         _ncf.ObtenerActivaAsync(SesionActual.Modo, ct);
+
+    /// <summary>
+    /// El próximo comprobante que entregaría la secuencia, ya formateado
+    /// (ej. "B0200000046"), para mostrarlo como marcador en las cajas de NCF
+    /// (pedido del cliente 2026-09-03).
+    ///
+    /// Null cuando NO hay que mostrar nada: esta estancia no configuró
+    /// secuencia, está apagada, venció o se agotó. Un marcador con un número
+    /// que la app no va a poder entregar sería peor que ninguno.
+    /// </summary>
+    public async Task<string?> ProximoNcfAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var secuencia = await ObtenerSecuenciaAsync(ct);
+            if (secuencia is null || !secuencia.Activo)
+                return null;
+            if (secuencia.EstaVencida(FechaNegocio.Hoy) || secuencia.EstaAgotada)
+                return null;
+            return secuencia.Formatear(secuencia.Proxima);
+        }
+        catch (Exception ex)
+        {
+            // Un marcador es una ayuda visual: si falla, la pantalla sigue.
+            Log.Warning(ex, "No se pudo calcular el próximo NCF para el marcador");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Adopta como predeterminado el comprobante que se acaba de usar a mano
+    /// (pedido del cliente 2026-09-03). Se llama DESPUÉS de que la operación
+    /// commiteó.
+    ///
+    /// NUNCA propaga: el cobro o el préstamo ya están guardados y son válidos.
+    /// Que no se haya podido mover la secuencia es un detalle de comodidad —
+    /// hacerlo estallar aquí le mostraría un error al cajero por una operación
+    /// que en realidad salió bien.
+    /// </summary>
+    public async Task AdoptarComoPredeterminadaAsync(string? ncfUsado, CancellationToken ct = default)
+    {
+        await NcfPredeterminado.AdoptarAsync(_ncf, SesionActual.Modo, ncfUsado, ct);
+    }
 
     /// <summary>Guarda la configuración de la secuencia (solo Admin) + auditoría.</summary>
     public async Task GuardarSecuenciaAsync(NcfSecuencia secuencia, CancellationToken ct = default)
@@ -77,7 +120,7 @@ public class NcfService
         CancellationToken ct = default)
     {
         if (!SesionActual.TienePermiso(Permisos.PrestamosCrear))
-            throw new UnauthorizedAccessException("No tenés permiso para asignar comprobantes fiscales.");
+            throw new UnauthorizedAccessException("No tienes permiso para asignar comprobantes fiscales.");
 
         var prestamo = await _prestamos.ObtenerPorIdAsync(prestamoId, ct)
             ?? throw new InvalidOperationException($"No existe el préstamo con id {prestamoId}.");
@@ -105,6 +148,8 @@ public class NcfService
             await transaccion.CommitAsync(ct);
 
             Log.Information("NCF {Ncf} asignado al préstamo {Codigo}", ncf, prestamo.Codigo);
+            if (!string.IsNullOrWhiteSpace(manual))
+                await AdoptarComoPredeterminadaAsync(ncf, ct);
             return ncf;
         }
         catch
