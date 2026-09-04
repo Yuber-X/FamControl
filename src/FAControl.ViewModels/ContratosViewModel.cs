@@ -33,17 +33,28 @@ public partial class ContratosViewModel : ObservableObject
     private readonly IDialogService _dialogos;
     private List<ContratoFila> _todos = [];
 
-    /// <summary>La App abre la vista completa/impresión del pagaré.</summary>
-    public event Action<PagareImpreso>? PagareSolicitado;
+    /// <summary>
+    /// La App abre la ventana con los TRES contratos del préstamo (2026-09-03).
+    /// Antes esto mandaba un solo <c>PagareImpreso</c> y abría el pagaré directo.
+    /// </summary>
+    public event Action<PagareNotarialImpreso, DuenoExpediente>? ContratosSolicitados;
 
     /// <summary>El shell navega a la pantalla del expediente de ese contrato.</summary>
     public event Action<long>? ArchivosSolicitados;
 
-    public ContratosViewModel(ContratoService contratos, IDialogService dialogos)
+    public ContratosViewModel(ContratoService contratos, IDialogService dialogos,
+        ExpedienteViewModel expediente)
     {
         _contratos = contratos;
         _dialogos = dialogos;
+        Expediente = expediente;
     }
+
+    /// <summary>
+    /// El expediente donde se archiva lo que se imprima (2026-09-03). La vista
+    /// se lo pasa a la ventana de contratos; aquí no se usa para nada más.
+    /// </summary>
+    public ExpedienteViewModel Expediente { get; }
 
     public ObservableCollection<ContratoFila> Contratos { get; } = [];
 
@@ -106,25 +117,30 @@ public partial class ContratosViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Abre el pagaré para verlo o imprimirlo. Antes esto salía de la vista
-    /// previa lateral; al sacarla, la acción pasó a la fila para no perder la
-    /// posibilidad de imprimir.
+    /// Abre los contratos del préstamo para verlos o imprimirlos. Antes esto
+    /// salía de la vista previa lateral; al sacarla, la acción pasó a la fila
+    /// para no perder la posibilidad de imprimir.
+    ///
+    /// Desde el 2026-09-03 no abre el pagaré directo: abre la ventana con los
+    /// tres documentos, cada uno con su vista previa e impresión.
     /// </summary>
     [RelayCommand]
-    private async Task VerPagareAsync(ContratoFila? fila)
+    private async Task VerContratosAsync(ContratoFila? fila)
     {
         if (fila is null)
             return;
 
         try
         {
-            var pagare = await _contratos.ArmarPagareAsync(fila.Id);
-            PagareSolicitado?.Invoke(pagare);
+            // Se arma el NOTARIAL porque trae adentro el pagaré común: los tres
+            // documentos salen de la misma consulta.
+            var contrato = await _contratos.ArmarNotarialAsync(fila.Id);
+            ContratosSolicitados?.Invoke(contrato, DuenoExpediente.DePrestamo(fila.Id));
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error armando el pagaré del contrato {Id}", fila.Id);
-            _dialogos.MostrarError("Contratos", $"No se pudo abrir el pagaré.\n\n{ex.Message}");
+            Log.Error(ex, "Error armando los contratos del préstamo {Id}", fila.Id);
+            _dialogos.MostrarError("Contratos", $"No se pudieron abrir los contratos.\n\n{ex.Message}");
         }
     }
 }

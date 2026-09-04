@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using FAControl.Models;
@@ -11,7 +11,7 @@ namespace FAControl.Views;
 /// entra a los archivos de ese contrato, que es la acción más frecuente, y el
 /// botón "Pagaré" abre la ventana de vista previa/impresión.
 ///
-/// La vista previa lateral del pagaré vivía acá y se quitó el 2026-08-01; con
+/// La vista previa lateral del pagaré vivía aquí y se quitó el 2026-08-01; con
 /// ella se fue el manejo del FlowDocument y, sin querer, la suscripción a
 /// PagareSolicitado. El evento quedó disparando al vacío: el botón no hacía
 /// nada. Ahora abre la misma ventana que usa PrestamoNuevoView.
@@ -40,19 +40,23 @@ public partial class ContratosView : UserControl
         Desenganchar();
         _vm = DataContext as ContratosViewModel;
         if (_vm is not null)
-            _vm.PagareSolicitado += MostrarPagare;
+            _vm.ContratosSolicitados += MostrarContratos;
     }
 
     private void Desenganchar()
     {
         if (_vm is null)
             return;
-        _vm.PagareSolicitado -= MostrarPagare;
+        _vm.ContratosSolicitados -= MostrarContratos;
     }
 
-    private void MostrarPagare(PagareImpreso pagare)
+    private void MostrarContratos(PagareNotarialImpreso contrato, DuenoExpediente dueno)
     {
-        new PagareWindow(pagare).MostrarDesde(this);
+        // El expediente viaja para que lo impreso quede archivado en la ficha
+        // del préstamo (2026-09-03). Antes no se pasaba, y por eso el archivado
+        // automático del pagaré nunca llegaba a ejecutarse.
+        new ContratosWindow(contrato, TipoContrato.Pagare, dueno, _vm?.Expediente)
+            .MostrarDesde(this);
     }
 
     private void Tabla_MouseDoubleClick(object sender, MouseButtonEventArgs e)

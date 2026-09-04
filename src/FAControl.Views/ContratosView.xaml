@@ -1,4 +1,4 @@
-<UserControl x:Class="FAControl.Views.ContratosView"
+﻿<UserControl x:Class="FAControl.Views.ContratosView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -9,7 +9,7 @@
 
        Cada fila lleva sus dos acciones:
          · Archivos → entra a la pantalla del expediente de ese contrato
-         · Pagaré   → abre el documento para verlo o imprimirlo
+         · Contratos → abre los tres documentos para verlos o imprimirlos
 
        El pagaré sigue accesible a propósito: sacar el panel no debía costar la
        posibilidad de imprimirlo. -->
@@ -61,10 +61,10 @@
                           Command="{Binding DataContext.VerArchivosCommand,
                                     RelativeSource={RelativeSource AncestorType=DataGrid}}"
                           CommandParameter="{Binding}" />
-                  <Button Content="Pagaré" Style="{DynamicResource Boton.Terciario}" FontSize="11"
+                  <Button Content="Contratos" Style="{DynamicResource Boton.Terciario}" FontSize="11"
                           Margin="6,0,0,0"
-                          ToolTip="Ver o imprimir el pagaré de este préstamo"
-                          Command="{Binding DataContext.VerPagareCommand,
+                          ToolTip="Ver o imprimir los contratos de este préstamo: el pagaré, el pagaré notarial o los dos juntos"
+                          Command="{Binding DataContext.VerContratosCommand,
                                     RelativeSource={RelativeSource AncestorType=DataGrid}}"
                           CommandParameter="{Binding}" />
                 </StackPanel>
