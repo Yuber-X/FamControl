@@ -200,7 +200,8 @@ public static class PagareNotarialDocumentFactory
             $"{NumeroALetras.PesosConCifra(d.MontoPrestado)}, dinero que {deudor} afirma haber " +
             $"recibido, en calidad de préstamo, de manos de {quienEntrego}. {deudor} se compromete " +
             $"a pagar en un plazo de {DescribirPlazo(n)}, de la manera siguiente: en " +
-            $"{NumeroALetras.ConCifra(n.CantidadCuotas)} cuotas {NombreModalidad(n.Modalidad)}, por " +
+            $"{NumeroALetras.ConCifra(n.CantidadCuotas, genero: NumeroALetras.GeneroPalabra.Femenino)} " +
+            $"cuotas {NombreModalidad(n.Modalidad)}, por " +
             $"la suma de {NumeroALetras.PesosConCifra(n.MontoCuota)} cada una, por concepto de " +
             $"intereses y capital, calculada a una tasa de un {NumeroALetras.Porcentaje(n.TasaMensual)} " +
             $"de interés mensual, iniciando los pagos {NumeroALetras.FechaEnTexto(n.FechaPrimerPago)} " +
@@ -213,13 +214,13 @@ public static class PagareNotarialDocumentFactory
         var deudor = Deudor(a);
         return
             $"Queda entendido entre las partes que si {deudor} incumple con el pago en la forma y " +
-            $"fechas establecidas, de {NumeroALetras.ConCifraDosDigitos(a.CuotasParaExigibilidad, capitalizar: false)} " +
+            $"fechas establecidas, de {NumeroALetras.ConCifraDosDigitos(a.CuotasParaExigibilidad, capitalizar: false, genero: NumeroALetras.GeneroPalabra.Femenino)} " +
             $"cuotas, LA ACREEDORA puede reclamar el monto total adeudado, tal y como si hubiese " +
             $"llegado el plazo final, así como también podrá ejecutar el presente pagaré sobre todos " +
             $"los bienes muebles e inmuebles, presentes y futuros, propiedad {DelDeudor(a)}. Además, " +
             $"los retrasos en el pago tendrán una gracia de " +
-            $"{NumeroALetras.ConCifraDosDigitos(a.DiasDeGracia, capitalizar: false)} días, y " +
-            $"transcurridos esos {NumeroALetras.ConCifraDosDigitos(a.DiasDeGracia, capitalizar: false)} " +
+            $"{NumeroALetras.ConCifraDosDigitos(a.DiasDeGracia, capitalizar: false, genero: NumeroALetras.GeneroPalabra.Masculino)} días, y " +
+            $"transcurridos esos {NumeroALetras.ConCifraDosDigitos(a.DiasDeGracia, capitalizar: false, genero: NumeroALetras.GeneroPalabra.Masculino)} " +
             $"días después de la fecha de pago se cargará una mora de un " +
             $"{NumeroALetras.Porcentaje(a.MoraPorcentaje).ToLower(CulturaRd)} del monto adeudado.";
     }
@@ -278,14 +279,15 @@ public static class PagareNotarialDocumentFactory
     private static string DelDeudor(DatosNotariales a) =>
         Genero.EsFemenino(a.Deudor.Sexo) ? "de LA DEUDORA" : "del DEUDOR";
 
-    private static string NombreModalidad(Modalidad modalidad) => modalidad switch
-    {
-        Modalidad.Diaria => "diarias",
-        Modalidad.Semanal => "semanales",
-        Modalidad.Quincenal => "quincenales",
-        Modalidad.Mensual => "mensuales",
-        _ => "de pago único"
-    };
+    private static string NombreModalidad(Modalidad modalidad, bool singular = false) =>
+        modalidad switch
+        {
+            Modalidad.Diaria => singular ? "diaria" : "diarias",
+            Modalidad.Semanal => singular ? "semanal" : "semanales",
+            Modalidad.Quincenal => singular ? "quincenal" : "quincenales",
+            Modalidad.Mensual => singular ? "mensual" : "mensuales",
+            _ => "de pago único"
+        };
 
     /// <summary>
     /// El plazo como lo escribe el acta: "Dos (02) años", "Dieciocho (18) meses".
@@ -306,16 +308,17 @@ public static class PagareNotarialDocumentFactory
         if (meses >= 12 && meses % 12 == 0)
         {
             var anios = meses / 12;
-            return $"{NumeroALetras.ConCifraDosDigitos(anios, capitalizar: false)} " +
+            return $"{NumeroALetras.ConCifraDosDigitos(anios, capitalizar: false, genero: NumeroALetras.GeneroPalabra.Masculino)} " +
                    (anios == 1 ? "año" : "años");
         }
         if (meses >= 1)
-            return $"{NumeroALetras.ConCifraDosDigitos(meses, capitalizar: false)} " +
+            return $"{NumeroALetras.ConCifraDosDigitos(meses, capitalizar: false, genero: NumeroALetras.GeneroPalabra.Masculino)} " +
                    (meses == 1 ? "mes" : "meses");
 
         // Plazos cortos (diario/semanal de pocas cuotas) se dicen en cuotas.
-        return $"{NumeroALetras.ConCifra(n.CantidadCuotas, capitalizar: false)} cuotas " +
-               NombreModalidad(n.Modalidad);
+        return $"{NumeroALetras.ConCifra(n.CantidadCuotas, capitalizar: false, genero: NumeroALetras.GeneroPalabra.Femenino)} " +
+               (n.CantidadCuotas == 1 ? "cuota " : "cuotas ") +
+               NombreModalidad(n.Modalidad, n.CantidadCuotas == 1);
     }
 
     /// <summary>

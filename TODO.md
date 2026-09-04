@@ -2,6 +2,34 @@
 
 > Actualizado: 2026-08-20 (ronda de la prueba de Veronica — version 2.0.2)
 
+## Barrido de errores y publicacion 2.1.0 (2026-09-04)
+
+- [x] Impresiones: el cierre de caja en Carta se recortaba en silencio
+      (PrintVisual no pagina). Nuevo `VisualPaginado`; solo se activa en hoja
+      suelta, en 80mm el rollo es continuo
+- [x] Calculos: auditoria de invariantes del REPARTO de pagos
+      (`AuditoriaRepartoDePagosTests`) — 4 metodos x 5 tasas x 5 plazos x 4
+      montos, con los bordes de cada cuota
+- [x] BUG que encontro esa auditoria: el mensaje de "el abono excede el capital"
+      mostraba el capital TOTAL en vez del que queda despues del cobro, y decia
+      cosas que no se entienden ("333.33 excede 1,000.00")
+- [x] El acta no apocopaba: "uno (01) mes" -> "un (01) mes", "veintiuno (21)
+      cuotas" -> "veintiuna (21) cuotas"
+- [x] Pruebas del migrador para 044 y 045 (el camino que corre en la PC del
+      cliente), incluyendo repetirlas sin romper nada
+- [x] Verificado sin hallazgos: redondeo (30/30 con AwayFromZero, cero float en
+      dinero), temporales (5/5 se borran en finally), simbolos de la interfaz
+- [x] Version 2.1.0: publish self-contained + `FAControl_Setup_2.1.0.exe` (846 MB)
+      y `FAControl_Update_2.1.0.exe` (61 MB)
+- [x] 595 tests en verde (430 servicios + 165 datos)
+
+### Pendiente de probar a mano
+- [ ] Instalar `FAControl_Update_2.1.0.exe` sobre la instalacion del cliente y
+      confirmar que arranca, migra la base sola y conserva licencia y ajustes
+- [ ] Cerrar caja con 4 cajeros e imprimir en Carta: tienen que salir todas las
+      hojas, no solo la primera
+- [ ] Cerrar caja en 80mm: tiene que salir de corrido, sin cortes
+
 ## Ronda del 2026-09-04
 
 Pedidos del txt de `Freelancer - Claude Active\FamControl`.

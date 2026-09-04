@@ -291,7 +291,12 @@ public class PagoServiceTests
         var cuotas = Enumerable.Range(1, 2).Select(n => CrearCuota(n)).ToList();
         // capital total pendiente = 2,000; abono 5,000 lo excede
         var accion = () => PagoService.DistribuirConAbono(1_600m, 5_000m, cuotas, new DateOnly(2026, 7, 15));
-        accion.Should().Throw<ArgumentException>().WithMessage("*excede el capital*");
+
+        // El mensaje nombra el capital que queda DESPUES del cobro base, no el
+        // total: decir el total confundia, porque el abono podia ser menor que
+        // ese numero y aun asi no entrar.
+        accion.Should().Throw<ArgumentException>()
+            .WithMessage("*capital que queda por abonar*");
     }
 
 }

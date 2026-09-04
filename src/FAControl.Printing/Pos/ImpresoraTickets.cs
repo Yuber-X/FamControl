@@ -14,15 +14,44 @@ namespace FAControl.Printing.Pos;
 public static class ImpresoraTickets
 {
     /// <summary>Abre el diálogo de impresión del sistema. True si se envió a imprimir.</summary>
-    public static bool Imprimir(FrameworkElement visual, string descripcion, int copias = 1)
+    /// <param name="paginar">
+    /// Repartir el visual en varias hojas si no entra en una.
+    ///
+    /// FALSE para el ticket: la térmica usa rollo continuo y ahí paginar sería
+    /// el error, porque cortaría el ticket en pedazos. TRUE para lo que va en
+    /// hoja suelta —el cierre de caja en Carta—, donde lo que no entra se
+    /// perdía sin decir nada: PrintVisual recorta en silencio.
+    /// </param>
+    public static bool Imprimir(FrameworkElement visual, string descripcion, int copias = 1,
+        bool paginar = false)
     {
         var dialogo = new PrintDialog();
         if (dialogo.ShowDialog() != true)
             return false;
 
+        if (paginar && NoEntraEnUnaHoja(visual, dialogo))
+        {
+            var documento = VisualPaginado.Paginar(visual,
+                dialogo.PrintableAreaWidth, dialogo.PrintableAreaHeight);
+            for (var i = 0; i < Math.Max(1, copias); i++)
+                dialogo.PrintDocument(documento.DocumentPaginator, descripcion);
+            return true;
+        }
+
         for (var i = 0; i < Math.Max(1, copias); i++)
             dialogo.PrintVisual(visual, descripcion);
         return true;
+    }
+
+    /// <summary>
+    /// El visual es más alto que el área imprimible. Se mide con el alto REAL
+    /// que reporta la impresora elegida, no con un valor fijo: no es lo mismo
+    /// Carta que A4, ni con márgenes distintos.
+    /// </summary>
+    private static bool NoEntraEnUnaHoja(FrameworkElement visual, PrintDialog dialogo)
+    {
+        var alto = Math.Max(visual.ActualHeight, visual.DesiredSize.Height);
+        return alto > 0 && dialogo.PrintableAreaHeight > 0 && alto > dialogo.PrintableAreaHeight;
     }
 
     /// <summary>

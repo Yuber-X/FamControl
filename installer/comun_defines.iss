@@ -1,4 +1,4 @@
-; =============================================================
+﻿; =============================================================
 ; FAControl — Datos compartidos por el INSTALADOR y el ACTUALIZADOR
 ;
 ; Se incluye al PRINCIPIO de los dos .iss, antes de [Setup], porque estos
@@ -7,7 +7,7 @@
 ; =============================================================
 
 #define AppNombre "FAControl"
-#define AppVersion "2.0.2"
+#define AppVersion "2.1.0"
 #define AppEditor "Yuber Santana"
 #define AppExe "FAControl.App.exe"
 #define AppTelefono "849-438-0242"

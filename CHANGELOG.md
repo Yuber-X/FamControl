@@ -2,7 +2,78 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
-## [No publicado] — El acta que no cambia, y el barrido de idioma
+## [2.1.0] — 2026-09-04 · Barrido de errores y publicación
+
+Repaso dirigido a lo que el cliente pidió mirar: **las impresiones, los archivos
+y los cálculos**.
+
+### Corregido
+
+- **El cierre de caja en hoja Carta se recortaba en silencio.** Se arma como una
+  pila de filas —una por cajero— y se mandaba con `PrintVisual`, que imprime lo
+  que entra en la hoja y descarta el resto sin error ni aviso. Con tres o cuatro
+  cajeros se perdía el total del día, que es justo lo que se archiva.
+
+  Se agregó `VisualPaginado`, que reparte cualquier visual alto en varias hojas
+  usando un VisualBrush con Viewbox absoluto (no reparenta nada, cosa importante
+  porque el visual ya cuelga de la ventana de vista previa). Solo se activa en
+  hoja suelta: en la térmica de 80mm el rollo es continuo y paginar sería el
+  error, porque cortaría el ticket en pedazos.
+
+- **Un mensaje de error mentía al cajero.** Al cobrar con abono a capital, si el
+  cobro base ya se había llevado todo el capital pendiente, el sistema decía
+  *"el abono (333.33) excede el capital pendiente del préstamo (1,000.00)"* —
+  que no se entiende, porque 333.33 no excede a 1,000. El tope real no es el
+  capital del préstamo sino el que queda **después** del cobro. Ahora el mensaje
+  dice cuánto queda de verdad, o avisa que no queda nada para abonar.
+
+  Lo encontró la auditoría nueva de reparto de pagos.
+
+- **El acta no apocopaba los números terminados en uno.** Decía *"uno (01) mes"*
+  y *"veintiuno (21) cuotas"*. En español se dice "un mes", "veintiún días",
+  "treinta y una cuotas", y en un papel que se firma ante notario eso se lee como
+  un descuido. `NumeroALetras` ahora sabe el género de la palabra que sigue, y
+  la modalidad concuerda en número ("una cuota mensual", no "una cuotas
+  mensuales").
+
+### Agregado
+
+- **Auditoría de invariantes del reparto de pagos** (`AuditoriaRepartoDePagosTests`).
+  El reparto ya había producido dos errores de plata que ninguna prueba de
+  ejemplo agarró. Esta recorre cientos de combinaciones de tabla y monto —los
+  cuatro métodos, tasas de 0% a 35%, plazos de 1 a 24, y montos que caen en los
+  bordes: un centavo, media cuota, una cuota exacta, la deuda entera— y verifica
+  lo que nunca puede romperse: que lo repartido sume exactamente lo pagado, que
+  no haya importes negativos, que no se cobre de más a una cuota, que el interés
+  aplicado no pase el pendiente, que las cuotas se cobren en orden, y que pagar
+  en dos veces termine igual que pagar de una.
+
+- **Pruebas del migrador para 044 y 045.** Son las que le van a correr solas al
+  cliente al abrir la versión nueva; el riesgo no es que fallen acá, es que
+  fallen en su PC con la base cargada. Se prueban contra una base puesta como la
+  suya —sin las columnas del acta y con la garantía en VARCHAR(255)— y se
+  verifica además que se puedan repetir sin romper nada, porque un arranque
+  interrumpido las deja a medias.
+
+### Verificado sin hallazgos
+
+- **Redondeo del dinero**: las 30 llamadas a `Math.Round` usan
+  `MidpointRounding.AwayFromZero`. No hay un solo `float` ni `double` en montos.
+- **Temporales**: los cinco archivos temporales que genera la app (PDF del
+  expediente, PNG de la impresión térmica) se borran en `finally`.
+- **Símbolos de la interfaz**: solo tres caracteres fuera del ASCII en toda la
+  aplicación, y los tres se dibujan bien con las fuentes que trae Windows.
+
+### Publicación
+
+Versión **2.1.0**: `FAControl_Setup_2.1.0.exe` (instalación completa, con MySQL
+y los demás prerequisitos) y `FAControl_Update_2.1.0.exe` (solo la aplicación,
+para la PC que ya la tiene). El actualizador no toca la base, la contraseña, la
+licencia, los ajustes ni los expedientes escaneados; el esquema lo pone al día
+la propia aplicación al arrancar.
+
+
+## [2.1.0] — 2026-09-04 · El acta que no cambia, y el barrido de idioma
 
 ### Corregido
 
@@ -90,7 +161,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hor
   (`pagará`, `tomará`, `devolverá`) quedaron intactos.
 
 
-## [No publicado] — Los tres contratos del préstamo
+## [2.1.0] — 2026-09-03 · Los tres contratos del préstamo
 
 Verónica (2026-08-26): *"Este es el contrato notarial, los dueños lo necesitan
 subido en el sistema, de las dos formas automático y editable"*. Jean Carlo
@@ -202,7 +273,7 @@ recargo por atraso: hoy el número se imprime en el contrato y nadie lo calcula.
 Si la van a cobrar de verdad, es una funcionalidad aparte.
 
 
-## [No publicado] — El comprobante fiscal se aprende solo
+## [2.1.0] — 2026-09-03 · El comprobante fiscal se aprende solo
 
 Pedido del cliente 2026-09-03. La idea de fondo: dejaron de numerar desde el
 talonario local y numeran desde el Facturador Gratuito de la DGII, así que la
@@ -277,7 +348,7 @@ No hubo cambios de esquema: todo se apoya en `ncf_secuencia`, que existe desde
 `012_ncf.sql` y quedó por modo en `030_ncf_por_modo.sql`.
 
 
-## [No publicado] — Comprobante fiscal por cobro y arreglos de impresión
+## [2.1.0] — 2026-08-27 · Comprobante fiscal por cobro y arreglos de impresión
 
 ### Corregido
 

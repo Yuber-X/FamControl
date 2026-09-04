@@ -51,6 +51,20 @@ public static class NumeroALetras
     ];
 
     /// <summary>
+    /// Género del sustantivo al que acompaña el número. Manda en la apócope:
+    /// se dice "un mes" y "una cuota", nunca "uno mes" ni "uno cuota".
+    /// </summary>
+    public enum GeneroPalabra
+    {
+        /// <summary>Suelto, sin sustantivo detrás: "veintiuno".</summary>
+        Solo,
+        /// <summary>"un mes", "veintiún días", "treinta y un años".</summary>
+        Masculino,
+        /// <summary>"una cuota", "veintiuna cuotas", "treinta y una cuotas".</summary>
+        Femenino
+    }
+
+    /// <summary>
     /// Un entero en letras: 24 → "veinticuatro", 250000 → "doscientos cincuenta mil".
     /// Soporta hasta billones, que es más de lo que cualquier pagaré va a pedir.
     /// </summary>
@@ -98,9 +112,10 @@ public static class NumeroALetras
     /// Un número acompañado de su cifra, como "Veinticuatro (24)". Es el patrón
     /// que la plantilla usa para cuotas, plazos, días de gracia y porcentajes.
     /// </summary>
-    public static string ConCifra(long numero, bool capitalizar = true)
+    public static string ConCifra(long numero, bool capitalizar = true,
+        GeneroPalabra genero = GeneroPalabra.Solo)
     {
-        var letras = De(numero);
+        var letras = Apocopar(De(numero), genero);
         if (capitalizar)
             letras = Capitalizar(letras);
         return $"{letras} ({numero})";
@@ -110,9 +125,10 @@ public static class NumeroALetras
     /// Igual que <see cref="ConCifra"/> pero rellenando la cifra con un cero a
     /// la izquierda, como escribe el notario: "Dos (02)", "Cinco (05)".
     /// </summary>
-    public static string ConCifraDosDigitos(long numero, bool capitalizar = true)
+    public static string ConCifraDosDigitos(long numero, bool capitalizar = true,
+        GeneroPalabra genero = GeneroPalabra.Solo)
     {
-        var letras = De(numero);
+        var letras = Apocopar(De(numero), genero);
         if (capitalizar)
             letras = Capitalizar(letras);
         return $"{letras} ({numero:00})";
@@ -150,6 +166,34 @@ public static class NumeroALetras
         $"el {ConCifra(fecha.Day)} de {Meses[fecha.Month]} del año {ConCifra(fecha.Year)}";
 
     // ================= interno =================
+
+    /// <summary>
+    /// Apócope de los números terminados en uno cuando les sigue un sustantivo:
+    /// "un mes", "veintiún días", "treinta y una cuotas". Sin esto el acta
+    /// decía "uno (01) mes" y "veintiuno (21) cuotas", que en un documento que
+    /// se firma ante notario se lee como un descuido.
+    ///
+    /// El once, el veintiuno acentuado y el "veintiún" van con su propia forma
+    /// porque el español los escribe distinto según lo que venga detrás.
+    /// </summary>
+    private static string Apocopar(string letras, GeneroPalabra genero)
+    {
+        if (genero == GeneroPalabra.Solo)
+            return letras;
+
+        var femenino = genero == GeneroPalabra.Femenino;
+
+        if (letras == "uno")
+            return femenino ? "una" : "un";
+        if (letras == "veintiuno")
+            return femenino ? "veintiuna" : "veintiún";
+        if (letras.EndsWith(" y uno", StringComparison.Ordinal))
+            return letras[..^3] + (femenino ? "una" : "un");
+        // "ciento uno", "mil uno", "veintiún mil uno"…
+        if (letras.EndsWith(" uno", StringComparison.Ordinal))
+            return letras[..^3] + (femenino ? "una" : "un");
+        return letras;
+    }
 
     /// <summary>
     /// Mayuscula inicial en CADA palabra, como escribe el notario: la plantilla

@@ -175,9 +175,19 @@ public class PagoService
 
         if (restante > 0m)
         {
-            var capitalTotal = cuotasImpagas.Sum(CapitalPendiente);
-            throw new ArgumentException(
-                $"El abono ({abono:N2}) excede el capital pendiente del préstamo ({capitalTotal:N2}).");
+            // El tope NO es el capital del préstamo: es el que queda DESPUÉS de
+            // lo que el monto base ya cubrió. Antes el mensaje mostraba el
+            // capital total y podía decir cosas como "el abono (333.33) excede
+            // el capital pendiente (1,000.00)" —que no se entiende, porque no lo
+            // excede— cuando lo que pasaba era que el cobro base se lo había
+            // llevado entero.
+            var disponible = cuotasImpagas.Sum(CapitalPendiente)
+                             - capitalYaAplicado.Values.Sum();
+            throw new ArgumentException(disponible <= 0m
+                ? $"El cobro ya cubre todo el capital pendiente, así que no queda nada para abonar. " +
+                  $"Quita el abono de {abono:N2} o cobra menos."
+                : $"El abono ({abono:N2}) pasa el capital que queda por abonar ({disponible:N2}) " +
+                  $"después de aplicar el cobro.");
         }
 
         return aplicaciones;

@@ -12,14 +12,22 @@ public partial class VistaPreviaWindow : Window
 {
     private readonly FrameworkElement _visual;
     private readonly string _descripcion;
+    private readonly bool _paginar;
 
-    public VistaPreviaWindow(FrameworkElement visual, string titulo, string descripcion)
+    /// <param name="paginar">
+    /// Repartir en varias hojas lo que no entre en una. Lo pide el cierre en
+    /// Carta: con varios cajeros el visual pasa el alto de la hoja y
+    /// PrintVisual recortaba la cola sin avisar.
+    /// </param>
+    public VistaPreviaWindow(FrameworkElement visual, string titulo, string descripcion,
+        bool paginar = false)
     {
         InitializeComponent();
         VentanaAjustable.Ajustar(this);
         Title = titulo;
         _visual = visual;
         _descripcion = descripcion;
+        _paginar = paginar;
         Contenedor.Content = visual;
     }
 
@@ -28,7 +36,7 @@ public partial class VistaPreviaWindow : Window
         try
         {
             // Diálogo del sistema: aquí el usuario elige impresora y papel
-            if (ImpresoraTickets.Imprimir(_visual, _descripcion))
+            if (ImpresoraTickets.Imprimir(_visual, _descripcion, paginar: _paginar))
                 Close();
         }
         catch (Exception ex)

@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using MySqlConnector;
 using FAControl.Data;
 
@@ -323,4 +323,90 @@ public class MigradorEsquemaTests : IAsyncLifetime
         (await EscalarAsync<long>("SELECT COUNT(*) FROM esquema_migracion;"))
             .Should().Be(scripts.Count, "el registro quedó completo");
     }
+    // ==================================================================
+    // 044 y 045 — el pagare notarial
+    // ==================================================================
+    // Son las que le van a correr solas al cliente al abrir la version nueva.
+    // El riesgo real no es que fallen los tests: es que fallen en su PC, con la
+    // base cargada, y la app quede sin poder abrir.
+
+    [Fact]
+    public async Task Migracion044_AgregaLasColumnasDelActaYAgrandaLaGarantia()
+    {
+        // La base arranca como la del cliente hoy: sin columnas del acta y con
+        // la garantía en VARCHAR(255).
+        await EjecutarAsync("ALTER TABLE prestamo MODIFY COLUMN garantia VARCHAR(255) NULL;");
+        foreach (var columna in new[] { "acto_no", "folio_no", "fecha_acto", "municipio_acto",
+                                        "deudor_sexo", "deudor_nacionalidad", "deudor_estado_civil",
+                                        "deudor_ocupacion", "cuotas_exigibilidad", "dias_gracia",
+                                        "mora_porcentaje", "registro_titulos" })
+            await EjecutarAsync($"ALTER TABLE prestamo DROP COLUMN {columna};");
+
+        var ejecutadas = await new MigradorEsquema(Cadena).AplicarPendientesAsync();
+
+        ejecutadas.Should().Contain("044_contrato_notarial.sql");
+        (await EscalarAsync<long>($"""
+            SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = '{Bd}' AND TABLE_NAME = 'prestamo'
+              AND COLUMN_NAME IN ('acto_no', 'deudor_sexo', 'mora_porcentaje', 'registro_titulos');
+            """)).Should().Be(4);
+
+        // Y la garantía tiene que aguantar la descripción del inmueble completa
+        (await EscalarAsync<string>($"""
+            SELECT DATA_TYPE FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = '{Bd}' AND TABLE_NAME = 'prestamo'
+              AND COLUMN_NAME = 'garantia';
+            """)).Should().Be("text");
+    }
+
+    [Fact]
+    public async Task Migracion045_CreaLaTablaDelActaCongelada()
+    {
+        await EjecutarAsync("DROP TABLE IF EXISTS prestamo_acta;");
+
+        var ejecutadas = await new MigradorEsquema(Cadena).AplicarPendientesAsync();
+
+        ejecutadas.Should().Contain("045_acta_congelada.sql");
+        (await EscalarAsync<long>($"""
+            SELECT COUNT(*) FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = '{Bd}' AND TABLE_NAME = 'prestamo_acta';
+            """)).Should().Be(1);
+        // Las 4 partes completas: notario, representante y dos testigos
+        (await EscalarAsync<long>($"""
+            SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = '{Bd}' AND TABLE_NAME = 'prestamo_acta'
+              AND COLUMN_NAME IN ('notario_nombre', 'repr_nombre', 't1_nombre', 't2_nombre',
+                                  'notario_sexo', 'repr_sexo', 't1_sexo', 't2_sexo');
+            """)).Should().Be(8);
+    }
+
+    [Fact]
+    public async Task LasDosNuevas_SePuedenCorrerDeNuevoSinRomperNada()
+    {
+        // Un arranque interrumpido deja una migración a medias y el siguiente la
+        // repite. Las dos tienen que aguantarlo.
+        //
+        // Con la MISMA conexión que usa el migrador: las migraciones usan
+        // variables de usuario (@existe := ...) para poder repetirse, y sin
+        // AllowUserVariables MySqlConnector las rechaza.
+        await using var conexion = new MySqlConnection(
+            new MySqlConnectionStringBuilder(Cadena) { AllowUserVariables = true }.ConnectionString);
+        await conexion.OpenAsync();
+
+        foreach (var nombre in new[] { "044_contrato_notarial.sql", "045_acta_congelada.sql" })
+        {
+            var limpio = MigradorEsquema.LimpiarParaProtocolo(
+                MigradorEsquema.ObtenerMigracionesEmbebidas()[nombre]);
+            for (var vuelta = 0; vuelta < 2; vuelta++)
+            {
+                foreach (var bloque in VerificadorBaseDatos.TrocearParaProtocolo(limpio))
+                {
+                    await using var cmd = conexion.CreateCommand();
+                    cmd.CommandText = bloque;
+                    await cmd.ExecuteNonQueryAsync();   // no debe tirar
+                }
+            }
+        }
+    }
+
 }

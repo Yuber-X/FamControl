@@ -425,7 +425,10 @@ public partial class App : Application
 
             new FAControl.Views.Pos.VistaPreviaWindow(visual,
                 $"Cierre de caja — {cierre.Fecha:dd/MM/yyyy}",
-                $"Cierre {cierre.Fecha:yyyy-MM-dd}")
+                $"Cierre {cierre.Fecha:yyyy-MM-dd}",
+                // Solo en hoja suelta. En 80mm el rollo es continuo y paginar
+                // cortaría el cierre en pedazos.
+                paginar: tamano == FAControl.Models.Pos.TamanoImpresion.Carta)
                 .MostrarDesdeLaPrincipal();
         }
         catch (Exception ex)

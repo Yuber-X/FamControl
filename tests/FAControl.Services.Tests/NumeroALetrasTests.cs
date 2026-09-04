@@ -1,4 +1,4 @@
-using FAControl.Common;
+﻿using FAControl.Common;
 using FluentAssertions;
 using Xunit;
 
@@ -147,4 +147,45 @@ public class NumeroALetrasTests
             NumeroALetras.FechaLarga(new DateOnly(2026, mes, 1))
                 .Should().NotContain("  ", $"el mes {mes} tiene que tener nombre");
     }
+
+    // ================= apócope =================
+    // "uno" se acorta delante de un sustantivo. Sin esto el acta decía
+    // "uno (01) mes" y "veintiuno (21) cuotas", que en un papel que se firma
+    // ante notario se lee como un descuido.
+
+    [Theory]
+    [InlineData(1, "Un (01)")]
+    [InlineData(21, "Veintiún (21)")]
+    // Mayúscula por palabra, igual que "Dos Mil Veintiséis" en la plantilla.
+    [InlineData(31, "Treinta y Un (31)")]
+    [InlineData(2, "Dos (02)")]
+    [InlineData(11, "Once (11)")]
+    public void ApocopeMasculina(long numero, string esperado) =>
+        NumeroALetras.ConCifraDosDigitos(numero,
+            genero: NumeroALetras.GeneroPalabra.Masculino).Should().Be(esperado);
+
+    [Theory]
+    [InlineData(1, "Una (1)")]
+    [InlineData(21, "Veintiuna (21)")]
+    [InlineData(31, "Treinta y Una (31)")]
+    [InlineData(24, "Veinticuatro (24)")]
+    public void ApocopeFemenina(long numero, string esperado) =>
+        NumeroALetras.ConCifra(numero,
+            genero: NumeroALetras.GeneroPalabra.Femenino).Should().Be(esperado);
+
+    [Fact]
+    public void SinSustantivoDetras_NoSeApocopa()
+    {
+        // "el número veintiuno", no "el número veintiún".
+        NumeroALetras.ConCifra(21).Should().Be("Veintiuno (21)");
+        NumeroALetras.ConCifra(1).Should().Be("Uno (1)");
+    }
+
+    [Theory]
+    [InlineData(101, "ciento un")]
+    [InlineData(1001, "mil un")]
+    public void ApocopeEnNumerosLargos(long numero, string esperado) =>
+        NumeroALetras.ConCifra(numero, capitalizar: false,
+            genero: NumeroALetras.GeneroPalabra.Masculino).Should().StartWith(esperado);
+
 }
