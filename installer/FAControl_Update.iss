@@ -1,4 +1,4 @@
-; =============================================================
+﻿; =============================================================
 ; FAControl — ACTUALIZADOR (Inno Setup 6)
 ; Compilar:  ISCC.exe FAControl_Update.iss
 ;
@@ -34,6 +34,9 @@ AppId={{7E2B9C41-5D8F-4A36-9B1C-FACONTROL}
 AppName={#AppNombre}
 AppVersion={#AppVersion}
 AppPublisher={#AppEditor}
+; Bloquea la instalación mientras FAControl esté abierto: sus DLL
+; estarían en uso y la copia quedaría a medias (ver comun_defines.iss).
+AppMutex={#AppMutexNombre}
 AppSupportPhone={#AppTelefono}
 DefaultDirName={autopf}\{#AppNombre}
 DefaultGroupName={#AppNombre}
@@ -68,8 +71,8 @@ RestartApplications=yes
 
 [Messages]
 spanish.WelcomeLabel1=Actualizar [name]
-spanish.WelcomeLabel2=Se va a actualizar [name] a la versión {#AppVersion} en este equipo.%n%nSolo se reemplaza el programa. NO se toca la base de datos, ni los clientes, préstamos, cobros o documentos escaneados. La contraseña de MySQL y la licencia también se conservan.%n%nSi FAControl está abierto, se cerrará solo.
-spanish.FinishedLabel=La actualización terminó. Al abrir FAControl por primera vez, el sistema acomoda la base de datos solo; puede tardar unos segundos más de lo normal.
+spanish.WelcomeLabel2=IMPORTANTE: cierre FAControl antes de continuar. Si el programa está abierto, Windows no puede reemplazar sus archivos y la actualización queda a medias.%n%nSe va a actualizar [name] a la versión {#AppVersion} en este equipo.%n%nSolo se reemplaza el programa. NO se toca la base de datos, ni los clientes, préstamos, cobros o documentos escaneados. La contraseña de MySQL y la licencia también se conservan.%n%nAl terminar, la pantalla de inicio de FAControl muestra abajo "Versión {#AppVersion}": ahí se confirma que entró.
+spanish.FinishedLabel=La actualización terminó. Al abrir FAControl por primera vez, el sistema acomoda la base de datos solo; puede tardar unos segundos más de lo normal.%n%nCompruebe abajo en la pantalla de inicio que diga "Versión {#AppVersion}".
 
 [Tasks]
 ; Va sin marcar: el acceso directo del escritorio ya existe de la instalación
@@ -105,6 +108,50 @@ begin
             RegKeyExists(HKEY_CURRENT_USER, RutaDesinstalacion());
 end;
 
+{ Después de copiar, se lee la versión del .exe que quedó en disco y se compara
+  con la que este actualizador traía.
+
+  Existe por lo del 2026-09-05: la actualización "terminó" pero la aplicación
+  siguió igual, porque los archivos estaban en uso y Windows los difirió al
+  próximo reinicio. Sin esta comprobación, el único que se entera es el cliente
+  —días después, y creyendo que la versión nueva no sirve. }
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  Instalada: String;
+  Destino: String;
+begin
+  if CurStep <> ssPostInstall then
+    Exit;
+
+  Destino := ExpandConstant('{app}\{#AppExe}');
+
+  if not FileExists(Destino) then
+  begin
+    MsgBox('La actualización no encontró FAControl en:' + #13#10 + Destino + #13#10 + #13#10 +
+           'Avise al soporte antes de seguir usando el programa: {#AppTelefono}.',
+           mbCriticalError, MB_OK);
+    Exit;
+  end;
+
+  if not GetVersionNumbersString(Destino, Instalada) then
+    Exit;   { sin datos de versión no se puede afirmar nada; no se molesta al usuario }
+
+  { OJO: ninguna línea puede EMPEZAR con #13 — el preprocesador de Inno lee un
+    '#' al principio de línea como una directiva y aborta la compilación. Por eso
+    los saltos de línea van siempre pegados al texto anterior. }
+  if Pos('{#AppVersion}', Instalada) <> 1 then
+    MsgBox('LA ACTUALIZACIÓN NO SE COMPLETÓ.' + #13#10 + #13#10 +
+           'FAControl quedó en la versión ' + Instalada +
+           ' y debía quedar en la {#AppVersion}.' + #13#10 + #13#10 +
+           'Casi siempre es porque el programa estaba abierto y Windows no pudo ' +
+           'reemplazar sus archivos.' + #13#10 + #13#10 +
+           'Qué hacer: cierre FAControl por completo (revise que no haya quedado ' +
+           'abierto en otra sesión de Windows) y vuelva a ejecutar esta ' +
+           'actualización.' + #13#10 + #13#10 +
+           'Si vuelve a pasar, llame al soporte: {#AppTelefono}.',
+           mbCriticalError, MB_OK);
+end;
+
 function InitializeSetup(): Boolean;
 begin
   Result := EstaInstalado();
@@ -112,6 +159,6 @@ begin
     MsgBox('En este equipo no hay ninguna instalación de FAControl.' + #13#10 + #13#10 +
            'Este archivo es solo para ACTUALIZAR una instalación que ya funciona: ' +
            'no trae MySQL, que es la base de datos que FAControl necesita.' + #13#10 + #13#10 +
-           'Para instalar por primera vez usá FAControl_Setup_{#AppVersion}.exe.',
+           'Para instalar por primera vez use FAControl_Setup_{#AppVersion}.exe.',
            mbCriticalError, MB_OK);
 end;

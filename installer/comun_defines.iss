@@ -7,10 +7,23 @@
 ; =============================================================
 
 #define AppNombre "FAControl"
-#define AppVersion "2.1.0"
+#define AppVersion "2.1.1"
 #define AppEditor "Yuber Santana"
 #define AppExe "FAControl.App.exe"
 #define AppTelefono "849-438-0242"
+
+; Mutex que levanta la aplicación al arrancar (App.NombreMutex). Es lo que le
+; permite al instalador saber que FAControl está ABIERTO.
+;
+; POR QUÉ (2026-09-05). La 2.1.0 se instaló en la PC del cliente y la aplicación
+; siguió igual que antes. La app estaba abierta, sus DLL bloqueados, y Windows
+; no los pudo reemplazar: los archivos quedaron diferidos al próximo reinicio.
+; El asistente igual dijo "terminó". CloseApplications solo no alcanzó — el
+; Restart Manager no siempre ve el proceso, y una ventana modal no se cierra.
+;
+; Con el mutex, Setup lo detecta ANTES de copiar y pide cerrar la aplicación.
+; Si alguna vez cambia, hay que cambiarlo TAMBIÉN en App.xaml.cs.
+#define AppMutexNombre "Global\FAControl.App.Instancia"
 
 ; OJO CON EL AppId: NO está acá a propósito.
 ;

@@ -2,6 +2,54 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/). Fechas en hora de República Dominicana.
 
+## [2.1.1] — 2026-09-05 · La actualización que decía "terminó" sin actualizar
+
+Reporte de Verónica: *"ya descargue la actualización, le di a extraer aquí y
+luego le di clic dos veces... cuando abro la aplicación está todo igual que
+antes"*.
+
+### Qué pasaba
+
+La aplicación estaba abierta cuando corrió el actualizador. Con FAControl en
+ejecución sus DLL quedan bloqueados y Windows no los puede reemplazar: en vez de
+fallar, **difiere los archivos al próximo reinicio**. El asistente igual muestra
+"la actualización terminó", el usuario nunca reinicia, y la versión nueva queda
+en el limbo — sin ningún error a la vista.
+
+El actualizador traía `CloseApplications`, que se apoya en el Restart Manager de
+Windows, pero ese mecanismo no siempre alcanza: no ve procesos de otra sesión
+cuando el instalador se eleva con otra cuenta, y a una ventana modal abierta no
+la cierra.
+
+### Corregido
+
+- **El actualizador comprueba que la copia haya entrado.** Al terminar lee la
+  versión del `FAControl.App.exe` que quedó en disco y la compara con la que
+  traía. Si no coincide, lo dice con todas las letras y explica qué hacer
+  (cerrar el programa y volver a ejecutar). Deja de ser un fallo silencioso.
+
+- **Mutex de instancia** (`Global\FAControl.App.Instancia`). La aplicación lo
+  levanta al arrancar y los dos instaladores lo declaran como `AppMutex`: Setup
+  detecta que FAControl está abierto **antes** de copiar nada y pide cerrarlo.
+
+  Esto protege de la PRÓXIMA actualización en adelante: la versión instalada hoy
+  todavía no tiene el mutex, así que para esta ronda lo que avisa es la
+  comprobación de arriba.
+
+- **La versión, a la vista.** La pantalla de inicio muestra abajo "Versión
+  2.1.1". Antes había que abrir Ayuda para saberla, y por eso nadie —ni el
+  cliente ni el soporte— podía confirmar si una actualización había entrado.
+
+- Los mensajes del asistente ahora piden cerrar FAControl **antes** de continuar
+  y dicen dónde comprobar la versión al terminar.
+
+### Nota para quien toque los .iss
+
+Ninguna línea del `[Code]` puede EMPEZAR con `#13`: el preprocesador de Inno lee
+un `#` al principio de línea como una directiva y aborta la compilación con
+"Unknown preprocessor directive". Los saltos de línea van pegados al texto
+anterior.
+
 ## [2.1.0] — 2026-09-04 · Barrido de errores y publicación
 
 Repaso dirigido a lo que el cliente pidió mirar: **las impresiones, los archivos

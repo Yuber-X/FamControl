@@ -2,6 +2,26 @@
 
 > Actualizado: 2026-08-20 (ronda de la prueba de Veronica — version 2.0.2)
 
+## Bug de la actualizacion 2.1.0 -> 2.1.1 (2026-09-05)
+
+Reporte de Veronica: instalo la actualizacion y "esta todo igual que antes".
+
+- [x] Causa: la app estaba abierta, sus DLL bloqueados, y Windows difirio los
+      archivos al proximo reinicio. El asistente igual decia "termino"
+- [x] El actualizador ahora VERIFICA la version del exe instalado al terminar y
+      avisa con todas las letras si no coincide
+- [x] Mutex de instancia + AppMutex en los dos .iss (protege de la proxima en
+      adelante: la version instalada hoy todavia no lo tiene)
+- [x] La version se ve en la pantalla de inicio, no solo en Ayuda
+- [x] Mensajes del asistente: piden cerrar FAControl ANTES de continuar
+- [x] 2.1.1 publicada y entregada
+
+### Pendiente de probar a mano
+- [ ] Con FAControl ABIERTO, correr el actualizador: tiene que avisar y no
+      quedarse a medias en silencio
+- [ ] Despues de actualizar, mirar abajo en la pantalla de inicio que diga
+      "Version 2.1.1"
+
 ## Barrido de errores y publicacion 2.1.0 (2026-09-04)
 
 - [x] Impresiones: el cierre de caja en Carta se recortaba en silencio

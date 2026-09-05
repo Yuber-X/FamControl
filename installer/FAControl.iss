@@ -1,4 +1,4 @@
-; =============================================================
+﻿; =============================================================
 ; FAControl — INSTALADOR COMPLETO (Inno Setup 6)
 ; Compilar:  ISCC.exe FAControl.iss
 ; Requiere:  ..\publish\ generado con:
@@ -38,6 +38,9 @@ AppId={{7E2B9C41-5D8F-4A36-9B1C-FACONTROL}
 AppName={#AppNombre}
 AppVersion={#AppVersion}
 AppPublisher={#AppEditor}
+; Bloquea la instalación mientras FAControl esté abierto: sus DLL
+; estarían en uso y la copia quedaría a medias (ver comun_defines.iss).
+AppMutex={#AppMutexNombre}
 AppSupportPhone={#AppTelefono}
 DefaultDirName={autopf}\{#AppNombre}
 DefaultGroupName={#AppNombre}

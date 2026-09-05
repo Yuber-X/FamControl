@@ -94,6 +94,12 @@ public partial class LauncherWindow : Window
     /// </summary>
     private void MostrarLicencia()
     {
+        // La version sale del ensamblado, no de una constante escrita a mano:
+        // asi no puede quedar desfasada de lo que de verdad esta instalado.
+        var version = System.Reflection.Assembly.GetEntryAssembly()?
+            .GetName().Version?.ToString(3) ?? "—";
+        TextoVersion.Text = $"Versión {version}";
+
         _codigosVm.RefrescarEstado();
         TextoLicencia.Text = _codigosVm.PermiteUsar
             ? $"Elige un modo para iniciar sesión.  ·  {_codigosVm.EstadoTexto}"

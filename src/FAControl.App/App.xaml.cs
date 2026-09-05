@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Threading;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using FAControl.Common;
@@ -19,10 +20,41 @@ public partial class App : Application
 {
     private ServiceProvider? _servicios;
 
+    /// <summary>
+    /// Nombre del mutex que marca "FAControl está corriendo". Lo levanta la
+    /// aplicación y lo BUSCA el instalador (AppMutex en los .iss).
+    ///
+    /// POR QUÉ EXISTE (2026-09-05). La actualización 2.1.0 se instaló en la PC
+    /// del cliente y la aplicación siguió igual que antes. La causa: la app
+    /// estaba abierta, sus DLL estaban bloqueados y Windows no los pudo
+    /// reemplazar. Inno traía CloseApplications, que se apoya en el Restart
+    /// Manager, pero ese mecanismo no siempre alcanza —no ve procesos de otra
+    /// sesión cuando el instalador se eleva con otra cuenta, y a una ventana
+    /// modal abierta no la cierra— y entonces DIFIERE los archivos bloqueados
+    /// al próximo reinicio de Windows. El asistente igual dice "terminó", el
+    /// usuario nunca reinicia, y la actualización queda en el limbo.
+    ///
+    /// Con el mutex declarado, Inno detecta la aplicación abierta ANTES de
+    /// copiar nada y pide cerrarla. Deja de ser un fallo silencioso.
+    ///
+    /// El nombre lleva "Global\" para que se vea entre sesiones de Windows:
+    /// en la PC del mostrador puede haber más de un usuario con sesión iniciada.
+    /// Si alguna vez cambia, hay que cambiarlo TAMBIÉN en los dos .iss.
+    /// </summary>
+    internal const string NombreMutex = @"Global\FAControl.App.Instancia";
+
+    /// <summary>
+    /// Se mantiene vivo mientras corre la aplicación. Es un campo y no una
+    /// variable local a propósito: si el recolector lo liberara, el instalador
+    /// dejaría de ver la aplicación abierta.
+    /// </summary>
+    private static Mutex? _mutex;
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
+        TomarElMutex();
         ConfigurarSerilog();
         ConfigurarRedDeSeguridad();
         _servicios = ConfigurarServicios();
@@ -45,6 +77,25 @@ public partial class App : Application
         // las ventanas van y vienen (launcher → login → shell → launcher...).
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         await CicloDeVidaAsync();
+    }
+
+    /// <summary>
+    /// Levanta el mutex que le avisa al instalador que la aplicación está
+    /// abierta. NUNCA impide arrancar: si el mutex no se puede crear (permisos
+    /// raros de la PC), la aplicación sigue su curso. Perder la señal es un
+    /// problema del día que se actualiza; no poder trabajar, uno de todos los días.
+    /// </summary>
+    private static void TomarElMutex()
+    {
+        try
+        {
+            _mutex = new Mutex(initiallyOwned: false, NombreMutex);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "No se pudo crear el mutex de instancia; el instalador " +
+                            "no va a poder detectar la aplicación abierta");
+        }
     }
 
     /// <summary>

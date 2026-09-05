@@ -206,6 +206,14 @@
                 ToolTip="Se puede volver a mostrar esta pantalla desde Configuración → Arranque" />
 
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+        <!-- La version, a la vista (2026-09-05). Sin esto, despues de actualizar
+             nadie podia saber si la version nueva habia entrado de verdad: el
+             cliente reporto "esta todo igual que antes" y no habia forma de
+             confirmarlo sin abrir Ayuda. -->
+        <TextBlock x:Name="TextoVersion"
+                   FontSize="12" Foreground="{StaticResource Launcher.TextoSuave}"
+                   VerticalAlignment="Center" Margin="0,0,18,0" />
+
         <TextBlock x:Name="TextoLicencia"
                    FontSize="12" Foreground="{StaticResource Launcher.TextoSuave}"
                    VerticalAlignment="Center" Margin="0,0,18,0" />
